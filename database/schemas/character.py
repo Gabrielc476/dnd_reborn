@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from bson import ObjectId
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 
 # Modelo para rolagens de dados
@@ -133,13 +133,14 @@ class Magic(BaseModel):
 class Character(BaseModel):
     id: Optional[ObjectId] = None
     user_id: ObjectId
-    campaign_id: Optional[ObjectId] = None
+    campaign_id: Optional[ObjectId] = None  # Referência à campanha (pode ser None se não estiver em campanha)
     basic_info: BasicInfo
     attributes: Attributes
     skills: Skills
     stats: Stats
     combat: Combat
     magic: Magic
+    calculated_stats: Optional[Dict] = None  # Estatísticas calculadas salvas no banco
 
     class Config:
         arbitrary_types_allowed = True
@@ -150,7 +151,7 @@ class Character(BaseModel):
 # Schema para criação de personagem
 class CharacterCreate(BaseModel):
     user_id: ObjectId
-    campaign_id: Optional[ObjectId] = None
+    campaign_id: Optional[ObjectId] = None  # ID da campanha (opcional)
     basic_info: BasicInfo
     attributes: Attributes
     skills: Skills

@@ -4,6 +4,7 @@ from services.character import (
     create_character_service,
     get_character_service,
     get_user_characters_service,
+    get_campaign_characters_service,
     update_character_service,
     delete_character_service
 )
@@ -74,6 +75,26 @@ def get_my_characters():
 
         # Chamar service de busca
         result = get_user_characters_service(user_id)
+
+        if result.get("success"):
+            return jsonify({
+                "characters": result.get("characters"),
+                "count": result.get("count")
+            }), 200
+        else:
+            return jsonify({"error": result.get("error")}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@character_bp.route('/campaign/<campaign_id>', methods=['GET'])
+@token_required
+def get_campaign_characters(campaign_id):
+    """Rota para buscar todos os personagens de uma campanha"""
+    try:
+        # Chamar service de busca
+        result = get_campaign_characters_service(campaign_id)
 
         if result.get("success"):
             return jsonify({

@@ -22,13 +22,24 @@ def create_character_service(data: Dict[str, Any]) -> Dict[str, Any]:
             if field not in data or not data[field]:
                 return {"success": False, "error": f"Campo '{field}' é obrigatório"}
 
+        # Converter user_id de string para ObjectId se necessário
+        if isinstance(data["user_id"], str):
+            try:
+                data["user_id"] = ObjectId(data["user_id"])
+            except Exception:
+                return {"success": False, "error": "user_id inválido"}
+
         # Validar se user_id é válido
-        if not ObjectId.is_valid(data["user_id"]):
-            return {"success": False, "error": "user_id inválido"}
+        if not isinstance(data["user_id"], ObjectId):
+            return {"success": False, "error": "user_id deve ser um ObjectId válido"}
 
         # Validar se campaign_id é válido (se fornecido)
-        if data.get("campaign_id") and not ObjectId.is_valid(data["campaign_id"]):
-            return {"success": False, "error": "campaign_id inválido"}
+        if data.get("campaign_id"):
+            if isinstance(data["campaign_id"], str):
+                try:
+                    data["campaign_id"] = ObjectId(data["campaign_id"])
+                except Exception:
+                    return {"success": False, "error": "campaign_id inválido"}
 
         # Validar dados com schema Pydantic
         try:
@@ -56,7 +67,7 @@ def create_character_service(data: Dict[str, Any]) -> Dict[str, Any]:
         character_data["calculated_stats"] = calculated_stats
 
         # Criar personagem no banco com estatísticas já calculadas
-        from repositories.character import characters_collection
+        from database.repositories.character import characters_collection
         result = characters_collection.insert_one(character_data)
         character_id = result.inserted_id
 
@@ -149,13 +160,20 @@ def update_character_service(character_id: str, data: Dict[str, Any]) -> Dict[st
         if not existing_character:
             return {"success": False, "error": "Personagem não encontrado"}
 
-        # Validar se user_id é válido (se fornecido)
-        if data.get("user_id") and not ObjectId.is_valid(data["user_id"]):
-            return {"success": False, "error": "user_id inválido"}
+        # Converter user_id de string para ObjectId se necessário
+        if data.get("user_id") and isinstance(data["user_id"], str):
+            try:
+                data["user_id"] = ObjectId(data["user_id"])
+            except Exception:
+                return {"success": False, "error": "user_id inválido"}
 
         # Validar se campaign_id é válido (se fornecido)
-        if data.get("campaign_id") and not ObjectId.is_valid(data["campaign_id"]):
-            return {"success": False, "error": "campaign_id inválido"}
+        if data.get("campaign_id"):
+            if isinstance(data["campaign_id"], str):
+                try:
+                    data["campaign_id"] = ObjectId(data["campaign_id"])
+                except Exception:
+                    return {"success": False, "error": "campaign_id inválido"}
 
         # Validar dados com schema Pydantic
         try:
@@ -183,7 +201,7 @@ def update_character_service(character_id: str, data: Dict[str, Any]) -> Dict[st
         update_data["calculated_stats"] = calculated_stats
 
         # Atualizar personagem no banco
-        from repositories.character import characters_collection
+        from database.repositories.character import characters_collection
         result = characters_collection.update_one(
             {"_id": ObjectId(character_id)},
             {"$set": update_data}
