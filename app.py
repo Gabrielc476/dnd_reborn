@@ -1,5 +1,6 @@
 from flask import Flask
 from routes.auth import auth_bp
+from routes.character import character_bp
 import os
 from dotenv import load_dotenv
 
@@ -13,6 +14,7 @@ app.config['SECRET_KEY'] = os.getenv('JWT_SECRET', 'sua-chave-secreta-aqui')
 
 # Registrar blueprints
 app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(character_bp, url_prefix='/characters')
 
 @app.route('/')
 def home():
