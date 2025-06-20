@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,11 +15,19 @@ import {
   Minus,
   Dices,
   Info,
+  TrendingUp,
+  BarChart3,
 } from "lucide-react";
+
+type HPMethod = "average" | "roll";
 
 export default function EquipmentStep() {
   const { characterData, updateCharacterData, getAbilityModifier } =
     useCharacterCreationContext();
+
+  const [hpMethod, setHpMethod] = useState<HPMethod>("average");
+  const [rollResults, setRollResults] = useState<number[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   const constitutionMod = getAbilityModifier(
     characterData.abilityScores.constitution
@@ -27,8 +36,24 @@ export default function EquipmentStep() {
     characterData.abilityScores.dexterity
   );
 
-  // Calculate HP based on class, level, and constitution
-  const calculateMaxHP = () => {
+  // Initialize HP on first load
+  useEffect(() => {
+    if (
+      !initialized &&
+      characterData.selectedClass &&
+      characterData.hitPoints === 0
+    ) {
+      const initialHP = calculateAverageHP();
+      updateCharacterData({
+        hitPoints: initialHP,
+        armorClass: calculateBaseAC(),
+      });
+      setInitialized(true);
+    }
+  }, [characterData.selectedClass, initialized]);
+
+  // Calculate HP based on different methods
+  const calculateAverageHP = () => {
     if (!characterData.selectedClass) return 1;
 
     const hitDie = characterData.selectedClass.hit_die;
@@ -39,28 +64,45 @@ export default function EquipmentStep() {
     return Math.max(1, baseHP + additionalLevels * avgPerLevel);
   };
 
+  const rollForHP = () => {
+    if (!characterData.selectedClass) return 1;
+
+    const hitDie = characterData.selectedClass.hit_die;
+    const newRolls: number[] = [];
+
+    // First level is always max
+    let totalHP = hitDie + constitutionMod;
+    newRolls.push(hitDie);
+
+    // Roll for additional levels
+    for (let i = 1; i < characterData.level; i++) {
+      const roll = Math.floor(Math.random() * hitDie) + 1;
+      const hpGain = Math.max(1, roll + constitutionMod); // Minimum 1 HP per level
+      totalHP += hpGain;
+      newRolls.push(roll);
+    }
+
+    setRollResults(newRolls);
+    return Math.max(1, totalHP);
+  };
+
   const calculateBaseAC = () => {
     return 10 + dexterityMod;
   };
 
-  const maxHP = calculateMaxHP();
   const baseAC = calculateBaseAC();
-
-  const adjustHP = (delta: number) => {
-    const newHP = Math.max(1, characterData.hitPoints + delta);
-    updateCharacterData({ hitPoints: newHP });
-  };
 
   const adjustAC = (delta: number) => {
     const newAC = Math.max(10, characterData.armorClass + delta);
     updateCharacterData({ armorClass: newAC });
   };
 
-  const resetToCalculated = () => {
-    updateCharacterData({
-      hitPoints: maxHP,
-      armorClass: baseAC,
-    });
+  const applyHPMethod = (method: HPMethod) => {
+    setHpMethod(method);
+
+    const calculatedHP =
+      method === "average" ? calculateAverageHP() : rollForHP();
+    updateCharacterData({ hitPoints: calculatedHP });
   };
 
   return (
@@ -75,6 +117,111 @@ export default function EquipmentStep() {
           Configure os pontos de vida, classe de armadura e equipamentos
         </p>
       </div>
+
+      {/* HP Method Selection */}
+      <Card className="bg-white/5 border-white/20">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <Label className="text-white text-lg font-semibold">
+              Método para Calcular Pontos de Vida
+            </Label>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Button
+                variant={hpMethod === "average" ? "default" : "outline"}
+                onClick={() => applyHPMethod("average")}
+                className="h-auto p-4 text-left flex flex-col items-start space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <BarChart3 className="w-5 h-5" />
+                  <span className="font-semibold text-sm">Média</span>
+                </div>
+                <p className="text-xs opacity-80">
+                  {calculateAverageHP()} HP - Balanceado e previsível
+                </p>
+              </Button>
+
+              <Button
+                variant={hpMethod === "roll" ? "default" : "outline"}
+                onClick={() => applyHPMethod("roll")}
+                className="h-auto p-4 text-left flex flex-col items-start space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <Dices className="w-5 h-5" />
+                  <span className="font-semibold text-sm">Rolagem</span>
+                </div>
+                <p className="text-xs opacity-80">
+                  Rolar dados - Tradicional e aleatório
+                </p>
+              </Button>
+            </div>
+
+            {/* Roll Results Display */}
+            {hpMethod === "roll" && rollResults.length > 0 && (
+              <div className="bg-green-500/10 border border-green-400/20 rounded-lg p-4">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Dices className="w-4 h-4 text-green-400" />
+                  <span className="text-green-200 font-medium text-sm">
+                    Resultados das Rolagens
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {rollResults.map((roll, index) => (
+                    <div
+                      key={index}
+                      className="bg-black/30 rounded px-2 py-1 text-sm"
+                    >
+                      <span className="text-gray-300">Nv.{index + 1}:</span>
+                      <span className="text-green-400 font-bold ml-1">
+                        {index === 0
+                          ? characterData.selectedClass?.hit_die
+                          : roll}
+                        {index === 0 ? " (máx)" : ""}
+                      </span>
+                      <span className="text-gray-400 text-xs ml-1">
+                        +{constitutionMod} CON
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => applyHPMethod("roll")}
+                  className="mt-3 bg-green-500/20 border-green-400/30 text-green-200 hover:bg-green-500/30"
+                >
+                  <Dices className="w-4 h-4 mr-2" />
+                  Rolar Novamente
+                </Button>
+              </div>
+            )}
+
+            {/* Method Explanation */}
+            <div className="bg-blue-500/10 border border-blue-400/20 rounded-lg p-3">
+              <div className="text-blue-200 text-sm">
+                {hpMethod === "average" && (
+                  <>
+                    <strong>Média:</strong> Primeiro nível = d
+                    {characterData.selectedClass?.hit_die || "X"} máximo + CON.
+                    Níveis seguintes ={" "}
+                    {Math.floor(
+                      (characterData.selectedClass?.hit_die || 6) / 2
+                    ) + 1}{" "}
+                    + CON por nível.
+                  </>
+                )}
+                {hpMethod === "roll" && (
+                  <>
+                    <strong>Rolagem:</strong> Primeiro nível = máximo. Níveis
+                    seguintes = 1d{characterData.selectedClass?.hit_die || "X"}{" "}
+                    + CON (mín. 1 por nível).
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Vital Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -97,35 +244,19 @@ export default function EquipmentStep() {
                   <div className="text-red-200 text-sm">HP Atual</div>
                 </div>
 
-                <div className="flex items-center justify-center space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => adjustHP(-1)}
-                    disabled={characterData.hitPoints <= 1}
-                    className="w-8 h-8 p-0 bg-white/5 border-white/20"
-                  >
-                    <Minus className="w-4 h-4" />
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => adjustHP(1)}
-                    className="w-8 h-8 p-0 bg-white/5 border-white/20"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                </div>
-
+                {/* Method info display */}
                 <div className="bg-black/20 rounded-lg p-3 text-sm">
-                  <div className="text-purple-200">Sugerido (Média):</div>
-                  <div className="text-white font-medium">{maxHP} HP</div>
+                  <div className="text-purple-200">
+                    {hpMethod === "average" && "Método: Média"}
+                    {hpMethod === "roll" && "Método: Rolagem"}
+                  </div>
+                  <div className="text-white font-medium">
+                    Nível {characterData.level} - d
+                    {characterData.selectedClass?.hit_die || "X"} + CON
+                  </div>
                   <div className="text-gray-300 text-xs mt-1">
-                    {characterData.selectedClass?.hit_die}d
-                    {characterData.selectedClass?.hit_die} + CON (
-                    {constitutionMod >= 0 ? "+" : ""}
-                    {constitutionMod})
+                    CON: {constitutionMod >= 0 ? "+" : ""}
+                    {constitutionMod}
                   </div>
                 </div>
               </div>
@@ -187,27 +318,44 @@ export default function EquipmentStep() {
         </Card>
       </div>
 
-      {/* Calculation Helper */}
+      {/* Quick Reset Helper */}
       <Card className="bg-white/5 border-white/20">
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div>
               <Label className="text-white text-lg font-semibold">
-                Valores Calculados
+                Recalcular Valores
               </Label>
               <p className="text-purple-200 text-sm">
-                Use os valores sugeridos baseados nos seus atributos
+                Aplique novamente os valores baseados no método selecionado
               </p>
             </div>
 
-            <Button
-              onClick={resetToCalculated}
-              variant="outline"
-              className="bg-white/5 border-white/20 text-white hover:bg-white/10"
-            >
-              <Calculator className="w-4 h-4 mr-2" />
-              Usar Sugeridos
-            </Button>
+            <div className="flex space-x-2">
+              <Button
+                onClick={() => {
+                  const calculatedHP =
+                    hpMethod === "average" ? calculateAverageHP() : rollForHP();
+                  updateCharacterData({ hitPoints: calculatedHP });
+                }}
+                variant="outline"
+                size="sm"
+                className="bg-red-500/20 border-red-400/30 text-red-200 hover:bg-red-500/30"
+              >
+                <Heart className="w-4 h-4 mr-2" />
+                Recalcular HP
+              </Button>
+
+              <Button
+                onClick={() => updateCharacterData({ armorClass: baseAC })}
+                variant="outline"
+                size="sm"
+                className="bg-blue-500/20 border-blue-400/30 text-blue-200 hover:bg-blue-500/30"
+              >
+                <Shield className="w-4 h-4 mr-2" />
+                Resetar CA
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -287,6 +435,48 @@ export default function EquipmentStep() {
                   {13 + Math.min(2, dexterityMod)}
                 </div>
                 <div className="text-gray-300 text-xs">13 + DEX (máx 2)</div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* HP Methods Comparison */}
+      <Card className="bg-white/5 border-white/20">
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            <Label className="text-white text-lg font-semibold">
+              Comparação de Métodos de HP
+            </Label>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-black/20 rounded-lg p-4 text-center">
+                <div className="text-blue-400 font-medium mb-2">Média</div>
+                <div className="text-2xl font-bold text-white mb-1">
+                  {calculateAverageHP()}
+                </div>
+                <div className="text-gray-300 text-xs">
+                  Balanceado e previsível
+                </div>
+              </div>
+
+              <div className="bg-black/20 rounded-lg p-4 text-center">
+                <div className="text-yellow-400 font-medium mb-2">Rolagem</div>
+                <div className="text-2xl font-bold text-white mb-1">
+                  {rollResults.length > 0 ? characterData.hitPoints : "?"}
+                </div>
+                <div className="text-gray-300 text-xs">
+                  Tradicional e aleatório
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-500/10 border border-blue-400/20 rounded-lg p-3">
+              <div className="text-blue-200 text-sm">
+                <strong>Média:</strong> Mais consistente e recomendado para
+                jogadores iniciantes.
+                <strong>Rolagem:</strong> Tradicional do D&D, mas pode resultar
+                em valores muito altos ou baixos.
               </div>
             </div>
           </div>
