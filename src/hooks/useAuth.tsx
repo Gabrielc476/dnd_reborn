@@ -1,7 +1,7 @@
 // ===========================
 // USE AUTH HOOK
 // ===========================
-
+"use client";
 import {
   useState,
   useEffect,
