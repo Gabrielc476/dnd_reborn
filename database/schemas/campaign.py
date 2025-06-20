@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from bson import ObjectId
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -15,6 +15,8 @@ class CampaignStatus(str, Enum):
 
 class CampaignPlayer(BaseModel):
     """Informações de um jogador na campanha"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     user_id: ObjectId
     character_id: Optional[ObjectId] = None
     joined_date: datetime = Field(default_factory=datetime.utcnow)
@@ -24,6 +26,8 @@ class CampaignPlayer(BaseModel):
 
 class Encounter(BaseModel):
     """Modelo para encontros/combates"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
     difficulty: str = Field(default="medium")  # "easy", "medium", "hard", "deadly"
@@ -37,6 +41,8 @@ class Encounter(BaseModel):
 
 class LootItem(BaseModel):
     """Item de loot/tesouro"""
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = Field(None, max_length=300)
     item_type: str = Field(default="misc")  # "weapon", "armor", "magic", "misc", "gold"
@@ -50,6 +56,11 @@ class LootItem(BaseModel):
 
 # Modelo completo da campanha
 class Campaign(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        use_enum_values=True
+    )
+
     id: Optional[ObjectId] = None
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
@@ -89,14 +100,11 @@ class Campaign(BaseModel):
     # Notas gerais do mestre
     gm_notes: Optional[str] = Field(None, max_length=2000)
 
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        use_enum_values = True
-
 
 # Schema para criação de campanha
 class CampaignCreate(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
     game_master_id: ObjectId
@@ -108,12 +116,14 @@ class CampaignCreate(BaseModel):
     recruitment_message: Optional[str] = None
     gm_notes: Optional[str] = Field(None, max_length=2000)
 
-    class Config:
-        arbitrary_types_allowed = True
-
 
 # Schema para atualização de campanha
 class CampaignUpdate(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        use_enum_values=True
+    )
+
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
     status: Optional[CampaignStatus] = None
@@ -125,13 +135,11 @@ class CampaignUpdate(BaseModel):
     recruitment_message: Optional[str] = None
     gm_notes: Optional[str] = Field(None, max_length=2000)
 
-    class Config:
-        arbitrary_types_allowed = True
-        use_enum_values = True
-
 
 # Schema para resposta da API
 class CampaignResponse(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     id: str
     name: str
     description: Optional[str]
@@ -151,12 +159,11 @@ class CampaignResponse(BaseModel):
     recruitment_message: Optional[str]
     gm_notes: Optional[str]
 
-    class Config:
-        use_enum_values = True
-
 
 # Schema para listagem de campanhas (versão resumida)
 class CampaignSummary(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     id: str
     name: str
     game_master_id: str
@@ -167,24 +174,19 @@ class CampaignSummary(BaseModel):
     tags: List[str]
     is_public: bool
 
-    class Config:
-        use_enum_values = True
-
 
 # Schema para adicionar jogador à campanha
 class AddPlayerRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     user_id: ObjectId
     character_id: Optional[ObjectId] = None
-
-    class Config:
-        arbitrary_types_allowed = True
 
 
 # Schema para atualizar informações de jogador
 class UpdatePlayerRequest(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     character_id: Optional[ObjectId] = None
     is_active: Optional[bool] = None
     notes: Optional[str] = None
-
-    class Config:
-        arbitrary_types_allowed = True

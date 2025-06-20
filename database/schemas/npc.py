@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from bson import ObjectId
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -43,6 +43,13 @@ class NPCAbility(BaseModel):
 
 class NPC(BaseModel):
     """Modelo completo para NPCs"""
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        use_enum_values=True,
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     id: Optional[ObjectId] = None
     campaign_id: ObjectId  # Campanha à qual o NPC pertence
 
@@ -87,15 +94,16 @@ class NPC(BaseModel):
     created_date: datetime = Field(default_factory=datetime.utcnow)
     updated_date: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        use_enum_values = True
-        allow_population_by_field_name = True
-
 
 # Schema para criação de NPC
 class NPCCreate(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        use_enum_values=True,
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     campaign_id: ObjectId
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
@@ -115,14 +123,16 @@ class NPCCreate(BaseModel):
     secrets: Optional[str] = None
     gm_notes: Optional[str] = Field(None, max_length=1000)
 
-    class Config:
-        arbitrary_types_allowed = True
-        use_enum_values = True
-        allow_population_by_field_name = True
-
 
 # Schema para atualização de NPC
 class NPCUpdate(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        use_enum_values=True,
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
     race: Optional[str] = None
@@ -143,14 +153,15 @@ class NPCUpdate(BaseModel):
     is_active: Optional[bool] = None
     gm_notes: Optional[str] = Field(None, max_length=1000)
 
-    class Config:
-        arbitrary_types_allowed = True
-        use_enum_values = True
-        allow_population_by_field_name = True
-
 
 # Schema para resposta de NPC
 class NPCResponse(BaseModel):
+    model_config = ConfigDict(
+        use_enum_values=True,
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     id: str
     campaign_id: str
     name: str
@@ -175,13 +186,11 @@ class NPCResponse(BaseModel):
     created_date: datetime
     updated_date: datetime
 
-    class Config:
-        use_enum_values = True
-        allow_population_by_field_name = True
-
 
 # Schema resumido para listagem de NPCs
 class NPCSummary(BaseModel):
+    model_config = ConfigDict(use_enum_values=True)
+
     id: str
     campaign_id: str
     name: str
@@ -189,6 +198,3 @@ class NPCSummary(BaseModel):
     location: Optional[str]
     is_alive: bool
     is_active: bool
-
-    class Config:
-        use_enum_values = True

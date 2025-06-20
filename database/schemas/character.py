@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from bson import ObjectId
 from typing import Optional, List, Dict
 
@@ -57,15 +57,17 @@ class Attributes(BaseModel):
 
 # Modelo para informações básicas do personagem
 class BasicInfo(BaseModel):
+    model_config = ConfigDict(
+        validate_by_name=True,  # Era allow_population_by_field_name no v1
+        populate_by_name=True  # Permite usar tanto field name quanto alias
+    )
+
     name: str = Field(..., min_length=2, max_length=50)
     race: str
     character_class: str = Field(..., alias="class")
     level: int = Field(default=1, ge=1, le=20)
     background: str
     alignment: Optional[str] = None
-
-    class Config:
-        allow_population_by_field_name = True
 
 
 # Modelo para perícias do D&D
@@ -131,6 +133,12 @@ class Magic(BaseModel):
 
 # Modelo completo do personagem
 class Character(BaseModel):
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     id: Optional[ObjectId] = None
     user_id: ObjectId
     campaign_id: Optional[ObjectId] = None  # Referência à campanha (pode ser None se não estiver em campanha)
@@ -142,14 +150,15 @@ class Character(BaseModel):
     magic: Magic
     calculated_stats: Optional[Dict] = None  # Estatísticas calculadas salvas no banco
 
-    class Config:
-        arbitrary_types_allowed = True
-        json_encoders = {ObjectId: str}
-        allow_population_by_field_name = True
-
 
 # Schema para criação de personagem
 class CharacterCreate(BaseModel):
+    model_config = ConfigDict(
+        validate_by_name=True,
+        populate_by_name=True,
+        arbitrary_types_allowed=True
+    )
+
     user_id: ObjectId
     campaign_id: Optional[ObjectId] = None  # ID da campanha (opcional)
     basic_info: BasicInfo
@@ -159,13 +168,14 @@ class CharacterCreate(BaseModel):
     combat: Combat
     magic: Magic
 
-    class Config:
-        allow_population_by_field_name = True
-        arbitrary_types_allowed = True
-
 
 # Schema para resposta
 class CharacterResponse(BaseModel):
+    model_config = ConfigDict(
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     id: str
     user_id: str
     campaign_id: Optional[str] = None
@@ -176,12 +186,14 @@ class CharacterResponse(BaseModel):
     combat: Combat
     magic: Magic
 
-    class Config:
-        allow_population_by_field_name = True
-
 
 # Schema para listar personagens (versão resumida)
 class CharacterSummary(BaseModel):
+    model_config = ConfigDict(
+        validate_by_name=True,
+        populate_by_name=True
+    )
+
     id: str
     user_id: str
     campaign_id: Optional[str] = None
@@ -189,6 +201,3 @@ class CharacterSummary(BaseModel):
     race: str
     character_class: str = Field(alias="class")
     level: int
-
-    class Config:
-        allow_population_by_field_name = True
