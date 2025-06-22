@@ -55,6 +55,25 @@ class Attributes(BaseModel):
     charisma: int = Field(..., ge=3, le=20)
 
 
+# Modelo para informações de raça e subraça
+class RaceInfo(BaseModel):
+    """Informações sobre a raça selecionada"""
+    race_name: str
+    race_index: str
+    subrace_name: Optional[str] = None
+    subrace_index: Optional[str] = None
+    speed: int = 30
+    size: str = "Medium"
+
+    # Bônus de atributos combinados (raça + subraça)
+    ability_bonuses: Dict[str, int] = {}  # ex: {"strength": 1, "constitution": 2}
+
+    # Traços raciais
+    racial_traits: List[str] = []
+    languages: List[str] = []
+    proficiencies: List[str] = []
+
+
 # Modelo para informações básicas do personagem
 class BasicInfo(BaseModel):
     model_config = ConfigDict(
@@ -63,7 +82,7 @@ class BasicInfo(BaseModel):
     )
 
     name: str = Field(..., min_length=2, max_length=50)
-    race: str
+    race_info: RaceInfo  # ← NOVO: substitui race individual
     character_class: str = Field(..., alias="class")
     level: int = Field(default=1, ge=1, le=20)
     background: str
@@ -142,7 +161,7 @@ class Character(BaseModel):
     id: Optional[ObjectId] = None
     user_id: ObjectId
     campaign_id: Optional[ObjectId] = None  # Referência à campanha (pode ser None se não estiver em campanha)
-    basic_info: BasicInfo
+    basic_info: BasicInfo  # ← ATUALIZADO: agora inclui race_info com subraça
     attributes: Attributes
     skills: Skills
     stats: Stats
@@ -161,7 +180,7 @@ class CharacterCreate(BaseModel):
 
     user_id: ObjectId
     campaign_id: Optional[ObjectId] = None  # ID da campanha (opcional)
-    basic_info: BasicInfo
+    basic_info: BasicInfo  # ← ATUALIZADO: inclui race_info
     attributes: Attributes
     skills: Skills
     stats: Stats
@@ -179,7 +198,7 @@ class CharacterResponse(BaseModel):
     id: str
     user_id: str
     campaign_id: Optional[str] = None
-    basic_info: BasicInfo
+    basic_info: BasicInfo  # ← ATUALIZADO: inclui race_info
     attributes: Attributes
     skills: Skills
     stats: Stats
@@ -198,6 +217,99 @@ class CharacterSummary(BaseModel):
     user_id: str
     campaign_id: Optional[str] = None
     name: str
-    race: str
+    race_name: str  # ← NOVO: nome da raça
+    subrace_name: Optional[str] = None  # ← NOVO: nome da subraça
     character_class: str = Field(alias="class")
     level: int
+
+
+# ===========================
+# FUNÇÕES AUXILIARES PARA SUBRAÇAS
+# ===========================
+
+def create_race_info_from_frontend_data(race_data: dict, subrace_data: Optional[dict] = None) -> RaceInfo:
+    """
+    Cria RaceInfo a partir dos dados do frontend
+
+    Args:
+        race_data: Dados da raça do frontend (DndRace)
+        subrace_data: Dados da subraça do frontend (DndSubrace, opcional)
+
+    Returns:
+        RaceInfo: Objeto com informações combinadas da raça e subraça
+    """
+    # Combinar bônus de atributos
+    combined_bonuses = {}
+
+    # Adicionar bônus da raça
+    for bonus in race_data.get("ability_bonuses", []):
+        ability_key = bonus["ability_score"]["index"]
+        combined_bonuses[ability_key] = combined_bonuses.get(ability_key, 0) + bonus["bonus"]
+
+    # Adicionar bônus da subraça (se existir)
+    if subrace_data:
+        for bonus in subrace_data.get("ability_bonuses", []):
+            ability_key = bonus["ability_score"]["index"]
+            combined_bonuses[ability_key] = combined_bonuses.get(ability_key, 0) + bonus["bonus"]
+
+    # Combinar traços raciais
+    racial_traits = []
+    if "traits" in race_data:
+        racial_traits.extend([trait["name"] for trait in race_data["traits"]])
+    if subrace_data and "racial_traits" in subrace_data:
+        racial_traits.extend([trait["name"] for trait in subrace_data["racial_traits"]])
+
+    # Combinar proficiências
+    proficiencies = []
+    if "starting_proficiencies" in race_data:
+        proficiencies.extend([prof["name"] for prof in race_data["starting_proficiencies"]])
+    if subrace_data and "starting_proficiencies" in subrace_data:
+        proficiencies.extend([prof["name"] for prof in subrace_data["starting_proficiencies"]])
+
+    # Combinar linguagens
+    languages = []
+    if "languages" in race_data:
+        languages.extend([lang["name"] for lang in race_data["languages"]])
+    if subrace_data and "languages" in subrace_data:
+        languages.extend([lang["name"] for lang in subrace_data["languages"]])
+
+    return RaceInfo(
+        race_name=race_data["name"],
+        race_index=race_data["index"],
+        subrace_name=subrace_data["name"] if subrace_data else None,
+        subrace_index=subrace_data["index"] if subrace_data else None,
+        speed=race_data.get("speed", 30),
+        size=race_data.get("size", "Medium"),
+        ability_bonuses=combined_bonuses,
+        racial_traits=racial_traits,
+        languages=languages,
+        proficiencies=proficiencies
+    )
+
+
+def get_combined_ability_bonuses(race_info: RaceInfo) -> Dict[str, int]:
+    """
+    Retorna os bônus de atributos combinados da raça e subraça
+
+    Args:
+        race_info: Informações da raça/subraça do personagem
+
+    Returns:
+        Dict[str, int]: Dicionário com os bônus por atributo
+    """
+    return race_info.ability_bonuses.copy()
+
+
+def format_race_display_name(race_info: RaceInfo) -> str:
+    """
+    Formata o nome da raça para exibição
+
+    Args:
+        race_info: Informações da raça/subraça
+
+    Returns:
+        str: Nome formatado (ex: "Elfo (Alto Elfo)" ou apenas "Humano")
+    """
+    if race_info.subrace_name:
+        return f"{race_info.race_name} ({race_info.subrace_name})"
+    return race_info.race_name
