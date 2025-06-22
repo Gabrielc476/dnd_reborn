@@ -15,6 +15,8 @@ import {
   ChevronDown,
   ChevronUp,
   Dice6,
+  Crown,
+  Info,
 } from "lucide-react";
 
 import SelectionCard from "../ui/SelectionCard";
@@ -29,14 +31,18 @@ export default function BasicInfoStep() {
     backgrounds,
     isLoadingRaces,
     isLoadingClasses,
+    isLoadingSubraces,
     raceSearch,
     setRaceSearch,
     classSearch,
     setClassSearch,
+    getAvailableSubraces,
+    getCombinedAbilityBonuses,
   } = useCharacterCreationContext();
 
   const [expandedSections, setExpandedSections] = useState({
     race: true,
+    subrace: true,
     class: true,
     background: true,
   });
@@ -82,6 +88,13 @@ export default function BasicInfoStep() {
     const randomName = names[Math.floor(Math.random() * names.length)];
     updateCharacterData({ name: randomName });
   };
+
+  // Get available subraces for the selected race
+  const availableSubraces = getAvailableSubraces();
+  const hasSubraces = availableSubraces.length > 0;
+
+  // Get combined ability bonuses from race and subrace
+  const combinedBonuses = getCombinedAbilityBonuses();
 
   return (
     <div className="space-y-8">
@@ -166,8 +179,15 @@ export default function BasicInfoStep() {
                       selected={
                         characterData.selectedRace?.index === race.index
                       }
-                      onClick={() =>
-                        updateCharacterData({ selectedRace: race })
+                      onClick={() => {
+                        updateCharacterData({ selectedRace: race });
+                        // Reset subrace when race changes
+                        if (characterData.selectedSubrace) {
+                          updateCharacterData({ selectedSubrace: null });
+                        }
+                      }}
+                      badge={
+                        race.subraces.length > 0 ? "Com Subraças" : undefined
                       }
                     />
                   ))}
@@ -177,6 +197,97 @@ export default function BasicInfoStep() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Subrace Selection - Only show if race has subraces */}
+      {characterData.selectedRace && hasSubraces && (
+        <Card className="bg-white/5 border-white/20">
+          <CardContent className="p-6">
+            <div className="space-y-4">
+              <div
+                className="flex items-center justify-between cursor-pointer"
+                onClick={() => toggleSection("subrace")}
+              >
+                <div className="flex items-center space-x-2">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  <Label className="text-white text-lg font-semibold">
+                    Subraça de {characterData.selectedRace.name}
+                  </Label>
+                </div>
+                {expandedSections.subrace ? (
+                  <ChevronUp className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <ChevronDown className="w-5 h-5 text-amber-400" />
+                )}
+              </div>
+
+              {expandedSections.subrace && (
+                <div className="space-y-4">
+                  {isLoadingSubraces ? (
+                    <div className="text-center py-4">
+                      <div className="w-6 h-6 border-2 border-amber-300 border-t-white rounded-full animate-spin mx-auto"></div>
+                      <p className="text-amber-200 text-sm mt-2">
+                        Carregando subraças...
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {availableSubraces.map((subrace) => (
+                        <SelectionCard
+                          key={subrace.index}
+                          title={subrace.name}
+                          description={subrace.desc.substring(0, 100) + "..."}
+                          details={subrace.ability_bonuses
+                            .map(
+                              (bonus) =>
+                                `+${bonus.bonus} ${bonus.ability_score.name}`
+                            )
+                            .join(", ")}
+                          selected={
+                            characterData.selectedSubrace?.index ===
+                            subrace.index
+                          }
+                          onClick={() =>
+                            updateCharacterData({ selectedSubrace: subrace })
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Combined Racial Bonuses Info */}
+      {combinedBonuses.length > 0 && (
+        <Card className="bg-green-500/10 border-green-400/20">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-2">
+              <Info className="w-5 h-5 text-green-400 mt-0.5" />
+              <div>
+                <h4 className="text-green-200 font-semibold text-sm">
+                  Bônus Raciais Totais
+                </h4>
+                <p className="text-green-100 text-sm">
+                  {combinedBonuses
+                    .map(
+                      (bonus) => `+${bonus.bonus} ${bonus.ability_score.name}`
+                    )
+                    .join(", ")}
+                </p>
+                {characterData.selectedSubrace && (
+                  <p className="text-green-100 text-xs mt-1">
+                    Inclui bônus de {characterData.selectedRace?.name} e{" "}
+                    {characterData.selectedSubrace.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Class Selection */}
       <Card className="bg-white/5 border-white/20">
@@ -331,6 +442,28 @@ export default function BasicInfoStep() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Subrace Requirements Warning */}
+      {characterData.selectedRace &&
+        characterData.selectedRace.subraces.length > 0 &&
+        !characterData.selectedSubrace && (
+          <Card className="bg-yellow-500/10 border-yellow-400/20">
+            <CardContent className="p-4">
+              <div className="flex items-start space-x-2">
+                <Info className="w-5 h-5 text-yellow-400 mt-0.5" />
+                <div>
+                  <h4 className="text-yellow-200 font-semibold text-sm">
+                    Subraça Necessária
+                  </h4>
+                  <p className="text-yellow-100 text-sm">
+                    A raça {characterData.selectedRace.name} possui subraças.
+                    Você deve escolher uma subraça para continuar.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }

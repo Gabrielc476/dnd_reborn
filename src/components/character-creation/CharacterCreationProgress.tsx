@@ -12,6 +12,8 @@ import {
   CheckCircle,
   Circle,
   AlertTriangle,
+  Crown,
+  Info,
 } from "lucide-react";
 
 const STEP_ICONS = [
@@ -24,8 +26,13 @@ const STEP_ICONS = [
 ];
 
 export default function CharacterCreationProgress() {
-  const { currentStep, steps, goToStep, characterData } =
-    useCharacterCreationContext();
+  const {
+    currentStep,
+    steps,
+    goToStep,
+    characterData,
+    getCombinedAbilityBonuses,
+  } = useCharacterCreationContext();
 
   const getStepStatusIcon = (stepIndex: number) => {
     const step = steps[stepIndex];
@@ -57,6 +64,9 @@ export default function CharacterCreationProgress() {
     }
   };
 
+  // Get combined ability bonuses
+  const combinedBonuses = getCombinedAbilityBonuses();
+
   return (
     <div className="space-y-6">
       {/* Character Summary */}
@@ -75,9 +85,19 @@ export default function CharacterCreationProgress() {
           {characterData.selectedRace && (
             <div>
               <p className="text-sm text-purple-200">Raça</p>
-              <p className="text-white font-medium">
-                {characterData.selectedRace.name}
-              </p>
+              <div className="space-y-1">
+                <p className="text-white font-medium">
+                  {characterData.selectedRace.name}
+                </p>
+                {characterData.selectedSubrace && (
+                  <div className="flex items-center space-x-1">
+                    <Crown className="w-3 h-3 text-amber-400" />
+                    <p className="text-amber-200 text-sm">
+                      {characterData.selectedSubrace.name}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -94,6 +114,20 @@ export default function CharacterCreationProgress() {
             <p className="text-sm text-purple-200">Nível</p>
             <p className="text-white font-medium">{characterData.level}</p>
           </div>
+
+          {/* Racial Bonuses Summary */}
+          {combinedBonuses.length > 0 && (
+            <div>
+              <p className="text-sm text-purple-200">Bônus Raciais</p>
+              <div className="space-y-1">
+                {combinedBonuses.map((bonus, index) => (
+                  <div key={index} className="text-xs text-green-300">
+                    +{bonus.bonus} {bonus.ability_score.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -133,6 +167,60 @@ export default function CharacterCreationProgress() {
         </CardContent>
       </Card>
 
+      {/* Race & Subrace Details */}
+      {(characterData.selectedRace || characterData.selectedSubrace) && (
+        <Card className="bg-white/10 backdrop-blur-lg border-white/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white text-lg">Ancestralidade</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {characterData.selectedRace && (
+              <div className="bg-purple-500/10 border border-purple-400/20 rounded-lg p-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <User className="w-4 h-4 text-purple-400" />
+                  <h4 className="text-purple-200 font-medium text-sm">
+                    {characterData.selectedRace.name}
+                  </h4>
+                </div>
+                <p className="text-purple-100 text-xs">
+                  Velocidade: {characterData.selectedRace.speed} pés
+                </p>
+                {characterData.selectedRace.ability_bonuses.length > 0 && (
+                  <p className="text-purple-100 text-xs">
+                    Bônus:{" "}
+                    {characterData.selectedRace.ability_bonuses
+                      .map((b) => `+${b.bonus} ${b.ability_score.name}`)
+                      .join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {characterData.selectedSubrace && (
+              <div className="bg-amber-500/10 border border-amber-400/20 rounded-lg p-3">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Crown className="w-4 h-4 text-amber-400" />
+                  <h4 className="text-amber-200 font-medium text-sm">
+                    {characterData.selectedSubrace.name}
+                  </h4>
+                </div>
+                {characterData.selectedSubrace.ability_bonuses.length > 0 && (
+                  <p className="text-amber-100 text-xs">
+                    Bônus:{" "}
+                    {characterData.selectedSubrace.ability_bonuses
+                      .map((b) => `+${b.bonus} ${b.ability_score.name}`)
+                      .join(", ")}
+                  </p>
+                )}
+                <p className="text-amber-100 text-xs mt-1 line-clamp-2">
+                  {characterData.selectedSubrace.desc.substring(0, 80)}...
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Quick Stats */}
       {characterData.selectedClass && (
         <Card className="bg-white/10 backdrop-blur-lg border-white/20">
@@ -167,6 +255,27 @@ export default function CharacterCreationProgress() {
           </CardContent>
         </Card>
       )}
+
+      {/* Warnings/Alerts */}
+      {characterData.selectedRace &&
+        characterData.selectedRace.subraces.length > 0 &&
+        !characterData.selectedSubrace && (
+          <Card className="bg-yellow-500/10 border-yellow-400/20">
+            <CardContent className="p-4">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-yellow-200 text-sm font-medium">
+                    Subraça Necessária
+                  </p>
+                  <p className="text-yellow-100 text-xs">
+                    Escolha uma subraça para {characterData.selectedRace.name}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
       {/* Tips */}
       <Card className="bg-blue-500/10 border-blue-400/20">

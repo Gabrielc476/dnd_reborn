@@ -67,6 +67,7 @@ export default function AbilityScoresStep() {
     getAbilityModifier,
     calculateAbilityScorePoints,
     generateRandomAbilityScores,
+    getCombinedAbilityBonuses,
   } = useCharacterCreationContext();
 
   const handleMethodChange = (method: "standard" | "point_buy" | "roll") => {
@@ -142,11 +143,14 @@ export default function AbilityScoresStep() {
   const totalPoints = calculateAbilityScorePoints(characterData.abilityScores);
   const remainingPoints = 27 - totalPoints;
 
-  const applyRacialBonuses = () => {
-    if (!characterData.selectedRace) return characterData.abilityScores;
+  // Get combined bonuses from race and subrace
+  const combinedBonuses = getCombinedAbilityBonuses();
 
+  const applyRacialBonuses = () => {
     const bonusedScores = { ...characterData.abilityScores };
-    characterData.selectedRace.ability_bonuses.forEach((bonus) => {
+
+    // Apply all combined bonuses (race + subrace)
+    combinedBonuses.forEach((bonus) => {
       const abilityKey = bonus.ability_score.index as keyof AbilityScores;
       if (abilityKey in bonusedScores) {
         bonusedScores[abilityKey] += bonus.bonus;
@@ -157,6 +161,13 @@ export default function AbilityScoresStep() {
   };
 
   const finalScores = applyRacialBonuses();
+
+  // Helper function to get total bonus for an ability
+  const getTotalBonusForAbility = (ability: keyof AbilityScores): number => {
+    return combinedBonuses
+      .filter((bonus) => bonus.ability_score.index === ability)
+      .reduce((total, bonus) => total + bonus.bonus, 0);
+  };
 
   return (
     <div className="space-y-8">
@@ -257,7 +268,8 @@ export default function AbilityScoresStep() {
             const baseScore = characterData.abilityScores[ability];
             const finalScore = finalScores[ability];
             const modifier = getAbilityModifier(finalScore);
-            const hasRacialBonus = finalScore !== baseScore;
+            const totalBonus = getTotalBonusForAbility(ability);
+            const hasRacialBonus = totalBonus > 0;
 
             return (
               <Card key={ability} className="bg-white/5 border-white/20">
@@ -289,12 +301,12 @@ export default function AbilityScoresStep() {
                       </Button>
 
                       <div className="text-center">
-                        <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 min-w-[80px]">
+                        <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 min-w-[100px]">
                           <div className="text-2xl font-bold text-white">
                             {baseScore}
                             {hasRacialBonus && (
                               <span className="text-green-400 text-lg">
-                                +{finalScore - baseScore}
+                                +{totalBonus}
                               </span>
                             )}
                           </div>
@@ -331,29 +343,45 @@ export default function AbilityScoresStep() {
         )}
       </div>
 
-      {/* Racial Bonuses Info */}
-      {characterData.selectedRace &&
-        characterData.selectedRace.ability_bonuses.length > 0 && (
-          <Card className="bg-green-500/10 border-green-400/20">
-            <CardContent className="p-4">
-              <div className="flex items-start space-x-2">
-                <Info className="w-5 h-5 text-green-400 mt-0.5" />
-                <div>
-                  <h4 className="text-green-200 font-semibold text-sm">
-                    Bônus Racial ({characterData.selectedRace.name})
-                  </h4>
-                  <p className="text-green-100 text-sm">
-                    {characterData.selectedRace.ability_bonuses
-                      .map(
-                        (bonus) => `+${bonus.bonus} ${bonus.ability_score.name}`
-                      )
-                      .join(", ")}
-                  </p>
+      {/* Combined Racial Bonuses Info */}
+      {combinedBonuses.length > 0 && (
+        <Card className="bg-green-500/10 border-green-400/20">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-2">
+              <Info className="w-5 h-5 text-green-400 mt-0.5" />
+              <div>
+                <h4 className="text-green-200 font-semibold text-sm">
+                  Bônus Raciais Aplicados
+                </h4>
+                <div className="space-y-1">
+                  {characterData.selectedRace && (
+                    <p className="text-green-100 text-sm">
+                      <strong>{characterData.selectedRace.name}:</strong>{" "}
+                      {characterData.selectedRace.ability_bonuses
+                        .map(
+                          (bonus) =>
+                            `+${bonus.bonus} ${bonus.ability_score.name}`
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
+                  {characterData.selectedSubrace && (
+                    <p className="text-green-100 text-sm">
+                      <strong>{characterData.selectedSubrace.name}:</strong>{" "}
+                      {characterData.selectedSubrace.ability_bonuses
+                        .map(
+                          (bonus) =>
+                            `+${bonus.bonus} ${bonus.ability_score.name}`
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Reroll for Random Method */}
       {characterData.abilityMethod === "roll" && (

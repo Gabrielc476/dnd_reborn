@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION TYPES
+// CHARACTER CREATION TYPES - UPDATED WITH SUBRACES
 // src/types/characterCreation.ts
 // ===========================
 
@@ -10,6 +10,21 @@
 export interface DndApiReference {
   index: string;
   name: string;
+  url: string;
+}
+
+export interface DndSubrace {
+  index: string;
+  name: string;
+  race: DndApiReference;
+  desc: string;
+  ability_bonuses: Array<{
+    ability_score: DndApiReference;
+    bonus: number;
+  }>;
+  starting_proficiencies: DndApiReference[];
+  languages: DndApiReference[];
+  racial_traits: DndApiReference[];
   url: string;
 }
 
@@ -162,6 +177,7 @@ export interface CharacterCreationData {
   // Passo 1: Informações Básicas
   name: string;
   selectedRace: DndRace | null;
+  selectedSubrace: DndSubrace | null; // ← NOVA PROPRIEDADE
   selectedClass: DndClass | null;
   selectedBackground: DndBackground | null;
   level: number;
@@ -205,6 +221,7 @@ export interface CharacterCreationContextType {
   classes: DndClass[];
   backgrounds: DndBackground[];
   spells: DndSpell[];
+  subraces: DndSubrace[]; // ← NOVA PROPRIEDADE
 
   // Ações de navegação
   nextStep: () => void;
@@ -226,6 +243,27 @@ export interface CharacterCreationContextType {
   getAbilityModifier: (score: number) => number;
   calculateAbilityScorePoints: (scores: AbilityScores) => number;
   generateRandomAbilityScores: () => AbilityScores;
+
+  // Busca
+  raceSearch: string;
+  setRaceSearch: (search: string) => void;
+  classSearch: string;
+  setClassSearch: (search: string) => void;
+  spellSearch: string;
+  setSpellSearch: (search: string) => void;
+
+  // Estados de carregamento
+  isLoadingRaces: boolean;
+  isLoadingClasses: boolean;
+  isLoadingSpells: boolean;
+  isLoadingSubraces: boolean; // ← NOVA PROPRIEDADE
+
+  // Funções específicas para subraças
+  getAvailableSubraces: () => DndSubrace[]; // ← NOVA FUNÇÃO
+  getSubraceAbilityBonuses: () => Array<{
+    ability_score: DndApiReference;
+    bonus: number;
+  }>; // ← NOVA FUNÇÃO
 }
 
 // ===========================
@@ -425,6 +463,7 @@ export const ALIGNMENTS = [
 export type {
   DndApiReference,
   DndRace,
+  DndSubrace,
   DndClass,
   DndBackground,
   DndSpell,
