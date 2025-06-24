@@ -16,10 +16,13 @@ import {
   Info,
   Plus,
   Minus,
+  Zap,
+  Shield,
 } from "lucide-react";
 
 import SelectionCard from "../ui/SelectionCard";
 import SearchableList from "../ui/SearchableList";
+import { canHaveSubclass, getSubclassLevel } from "@/types/characterCreation";
 
 export default function BasicInfoStep() {
   const {
@@ -31,12 +34,15 @@ export default function BasicInfoStep() {
     isLoadingRaces,
     isLoadingClasses,
     isLoadingSubraces,
+    isLoadingSubclasses,
     raceSearch,
     setRaceSearch,
     classSearch,
     setClassSearch,
     getAvailableSubraces,
+    getAvailableSubclasses,
     getCombinedAbilityBonuses,
+    getSubclassFeatures,
   } = useCharacterCreationContext();
 
   const generateRandomName = () => {
@@ -54,12 +60,40 @@ export default function BasicInfoStep() {
     updateCharacterData({ name: e.target.value });
   };
 
+  const handleLevelChange = (increment: boolean) => {
+    const newLevel = increment
+      ? Math.min(characterData.level + 1, 20)
+      : Math.max(characterData.level - 1, 1);
+    
+    // Reset subclass if new level doesn't support it
+    let updatedData: any = { level: newLevel };
+    
+    if (characterData.selectedClass && 
+        characterData.selectedSubclass && 
+        !canHaveSubclass(characterData.selectedClass.index, newLevel)) {
+      updatedData.selectedSubclass = null;
+    }
+    
+    updateCharacterData(updatedData);
+  };
+
   // Get available subraces for the selected race
   const availableSubraces = getAvailableSubraces();
   const hasSubraces = availableSubraces.length > 0;
 
+  // Get available subclasses for the selected class
+  const availableSubclasses = getAvailableSubclasses();
+  const hasSubclasses = availableSubclasses.length > 0;
+  const canSelectSubclass = characterData.selectedClass && 
+    canHaveSubclass(characterData.selectedClass.index, characterData.level);
+  const requiredLevel = characterData.selectedClass ? 
+    getSubclassLevel(characterData.selectedClass.index) : 3;
+
   // Get combined ability bonuses from race and subrace
   const combinedBonuses = getCombinedAbilityBonuses();
+
+  // Get subclass features for current level
+  const subclassFeatures = getSubclassFeatures();
 
   return (
     <div className="p-6 space-y-6">
@@ -107,36 +141,27 @@ export default function BasicInfoStep() {
         <div className="lg:col-span-1">
           <Card className="bg-white/5 border-white/20 h-full">
             <CardHeader className="pb-3">
-              <CardTitle className="text-white text-lg text-center">Nível Inicial</CardTitle>
+              <CardTitle className="text-white text-lg flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-amber-400" />
+                <span>Nível</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="flex items-center justify-center space-x-3">
+            <CardContent className="flex items-center justify-center space-x-4">
               <Button
-                onClick={() =>
-                  updateCharacterData({
-                    level: Math.max(1, characterData.level - 1),
-                  })
-                }
+                onClick={() => handleLevelChange(false)}
                 variant="outline"
-                size="sm"
-                className="bg-white/5 border-white/20 text-white hover:bg-white/10 w-8 h-8 p-0"
+                className="bg-white/5 border-white/20 text-white hover:bg-white/10 w-10 h-10 p-0"
                 disabled={characterData.level <= 1}
               >
                 <Minus className="w-4 h-4" />
               </Button>
-              <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 min-w-[60px] text-center">
-                <span className="text-2xl font-bold text-white">
-                  {characterData.level}
-                </span>
-              </div>
+              <span className="text-white text-2xl font-bold min-w-[2rem] text-center">
+                {characterData.level}
+              </span>
               <Button
-                onClick={() =>
-                  updateCharacterData({
-                    level: Math.min(20, characterData.level + 1),
-                  })
-                }
+                onClick={() => handleLevelChange(true)}
                 variant="outline"
-                size="sm"
-                className="bg-white/5 border-white/20 text-white hover:bg-white/10 w-8 h-8 p-0"
+                className="bg-white/5 border-white/20 text-white hover:bg-white/10 w-10 h-10 p-0"
                 disabled={characterData.level >= 20}
               >
                 <Plus className="w-4 h-4" />
@@ -146,60 +171,70 @@ export default function BasicInfoStep() {
         </div>
       </div>
 
-      {/* Main Selection Grid - 4 columns on large screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+      {/* Main Selection Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
         {/* Race Selection */}
-        <div className="xl:col-span-1">
+        <div className={`xl:col-span-1 ${hasSubraces && characterData.selectedRace ? '' : ''}`}>
           <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
             <CardHeader className="pb-3 flex-shrink-0">
               <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <Users className="w-5 h-5 text-purple-400" />
+                <Users className="w-5 h-5 text-green-400" />
                 <span>Raça</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col space-y-3 overflow-hidden">
-              <SearchableList
-                searchValue={raceSearch}
-                onSearchChange={setRaceSearch}
-                placeholder="Buscar raças..."
-                loading={isLoadingRaces}
-              />
-
-              <div className="flex-1 space-y-2 overflow-y-auto">
-                {races.map((race) => (
-                  <SelectionCard
-                    key={race.index}
-                    title={race.name}
-                    description={`${race.speed} pés • ${race.size}`}
-                    details={race.ability_bonuses
-                      .map(
-                        (bonus) =>
-                          `+${bonus.bonus} ${bonus.ability_score.name}`
-                      )
-                      .join(", ")}
-                    selected={
-                      characterData.selectedRace?.index === race.index
-                    }
-                    onClick={() => {
-                      updateCharacterData({ selectedRace: race });
-                      // Reset subrace when race changes
-                      if (characterData.selectedSubrace) {
-                        updateCharacterData({ selectedSubrace: null });
+            <CardContent className="flex-1 overflow-hidden">
+              {isLoadingRaces ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-6 h-6 border-2 border-green-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-green-200 text-sm">Carregando...</p>
+                  </div>
+                </div>
+              ) : (
+                <SearchableList
+                  items={races}
+                  searchTerm={raceSearch}
+                  onSearchChange={setRaceSearch}
+                  selectedItem={characterData.selectedRace}
+                  onItemSelect={(race) => {
+                    updateCharacterData({ 
+                      selectedRace: race,
+                      selectedSubrace: null // Reset subrace when changing race
+                    });
+                  }}
+                  renderItem={(race) => (
+                    <SelectionCard
+                      key={race.index}
+                      title={race.name}
+                      description={`Velocidade: ${race.speed} pés`}
+                      details={race.ability_bonuses
+                        .map(
+                          (bonus) =>
+                            `+${bonus.bonus} ${bonus.ability_score.name}`
+                        )
+                        .join(", ")}
+                      selected={
+                        characterData.selectedRace?.index === race.index
                       }
-                    }}
-                    badge={
-                      race.subraces.length > 0 ? "Subraças" : undefined
-                    }
-                    className="text-xs"
-                  />
-                ))}
-              </div>
+                      onClick={() => {
+                        updateCharacterData({ 
+                          selectedRace: race,
+                          selectedSubrace: null
+                        });
+                      }}
+                      className="text-sm"
+                    />
+                  )}
+                  placeholder="Buscar raças..."
+                  emptyMessage="Nenhuma raça encontrada"
+                />
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Subrace Selection - Only show if race has subraces */}
-        {characterData.selectedRace && hasSubraces ? (
+        {hasSubraces && characterData.selectedRace ? (
           <div className="xl:col-span-1">
             <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
               <CardHeader className="pb-3 flex-shrink-0">
@@ -246,7 +281,7 @@ export default function BasicInfoStep() {
         ) : null}
 
         {/* Class Selection */}
-        <div className={`xl:col-span-1 ${hasSubraces && characterData.selectedRace ? '' : 'xl:col-span-2'}`}>
+        <div className={`xl:col-span-1 ${hasSubraces && characterData.selectedRace ? '' : ''}`}>
           <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
             <CardHeader className="pb-3 flex-shrink-0">
               <CardTitle className="text-white text-lg flex items-center space-x-2">
@@ -254,47 +289,131 @@ export default function BasicInfoStep() {
                 <span>Classe</span>
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col space-y-3 overflow-hidden">
-              <SearchableList
-                searchValue={classSearch}
-                onSearchChange={setClassSearch}
-                placeholder="Buscar classes..."
-                loading={isLoadingClasses}
-              />
-
-              <div className="flex-1 space-y-2 overflow-y-auto">
-                {classes.map((characterClass) => (
-                  <SelectionCard
-                    key={characterClass.index}
-                    title={characterClass.name}
-                    description={`Dado de Vida: d${characterClass.hit_die}`}
-                    details={characterClass.saving_throws
-                      .map((save) => save.name)
-                      .join(", ")}
-                    selected={
-                      characterData.selectedClass?.index === characterClass.index
-                    }
-                    onClick={() =>
-                      updateCharacterData({ selectedClass: characterClass })
-                    }
-                    badge={
-                      characterClass.spellcasting ? "Conjurador" : undefined
-                    }
-                    className="text-xs"
-                  />
-                ))}
-              </div>
+            <CardContent className="flex-1 overflow-hidden">
+              {isLoadingClasses ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-6 h-6 border-2 border-red-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-red-200 text-sm">Carregando...</p>
+                  </div>
+                </div>
+              ) : (
+                <SearchableList
+                  items={classes}
+                  searchTerm={classSearch}
+                  onSearchChange={setClassSearch}
+                  selectedItem={characterData.selectedClass}
+                  onItemSelect={(selectedClass) => {
+                    updateCharacterData({ 
+                      selectedClass,
+                      selectedSubclass: null // Reset subclass when changing class
+                    });
+                  }}
+                  renderItem={(classItem) => (
+                    <SelectionCard
+                      key={classItem.index}
+                      title={classItem.name}
+                      description={`Dado de Vida: d${classItem.hit_die}`}
+                      details={classItem.saving_throws
+                        .map((save) => save.name)
+                        .join(", ")}
+                      selected={
+                        characterData.selectedClass?.index === classItem.index
+                      }
+                      onClick={() => {
+                        updateCharacterData({ 
+                          selectedClass: classItem,
+                          selectedSubclass: null
+                        });
+                      }}
+                      className="text-sm"
+                    />
+                  )}
+                  placeholder="Buscar classes..."
+                  emptyMessage="Nenhuma classe encontrada"
+                />
+              )}
             </CardContent>
           </Card>
         </div>
 
+        {/* Subclass Selection - Only show if class is selected and level allows */}
+        {characterData.selectedClass && (
+          <div className="xl:col-span-1">
+            <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
+              <CardHeader className="pb-3 flex-shrink-0">
+                <CardTitle className="text-white text-lg flex items-center space-x-2">
+                  <Shield className="w-5 h-5 text-purple-400" />
+                  <span>Subclasse</span>
+                  {!canSelectSubclass && (
+                    <span className="text-xs text-purple-300 ml-2">
+                      (Nível {requiredLevel}+)
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-hidden">
+                {!canSelectSubclass ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Info className="w-8 h-8 text-purple-300 mx-auto mb-3" />
+                      <p className="text-purple-200 text-sm text-center">
+                        Subclasses estão disponíveis a partir do nível {requiredLevel}
+                      </p>
+                      <p className="text-purple-300 text-xs mt-1">
+                        Nível atual: {characterData.level}
+                      </p>
+                    </div>
+                  </div>
+                ) : isLoadingSubclasses ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <div className="w-6 h-6 border-2 border-purple-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
+                      <p className="text-purple-200 text-sm">Carregando...</p>
+                    </div>
+                  </div>
+                ) : hasSubclasses ? (
+                  <div className="space-y-2 h-full overflow-y-auto">
+                    {availableSubclasses.map((subclass) => (
+                      <SelectionCard
+                        key={subclass.index}
+                        title={subclass.name}
+                        description={subclass.subclass_flavor}
+                        details={subclass.desc[0]?.substring(0, 80) + "..."}
+                        selected={
+                          characterData.selectedSubclass?.index === subclass.index
+                        }
+                        onClick={() =>
+                          updateCharacterData({ selectedSubclass: subclass })
+                        }
+                        className="text-xs"
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Info className="w-8 h-8 text-purple-300 mx-auto mb-3" />
+                      <p className="text-purple-200 text-sm">
+                        Nenhuma subclasse disponível para esta classe
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Background Selection */}
-        <div className="xl:col-span-1">
+        <div className={`xl:col-span-1 ${
+          !characterData.selectedClass ? 'xl:col-start-4' : ''
+        }`}>
           <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
             <CardHeader className="pb-3 flex-shrink-0">
               <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <Scroll className="w-5 h-5 text-green-400" />
-                <span>Background</span>
+                <Scroll className="w-5 h-5 text-blue-400" />
+                <span>Antecedente</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-hidden">
@@ -303,10 +422,8 @@ export default function BasicInfoStep() {
                   <SelectionCard
                     key={background.index}
                     title={background.name}
-                    description={background.feature?.name || "Personalizado"}
-                    details={
-                      background.feature?.desc?.[0]?.substring(0, 60) + "..." || ""
-                    }
+                    description={background.feature?.name || ""}
+                    details={background.feature?.desc?.[0]?.substring(0, 60) + "..."}
                     selected={
                       characterData.selectedBackground?.index === background.index
                     }
@@ -322,86 +439,95 @@ export default function BasicInfoStep() {
         </div>
       </div>
 
-      {/* Bottom Section: Combined Bonuses and Warnings */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Combined Racial Bonuses Info */}
-        {combinedBonuses.length > 0 && (
-          <Card className="bg-green-500/10 border-green-400/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-green-200 text-lg flex items-center space-x-2">
-                <Info className="w-5 h-5 text-green-400" />
-                <span>Bônus Raciais Totais</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="grid grid-cols-2 gap-4">
-                {characterData.selectedRace && (
-                  <div>
-                    <p className="text-green-200 font-medium text-sm">
-                      {characterData.selectedRace.name}:
-                    </p>
-                    <p className="text-green-100 text-sm">
-                      {characterData.selectedRace.ability_bonuses
-                        .map(
-                          (bonus) =>
-                            `+${bonus.bonus} ${bonus.ability_score.name}`
-                        )
-                        .join(", ")}
-                    </p>
-                  </div>
-                )}
-                {characterData.selectedSubrace && (
-                  <div>
-                    <p className="text-green-200 font-medium text-sm">
-                      {characterData.selectedSubrace.name}:
-                    </p>
-                    <p className="text-green-100 text-sm">
-                      {characterData.selectedSubrace.ability_bonuses
-                        .map(
-                          (bonus) =>
-                            `+${bonus.bonus} ${bonus.ability_score.name}`
-                        )
-                        .join(", ")}
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="pt-2 border-t border-green-400/20">
-                <p className="text-green-200 font-medium text-sm">Total Combinado:</p>
-                <p className="text-green-100 text-sm font-bold">
-                  {combinedBonuses
-                    .map(
-                      (bonus) => `+${bonus.bonus} ${bonus.ability_score.name}`
-                    )
-                    .join(", ")}
+      {/* Selection Summary */}
+      {(characterData.selectedRace ||
+        characterData.selectedClass ||
+        characterData.selectedBackground) && (
+        <Card className="bg-gradient-to-r from-purple-900/40 to-blue-900/40 border-purple-500/30">
+          <CardHeader>
+            <CardTitle className="text-white text-lg flex items-center space-x-2">
+              <Info className="w-5 h-5 text-blue-400" />
+              <span>Resumo da Seleção</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+              {/* Character Info */}
+              <div>
+                <h4 className="text-purple-200 font-semibold mb-2">Personagem</h4>
+                <p className="text-white">
+                  <strong>Nome:</strong> {characterData.name || "Não definido"}
+                </p>
+                <p className="text-white">
+                  <strong>Nível:</strong> {characterData.level}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Subrace Requirements Warning */}
-        {characterData.selectedRace &&
-          characterData.selectedRace.subraces.length > 0 &&
-          !characterData.selectedSubrace && (
-            <Card className="bg-yellow-500/10 border-yellow-400/20">
-              <CardContent className="p-4">
-                <div className="flex items-start space-x-2">
-                  <Info className="w-5 h-5 text-yellow-400 mt-0.5" />
-                  <div>
-                    <h4 className="text-yellow-200 font-semibold text-sm">
-                      Subraça Necessária
-                    </h4>
-                    <p className="text-yellow-100 text-sm">
-                      A raça {characterData.selectedRace.name} possui subraças.
-                      Você deve escolher uma subraça para continuar.
+              {/* Race Info */}
+              {characterData.selectedRace && (
+                <div>
+                  <h4 className="text-green-200 font-semibold mb-2">Raça</h4>
+                  <p className="text-white">
+                    <strong>Raça:</strong> {characterData.selectedRace.name}
+                  </p>
+                  {characterData.selectedSubrace && (
+                    <p className="text-white">
+                      <strong>Subraça:</strong> {characterData.selectedSubrace.name}
                     </p>
-                  </div>
+                  )}
+                  {combinedBonuses.length > 0 && (
+                    <p className="text-green-300 text-xs">
+                      <strong>Bônus:</strong>{" "}
+                      {combinedBonuses
+                        .map(
+                          (bonus) =>
+                            `+${bonus.bonus} ${bonus.ability_score.name}`
+                        )
+                        .join(", ")}
+                    </p>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-      </div>
+              )}
+
+              {/* Class Info */}
+              {characterData.selectedClass && (
+                <div>
+                  <h4 className="text-red-200 font-semibold mb-2">Classe</h4>
+                  <p className="text-white">
+                    <strong>Classe:</strong> {characterData.selectedClass.name}
+                  </p>
+                  {characterData.selectedSubclass && (
+                    <p className="text-white">
+                      <strong>Subclasse:</strong> {characterData.selectedSubclass.name}
+                    </p>
+                  )}
+                  {subclassFeatures.length > 0 && (
+                    <p className="text-purple-300 text-xs">
+                      <strong>Features:</strong> {subclassFeatures.length} habilidades
+                    </p>
+                  )}
+                  <p className="text-red-300 text-xs">
+                    <strong>Dado de Vida:</strong> d{characterData.selectedClass.hit_die}
+                  </p>
+                </div>
+              )}
+
+              {/* Background Info */}
+              {characterData.selectedBackground && (
+                <div>
+                  <h4 className="text-blue-200 font-semibold mb-2">Antecedente</h4>
+                  <p className="text-white">
+                    <strong>Antecedente:</strong> {characterData.selectedBackground.name}
+                  </p>
+                  <p className="text-blue-300 text-xs">
+                    <strong>Feature:</strong> {characterData.selectedBackground.feature?.name}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
