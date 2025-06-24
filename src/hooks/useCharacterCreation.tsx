@@ -61,32 +61,24 @@ class OptimizedDndApiService {
     key: string,
     signal?: AbortSignal
   ): Promise<T> {
-    // Check memory cache first
     if (this.cache.has(key)) {
       return this.cache.get(key);
     }
 
-    try {
-      const response = await fetch(url, { signal });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-      const data = await response.json();
-      this.cache.set(key, data);
-      return data;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw error;
-      }
-      console.error(`Error fetching ${key}:`, error);
-      throw error;
+    const response = await fetch(url, { signal });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const data = await response.json();
+    this.cache.set(key, data);
+    return data;
   }
 
-  // Cancel previous request if new one is made
-  private cancelPreviousRequest(key: string) {
-    const controller = this.abortControllers.get(key);
-    if (controller) {
-      controller.abort();
+  private cancelPreviousRequest(key: string): AbortSignal {
+    const existingController = this.abortControllers.get(key);
+    if (existingController) {
+      existingController.abort();
     }
 
     const newController = new AbortController();
@@ -100,11 +92,10 @@ class OptimizedDndApiService {
     try {
       const data = await this.fetchWithCache<any>(
         "https://www.dnd5eapi.co/api/races",
-        "races-list",
+        "races",
         signal
       );
 
-      // Fetch detailed race info with parallel requests
       const racePromises = data.results.map(async (race: any) => {
         const raceData = await this.fetchWithCache<DndRace>(
           `https://www.dnd5eapi.co${race.url}`,
@@ -130,14 +121,14 @@ class OptimizedDndApiService {
     try {
       const data = await this.fetchWithCache<any>(
         "https://www.dnd5eapi.co/api/classes",
-        "classes-list",
+        "classes",
         signal
       );
 
-      const classPromises = data.results.map(async (classItem: any) => {
+      const classPromises = data.results.map(async (cls: any) => {
         const classData = await this.fetchWithCache<DndClass>(
-          `https://www.dnd5eapi.co${classItem.url}`,
-          `class-${classItem.index}`,
+          `https://www.dnd5eapi.co${cls.url}`,
+          `class-${cls.index}`,
           signal
         );
         return classData;
@@ -197,7 +188,7 @@ class OptimizedDndApiService {
     try {
       let url = "https://www.dnd5eapi.co/api/subclasses";
       if (classIndex) {
-        url = `https://www.dnd5eapi.co/api/classes/${classIndex}/subclasses`;
+        url += `?class=${classIndex}`;
       }
 
       const data = await this.fetchWithCache<any>(url, cacheKey, signal);
@@ -221,7 +212,7 @@ class OptimizedDndApiService {
     }
   }
 
-  // Mock data methods
+  // Mock data methods - RAÇAS ATUALIZADAS
   private getMockRaces(): DndRace[] {
     return [
       {
@@ -230,36 +221,23 @@ class OptimizedDndApiService {
         speed: 30,
         ability_bonuses: [
           { ability_score: { index: "str", name: "Força", url: "" }, bonus: 1 },
-          {
-            ability_score: { index: "dex", name: "Destreza", url: "" },
-            bonus: 1,
-          },
-          {
-            ability_score: { index: "con", name: "Constituição", url: "" },
-            bonus: 1,
-          },
-          {
-            ability_score: { index: "int", name: "Inteligência", url: "" },
-            bonus: 1,
-          },
-          {
-            ability_score: { index: "wis", name: "Sabedoria", url: "" },
-            bonus: 1,
-          },
-          {
-            ability_score: { index: "cha", name: "Carisma", url: "" },
-            bonus: 1,
-          },
+          { ability_score: { index: "dex", name: "Destreza", url: "" }, bonus: 1 },
+          { ability_score: { index: "con", name: "Constituição", url: "" }, bonus: 1 },
+          { ability_score: { index: "int", name: "Inteligência", url: "" }, bonus: 1 },
+          { ability_score: { index: "wis", name: "Sabedoria", url: "" }, bonus: 1 },
+          { ability_score: { index: "cha", name: "Carisma", url: "" }, bonus: 1 },
         ],
-        alignment: "Qualquer",
-        age: "Humanos atingem a maioridade aos 18 anos e vivem menos de um século.",
+        alignment: "Qualquer alinhamento",
+        age: "Humanos atingem a idade adulta no final da adolescência",
         size: "Medium",
-        size_description: "Humanos variam muito em altura e constituição.",
+        size_description: "Humanos variam amplamente em altura e constituição",
         starting_proficiencies: [],
         languages: [],
-        language_desc: "Comum e uma linguagem extra de sua escolha",
+        language_desc: "Comum e um idioma extra de sua escolha",
         traits: [],
-        subraces: [],
+        subraces: [
+          { index: "variant-human", name: "Humano Variante", url: "/api/subraces/variant-human" }
+        ],
         url: "/api/races/human",
       },
       {
@@ -269,10 +247,10 @@ class OptimizedDndApiService {
         ability_bonuses: [
           { ability_score: { index: "dex", name: "Destreza", url: "" }, bonus: 2 },
         ],
-        alignment: "Caótico Bom",
-        age: "Elfos atingem a maturidade física aos 20 anos, mas não são considerados adultos até os 100 anos.",
+        alignment: "Elfos amam a liberdade, variedade e auto-expressão",
+        age: "Elfos amadurecem na mesma taxa que humanos, mas são considerados jovens até os 100 anos",
         size: "Medium",
-        size_description: "Elfos são ligeiramente menores que humanos.",
+        size_description: "Elfos variam de menos de 5 pés a mais de 6 pés de altura",
         starting_proficiencies: [],
         languages: [],
         language_desc: "Comum e Élfico",
@@ -280,6 +258,7 @@ class OptimizedDndApiService {
         subraces: [
           { index: "high-elf", name: "Alto Elfo", url: "/api/subraces/high-elf" },
           { index: "wood-elf", name: "Elfo da Floresta", url: "/api/subraces/wood-elf" },
+          { index: "drow", name: "Elfo Negro (Drow)", url: "/api/subraces/drow" },
         ],
         url: "/api/races/elf",
       },
@@ -290,10 +269,10 @@ class OptimizedDndApiService {
         ability_bonuses: [
           { ability_score: { index: "con", name: "Constituição", url: "" }, bonus: 2 },
         ],
-        alignment: "Leal",
-        age: "Anões atingem a maturidade aos 50 anos e vivem cerca de 350 anos.",
+        alignment: "Anões são leais e honrados",
+        age: "Anões amadurecem na mesma taxa que humanos, mas são considerados jovens até os 50 anos",
         size: "Medium",
-        size_description: "Anões são baixos e robustos.",
+        size_description: "Anões têm entre 4 e 5 pés de altura",
         starting_proficiencies: [],
         languages: [],
         language_desc: "Comum e Anão",
@@ -311,16 +290,78 @@ class OptimizedDndApiService {
         ability_bonuses: [
           { ability_score: { index: "dex", name: "Destreza", url: "" }, bonus: 2 },
         ],
-        alignment: "Leal Bom",
-        age: "Halflings atingem a maturidade aos 20 anos e vivem cerca de 150 anos.",
+        alignment: "Halflings são bondosos e pacíficos",
+        age: "Halflings atingem a idade adulta aos 20 anos e vivem cerca de 150 anos",
         size: "Small",
-        size_description: "Halflings são pequenos e ágeis.",
+        size_description: "Halflings têm cerca de 3 pés de altura",
         starting_proficiencies: [],
         languages: [],
         language_desc: "Comum e Halfling",
         traits: [],
-        subraces: [],
+        subraces: [
+          { index: "lightfoot-halfling", name: "Halfling Pés Leves", url: "/api/subraces/lightfoot-halfling" },
+          { index: "stout-halfling", name: "Halfling Robusto", url: "/api/subraces/stout-halfling" },
+        ],
         url: "/api/races/halfling",
+      },
+      {
+        index: "gnome",
+        name: "Gnomo",
+        speed: 25,
+        ability_bonuses: [
+          { ability_score: { index: "int", name: "Inteligência", url: "" }, bonus: 2 },
+        ],
+        alignment: "Gnomos são bondosos e curiosos",
+        age: "Gnomos amadurecem na mesma taxa que humanos e vivem entre 350 e 500 anos",
+        size: "Small",
+        size_description: "Gnomos têm entre 3 e 4 pés de altura",
+        starting_proficiencies: [],
+        languages: [],
+        language_desc: "Comum e Gnômico",
+        traits: [],
+        subraces: [
+          { index: "forest-gnome", name: "Gnomo da Floresta", url: "/api/subraces/forest-gnome" },
+          { index: "rock-gnome", name: "Gnomo das Rochas", url: "/api/subraces/rock-gnome" },
+        ],
+        url: "/api/races/gnome",
+      },
+      {
+        index: "dragonborn",
+        name: "Dracônico",
+        speed: 30,
+        ability_bonuses: [
+          { ability_score: { index: "str", name: "Força", url: "" }, bonus: 2 },
+          { ability_score: { index: "cha", name: "Carisma", url: "" }, bonus: 1 },
+        ],
+        alignment: "Dracônicos tendem ao extremos",
+        age: "Dracônicos crescem rapidamente e vivem cerca de 80 anos",
+        size: "Medium",
+        size_description: "Dracônicos são mais altos e pesados que humanos",
+        starting_proficiencies: [],
+        languages: [],
+        language_desc: "Comum e Dracônico",
+        traits: [],
+        subraces: [], // Sem subraces tradicionais
+        url: "/api/races/dragonborn",
+      },
+      {
+        index: "tiefling",
+        name: "Tiefling",
+        speed: 30,
+        ability_bonuses: [
+          { ability_score: { index: "int", name: "Inteligência", url: "" }, bonus: 1 },
+          { ability_score: { index: "cha", name: "Carisma", url: "" }, bonus: 2 },
+        ],
+        alignment: "Tieflings não têm tendência inerente ao mal",
+        age: "Tieflings amadurecem na mesma taxa que humanos, mas vivem alguns anos a mais",
+        size: "Medium",
+        size_description: "Tieflings têm o mesmo tamanho e constituição que humanos",
+        starting_proficiencies: [],
+        languages: [],
+        language_desc: "Comum e Infernal",
+        traits: [],
+        subraces: [], // Sem subraces tradicionais
+        url: "/api/races/tiefling",
       },
     ];
   }
@@ -333,11 +374,9 @@ class OptimizedDndApiService {
         hit_die: 10,
         proficiencies: [],
         proficiency_choices: [],
-        saving_throws: [
-          { index: "str", name: "Força", url: "" },
-          { index: "con", name: "Constituição", url: "" },
-        ],
+        saving_throws: [],
         starting_equipment: [],
+        spellcasting: undefined,
         url: "/api/classes/fighter",
       },
       {
@@ -346,29 +385,14 @@ class OptimizedDndApiService {
         hit_die: 6,
         proficiencies: [],
         proficiency_choices: [],
-        saving_throws: [
-          { index: "int", name: "Inteligência", url: "" },
-          { index: "wis", name: "Sabedoria", url: "" },
-        ],
+        saving_throws: [],
         starting_equipment: [],
         spellcasting: {
           level: 1,
           spellcasting_ability: { index: "int", name: "Inteligência", url: "" },
+          info: []
         },
         url: "/api/classes/wizard",
-      },
-      {
-        index: "rogue",
-        name: "Ladino",
-        hit_die: 8,
-        proficiencies: [],
-        proficiency_choices: [],
-        saving_throws: [
-          { index: "dex", name: "Destreza", url: "" },
-          { index: "int", name: "Inteligência", url: "" },
-        ],
-        starting_equipment: [],
-        url: "/api/classes/rogue",
       },
     ];
   }
@@ -376,41 +400,26 @@ class OptimizedDndApiService {
   private getMockSpells(): DndSpell[] {
     return [
       {
-        index: "magic-missile",
-        name: "Míssil Mágico",
-        level: 1,
-        school: { index: "evocation", name: "Evocação", url: "" },
-        casting_time: "1 ação",
-        range: "120 pés",
-        components: ["V", "S"],
-        duration: "Instantâneo",
-        damage: {
-          damage_type: { index: "force", name: "Força", url: "" },
-          damage_at_slot_level: {
-            "1": "1d4 + 1",
-            "2": "2d4 + 2",
-            "3": "3d4 + 3",
-          },
-        },
-        desc: ["Você cria três dardos brilhantes de força mágica."],
-        url: "/api/spells/magic-missile",
-      },
-      {
         index: "fire-bolt",
-        name: "Raio de Fogo",
-        level: 0,
-        school: { index: "evocation", name: "Evocação", url: "" },
-        casting_time: "1 ação",
+        name: "Rajada de Fogo",
+        desc: ["Você arremessa uma mote de fogo numa criatura ou objeto ao alcance."],
+        higher_level: [],
         range: "120 pés",
         components: ["V", "S"],
+        material: "",
+        ritual: false,
         duration: "Instantâneo",
+        concentration: false,
+        casting_time: "1 ação",
+        level: 0,
+        attack_type: "ranged",
         damage: {
           damage_type: { index: "fire", name: "Fogo", url: "" },
-          damage_at_slot_level: {
-            "0": "1d10",
-          },
+          damage_at_slot_level: { "1": "1d10" }
         },
-        desc: ["Você arremessa uma mote de fogo em uma criatura ou objeto."],
+        school: { index: "evocation", name: "Evocação", url: "" },
+        classes: [{ index: "wizard", name: "Mago", url: "" }],
+        subclasses: [],
         url: "/api/spells/fire-bolt",
       },
     ];
@@ -439,26 +448,6 @@ class OptimizedDndApiService {
         ],
         url: "/api/subclasses/school-of-evocation",
       },
-      {
-        index: "school-of-abjuration",
-        name: "Escola de Abjuração",
-        class: { index: "wizard", name: "Mago", url: "" },
-        subclass_flavor: "Escola Arcana",
-        desc: [
-          "Especialistas em magias protetivas e de banimento.",
-          "Mestres em defender a si mesmos e aliados."
-        ],
-        subclass_levels: [
-          {
-            level: 2,
-            features: [
-              { index: "abjuration-savant", name: "Especialista em Abjuração", url: "" },
-              { index: "arcane-ward", name: "Proteção Arcana", url: "" }
-            ]
-          }
-        ],
-        url: "/api/subclasses/school-of-abjuration",
-      },
       // Fighter subclasses
       {
         index: "champion",
@@ -479,70 +468,8 @@ class OptimizedDndApiService {
         ],
         url: "/api/subclasses/champion",
       },
-      {
-        index: "battle-master",
-        name: "Mestre de Batalha",
-        class: { index: "fighter", name: "Guerreiro", url: "" },
-        subclass_flavor: "Arquétipo Marcial",
-        desc: [
-          "Guerreiros táticos que usam manobras especiais em combate.",
-          "Especialistas em controle de campo de batalha."
-        ],
-        subclass_levels: [
-          {
-            level: 3,
-            features: [
-              { index: "combat-superiority", name: "Superioridade em Combate", url: "" },
-              { index: "maneuvers", name: "Manobras", url: "" }
-            ]
-          }
-        ],
-        url: "/api/subclasses/battle-master",
-      },
-      // Rogue subclasses
-      {
-        index: "thief",
-        name: "Ladrão",
-        class: { index: "rogue", name: "Ladino", url: "" },
-        subclass_flavor: "Arquétipo de Ladino",
-        desc: [
-          "Especialistas em roubo, escalada e uso de objetos mágicos.",
-          "Mestres em infiltração e agilidade."
-        ],
-        subclass_levels: [
-          {
-            level: 3,
-            features: [
-              { index: "fast-hands", name: "Mãos Rápidas", url: "" },
-              { index: "second-story-work", name: "Especialista em Escalada", url: "" }
-            ]
-          }
-        ],
-        url: "/api/subclasses/thief",
-      },
-      {
-        index: "assassin",
-        name: "Assassino",
-        class: { index: "rogue", name: "Ladino", url: "" },
-        subclass_flavor: "Arquétipo de Ladino",
-        desc: [
-          "Mestres em eliminar alvos rapidamente e com discrição.",
-          "Especialistas em ataques surpresa e venenos."
-        ],
-        subclass_levels: [
-          {
-            level: 3,
-            features: [
-              { index: "bonus-proficiencies", name: "Proficiências Extras", url: "" },
-              { index: "assassinate", name: "Assassinar", url: "" }
-            ]
-          }
-        ],
-        url: "/api/subclasses/assassin",
-      },
     ];
 
-    // Filter by class if specified
     if (classIndex) {
       return allSubclasses.filter(subclass => subclass.class.index === classIndex);
     }
@@ -577,7 +504,6 @@ function useBackgroundsQuery() {
   return useQuery({
     queryKey: ["dnd", "backgrounds"],
     queryFn: async (): Promise<DndBackground[]> => {
-      // Simulate async for consistency
       await new Promise((resolve) => setTimeout(resolve, 100));
       return [
         {
@@ -587,9 +513,7 @@ function useBackgroundsQuery() {
           starting_equipment: [],
           feature: {
             name: "Abrigo dos Fiéis",
-            desc: [
-              "Você tem acesso a um templo onde pode encontrar abrigo e cuidados.",
-            ],
+            desc: ["Você tem acesso a um templo onde pode encontrar abrigo e cuidados."],
           },
           personality_traits: {
             choose: 2,
@@ -620,8 +544,7 @@ function useBackgroundsQuery() {
               options: [
                 {
                   option_type: "string",
-                  string:
-                    "Eu morreria para recuperar uma relíquia da minha fé.",
+                  string: "Eu morreria para recuperar uma relíquia da minha fé.",
                 },
               ],
             },
@@ -632,129 +555,12 @@ function useBackgroundsQuery() {
               options: [
                 {
                   option_type: "string",
-                  string:
-                    "Eu julgo outros duramente, e a mim mesmo ainda mais.",
+                  string: "Eu julgo outros duramente, e a mim mesmo ainda mais.",
                 },
               ],
             },
           },
           url: "/api/backgrounds/acolyte",
-        },
-        {
-          index: "criminal",
-          name: "Criminoso",
-          starting_proficiencies: [],
-          starting_equipment: [],
-          feature: {
-            name: "Contato Criminal",
-            desc: [
-              "Você tem um contato confiável e fidedigno que atua como seu ligação para uma rede de outros criminosos.",
-            ],
-          },
-          personality_traits: {
-            choose: 2,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  string: "Eu sempre tenho um plano para o que fazer quando as coisas dão errado.",
-                },
-              ],
-            },
-          },
-          ideals: {
-            choose: 1,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  alignments: [],
-                  desc: "Liberdade. Correntes são feitas para serem quebradas.",
-                },
-              ],
-            },
-          },
-          bonds: {
-            choose: 1,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  string: "Eu sou culpado de um crime terrível. Espero que eu possa me redimir por isso.",
-                },
-              ],
-            },
-          },
-          flaws: {
-            choose: 1,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  string: "Quando vejo algo valioso, não consigo pensar em nada além de como roubá-lo.",
-                },
-              ],
-            },
-          },
-          url: "/api/backgrounds/criminal",
-        },
-        {
-          index: "folk-hero",
-          name: "Herói do Povo",
-          starting_proficiencies: [],
-          starting_equipment: [],
-          feature: {
-            name: "Hospitalidade Rústica",
-            desc: [
-              "Como você vem das fileiras do povo comum, você se encaixa entre eles com facilidade.",
-            ],
-          },
-          personality_traits: {
-            choose: 2,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  string: "Eu julgo as pessoas por suas ações, não por suas palavras.",
-                },
-              ],
-            },
-          },
-          ideals: {
-            choose: 1,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  alignments: [],
-                  desc: "Respeito. As pessoas merecem ser tratadas com dignidade e respeito.",
-                },
-              ],
-            },
-          },
-          bonds: {
-            choose: 1,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  string: "Eu protejo aqueles que não podem se proteger.",
-                },
-              ],
-            },
-          },
-          flaws: {
-            choose: 1,
-            from: {
-              options: [
-                {
-                  option_type: "string",
-                  string: "A pessoa tirânica que governa minha terra natal não vai parar por nada para me ver morto.",
-                },
-              ],
-            },
-          },
-          url: "/api/backgrounds/folk-hero",
         },
       ];
     },
@@ -934,116 +740,64 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     characterData.selectedClass?.index
   );
 
+  // ===========================
+  // COMPUTED VALUES
+  // ===========================
+
   const totalSteps = steps.length;
 
-  // ===========================
-  // MEMOIZED COMPUTED VALUES
-  // ===========================
-
-  // Filtered races with search
+  // Filter data based on search terms
   const filteredRaces = useMemo(() => {
     if (!debouncedRaceSearch) return racesData;
-    return racesData.filter((race) =>
+    return racesData.filter(race =>
       race.name.toLowerCase().includes(debouncedRaceSearch.toLowerCase())
     );
   }, [racesData, debouncedRaceSearch]);
 
-  // Filtered classes with search
   const filteredClasses = useMemo(() => {
     if (!debouncedClassSearch) return classesData;
-    return classesData.filter((cls) =>
+    return classesData.filter(cls =>
       cls.name.toLowerCase().includes(debouncedClassSearch.toLowerCase())
     );
   }, [classesData, debouncedClassSearch]);
 
-  // Filtered spells with search
   const filteredSpells = useMemo(() => {
     if (!debouncedSpellSearch) return spellsData;
-    return spellsData.filter((spell) =>
+    return spellsData.filter(spell =>
       spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase())
     );
   }, [spellsData, debouncedSpellSearch]);
 
-  // Available subraces for selected race
+  // Get available subraces based on selected race
   const availableSubraces = useMemo(() => {
-    if (!characterData.selectedRace || !characterData.selectedRace.subraces) {
+    if (!characterData.selectedRace || !characterData.selectedRace.subraces.length) {
       return [];
     }
-
-    // For now, return mock subraces - in a real app, you'd fetch these from the API
-    const raceIndex = characterData.selectedRace.index;
-    
-    if (raceIndex === "elf") {
-      return [
-        {
-          index: "high-elf",
-          name: "Alto Elfo",
-          race: { index: "elf", name: "Elfo", url: "" },
-          desc: "Altos elfos são os mais mágicos dos elfos, com uma afinidade natural com magias arcanas.",
-          ability_bonuses: [
-            { ability_score: { index: "int", name: "Inteligência", url: "" }, bonus: 1 }
-          ],
-          starting_proficiencies: [],
-          languages: [],
-          racial_traits: [],
-          url: "/api/subraces/high-elf",
-        },
-        {
-          index: "wood-elf",
-          name: "Elfo da Floresta",
-          race: { index: "elf", name: "Elfo", url: "" },
-          desc: "Elfos da floresta são rápidos e furtivos, com uma conexão profunda com a natureza.",
-          ability_bonuses: [
-            { ability_score: { index: "wis", name: "Sabedoria", url: "" }, bonus: 1 }
-          ],
-          starting_proficiencies: [],
-          languages: [],
-          racial_traits: [],
-          url: "/api/subraces/wood-elf",
-        },
-      ];
-    }
-
-    if (raceIndex === "dwarf") {
-      return [
-        {
-          index: "hill-dwarf",
-          name: "Anão da Colina",
-          race: { index: "dwarf", name: "Anão", url: "" },
-          desc: "Anões da colina são resistentes e práticos, com uma constituição robusta.",
-          ability_bonuses: [
-            { ability_score: { index: "wis", name: "Sabedoria", url: "" }, bonus: 1 }
-          ],
-          starting_proficiencies: [],
-          languages: [],
-          racial_traits: [],
-          url: "/api/subraces/hill-dwarf",
-        },
-        {
-          index: "mountain-dwarf",
-          name: "Anão da Montanha",
-          race: { index: "dwarf", name: "Anão", url: "" },
-          desc: "Anões da montanha são guerreiros natos, treinados no uso de armaduras desde jovens.",
-          ability_bonuses: [
-            { ability_score: { index: "str", name: "Força", url: "" }, bonus: 2 }
-          ],
-          starting_proficiencies: [],
-          languages: [],
-          racial_traits: [],
-          url: "/api/subraces/mountain-dwarf",
-        },
-      ];
-    }
-
-    return [];
+    // For now, return mock subraces
+    return [
+      {
+        index: "high-elf",
+        name: "Alto Elfo",
+        race: characterData.selectedRace,
+        desc: "Elfos nobres com magia inata",
+        ability_bonuses: [
+          { ability_score: { index: "int", name: "Inteligência", url: "" }, bonus: 1 },
+        ],
+        starting_proficiencies: [],
+        languages: [],
+        racial_traits: [],
+        url: "/api/subraces/high-elf",
+      }
+    ];
   }, [characterData.selectedRace]);
 
-  // Available subclasses for selected class
+  // Get available subclasses - CORRIGIDO: filtra por classe selecionada
   const availableSubclasses = useMemo(() => {
     if (!characterData.selectedClass) {
       return [];
     }
 
+    // Filtra subclasses apenas da classe selecionada
     return subclassesData.filter(
       (subclass) => subclass.class.index === characterData.selectedClass?.index
     );
@@ -1051,77 +805,59 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 
   // Combined ability bonuses from race and subrace
   const combinedAbilityBonuses = useMemo(() => {
-    const bonuses: Array<{
-      ability_score: DndApiReference;
-      bonus: number;
-    }> = [];
-
+    const bonuses: { [key: string]: number } = {};
+    
     // Add race bonuses
-    if (characterData.selectedRace) {
-      bonuses.push(...characterData.selectedRace.ability_bonuses);
-    }
-
+    characterData.selectedRace?.ability_bonuses.forEach(bonus => {
+      bonuses[bonus.ability_score.index] = (bonuses[bonus.ability_score.index] || 0) + bonus.bonus;
+    });
+    
     // Add subrace bonuses
-    if (characterData.selectedSubrace) {
-      bonuses.push(...characterData.selectedSubrace.ability_bonuses);
-    }
-
+    characterData.selectedSubrace?.ability_bonuses.forEach(bonus => {
+      bonuses[bonus.ability_score.index] = (bonuses[bonus.ability_score.index] || 0) + bonus.bonus;
+    });
+    
     return bonuses;
   }, [characterData.selectedRace, characterData.selectedSubrace]);
 
   // ===========================
-  // UTILITY FUNCTIONS (MEMOIZED)
+  // UTILITY FUNCTIONS
   // ===========================
 
   const getAbilityModifier = useCallback((score: number): number => {
     return Math.floor((score - 10) / 2);
   }, []);
 
-  const calculateAbilityScorePoints = useMemo(() => {
-    return (scores: AbilityScores): number => {
-      const pointCosts: Record<number, number> = {
-        8: 0,
-        9: 1,
-        10: 2,
-        11: 3,
-        12: 4,
-        13: 5,
-        14: 7,
-        15: 9,
-      };
-
-      return Object.values(scores).reduce((total, score) => {
-        return total + (pointCosts[score] || 0);
-      }, 0);
-    };
+  const calculateAbilityScorePoints = useCallback((scores: AbilityScores): number => {
+    const costs = [0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 7, 9];
+    return Object.values(scores).reduce((total, score) => {
+      return total + (costs[score] || 0);
+    }, 0);
   }, []);
 
   const generateRandomAbilityScores = useCallback((): AbilityScores => {
-    const rollAbility = () => {
-      const rolls = Array.from(
-        { length: 4 },
-        () => Math.floor(Math.random() * 6) + 1
-      );
+    const rollStat = () => {
+      const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
       rolls.sort((a, b) => b - a);
       return rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
     };
 
     return {
-      strength: rollAbility(),
-      dexterity: rollAbility(),
-      constitution: rollAbility(),
-      intelligence: rollAbility(),
-      wisdom: rollAbility(),
-      charisma: rollAbility(),
+      strength: rollStat(),
+      dexterity: rollStat(),
+      constitution: rollStat(),
+      intelligence: rollStat(),
+      wisdom: rollStat(),
+      charisma: rollStat(),
     };
   }, []);
 
   // ===========================
-  // VALIDATION (MEMOIZED)
+  // VALIDATION
   // ===========================
 
-  const validateStep = useMemo(() => {
-    return (stepIndex: number, data: CharacterCreationData): StepValidation => {
+  const validateStep = useCallback(
+    (stepIndex: number, data: CharacterCreationData): StepValidation => {
       const errors: string[] = [];
       const warnings: string[] = [];
 
@@ -1131,20 +867,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
           if (!data.selectedRace) errors.push("Raça é obrigatória");
           if (!data.selectedClass) errors.push("Classe é obrigatória");
           if (!data.selectedBackground) errors.push("Background é obrigatório");
-          
-          // Check if race requires subrace
-          if (data.selectedRace && data.selectedRace.subraces.length > 0 && !data.selectedSubrace) {
-            errors.push("Subraça é obrigatória para esta raça");
-          }
-
-          // Check if class has subclasses and level is sufficient
-          if (data.selectedClass && data.level >= 3) {
-            // Most classes get subclasses at level 3
-            const hasAvailableSubclasses = availableSubclasses.length > 0;
-            if (hasAvailableSubclasses && !data.selectedSubclass) {
-              warnings.push("Considere escolher uma subclasse para seu nível");
-            }
-          }
+          if (!data.alignment) warnings.push("Escolha um alinhamento");
           break;
 
         case 1: // Ability Scores
@@ -1185,8 +908,9 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         errors,
         warnings,
       };
-    };
-  }, [calculateAbilityScorePoints, availableSubclasses]);
+    },
+    [calculateAbilityScorePoints]
+  );
 
   const validateCurrentStep = useCallback((): boolean => {
     const validation = validateStep(currentStep, characterData);
@@ -1200,7 +924,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [validateCurrentStep, loading, racesLoading, classesLoading]);
 
   // ===========================
-  // NAVIGATION (WITH CALLBACKS)
+  // NAVIGATION
   // ===========================
 
   const nextStep = useCallback(() => {
@@ -1234,7 +958,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   );
 
   // ===========================
-  // DATA MANAGEMENT (WITH CALLBACKS)
+  // DATA MANAGEMENT
   // ===========================
 
   const updateCharacterData = useCallback(
@@ -1358,6 +1082,42 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [characterData, totalSteps, validateStep, resetCharacter]);
 
   // ===========================
+  // EFFECTS FOR AUTO-RESET
+  // ===========================
+
+  // Reset subrace when race changes and the new race doesn't support the current subrace
+  useEffect(() => {
+    if (characterData.selectedRace && characterData.selectedSubrace) {
+      // Check if current subrace belongs to the selected race
+      const currentSubraceIsValid = characterData.selectedSubrace.race.index === characterData.selectedRace.index;
+      
+      if (!currentSubraceIsValid) {
+        // Reset subrace if it doesn't match the selected race
+        setCharacterData(prev => ({
+          ...prev,
+          selectedSubrace: null
+        }));
+      }
+    }
+  }, [characterData.selectedRace?.index]);
+
+  // Reset subclass when class changes and the new class doesn't support the current subclass
+  useEffect(() => {
+    if (characterData.selectedClass && characterData.selectedSubclass) {
+      // Check if current subclass belongs to the selected class
+      const currentSubclassIsValid = characterData.selectedSubclass.class.index === characterData.selectedClass.index;
+      
+      if (!currentSubclassIsValid) {
+        // Reset subclass if it doesn't match the selected class
+        setCharacterData(prev => ({
+          ...prev,
+          selectedSubclass: null
+        }));
+      }
+    }
+  }, [characterData.selectedClass?.index]);
+
+  // ===========================
   // EFFECT FOR ERROR HANDLING
   // ===========================
 
@@ -1416,15 +1176,30 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 
     // Subclasses functions
     getAvailableSubclasses: () => availableSubclasses,
+    // CORREÇÃO APLICADA: Função getSubclassFeatures com tratamento de erro
     getSubclassFeatures: (level?: number) => {
-      if (!characterData.selectedSubclass) return [];
+      // Verificar se selectedSubclass existe
+      if (!characterData.selectedSubclass) {
+        return [];
+      }
+      
+      // Verificar se subclass_levels existe e é um array
+      if (!characterData.selectedSubclass.subclass_levels || 
+          !Array.isArray(characterData.selectedSubclass.subclass_levels)) {
+        console.warn('subclass_levels is not a valid array:', characterData.selectedSubclass.subclass_levels);
+        return [];
+      }
       
       const targetLevel = level || characterData.level;
       const features: DndApiReference[] = [];
       
       characterData.selectedSubclass.subclass_levels.forEach(levelData => {
-        if (levelData.level <= targetLevel) {
-          features.push(...levelData.features);
+        // Verificação adicional de segurança para levelData
+        if (levelData && typeof levelData.level === 'number' && levelData.level <= targetLevel) {
+          // Verificar se features existe e é um array antes de espalhar
+          if (levelData.features && Array.isArray(levelData.features)) {
+            features.push(...levelData.features);
+          }
         }
       });
       
