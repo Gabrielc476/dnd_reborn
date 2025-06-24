@@ -159,7 +159,7 @@ function ImprovedCharacterCreationPage() {
               
               <Button
                 onClick={handleNext}
-                disabled={!canProceed() || loading}
+                disabled={!canProceed || loading}
                 size="sm"
                 className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4"
               >

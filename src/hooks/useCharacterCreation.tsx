@@ -10,7 +10,6 @@ import {
   useMemo,
   createContext,
   useContext,
-  useRef,
 } from "react";
 import {
   useQuery,
@@ -41,7 +40,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (era cacheTime)
+      gcTime: 10 * 60 * 1000, // 10 minutes
       refetchOnWindowFocus: false,
       retry: 2,
     },
@@ -49,7 +48,107 @@ const queryClient = new QueryClient({
 });
 
 // ===========================
-// REACT QUERY HOOKS
+// DEBOUNCE HOOK
+// ===========================
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+// ===========================
+// INITIAL DATA
+// ===========================
+
+const initialCharacterData: CharacterCreationData = {
+  name: "",
+  selectedRace: null,
+  selectedSubrace: null,
+  selectedClass: null,
+  selectedSubclass: null,
+  selectedBackground: null,
+  level: 1,
+  alignment: "",
+  abilityScores: {
+    strength: 10,
+    dexterity: 10,
+    constitution: 10,
+    intelligence: 10,
+    wisdom: 10,
+    charisma: 10,
+  },
+  abilityMethod: "standard",
+  selectedSkills: [],
+  availableSkillChoices: 0,
+  hitPoints: 0,
+  armorClass: 10,
+  selectedSpells: [],
+  isSpellcaster: false,
+  spellcastingAbility: null,
+  personalityTraits: [],
+  ideals: [],
+  bonds: [],
+  flaws: [],
+};
+
+const characterCreationSteps: CharacterCreationStep[] = [
+  {
+    id: "basic-info",
+    title: "Informações Básicas",
+    description: "Nome, raça, classe e background",
+    isCompleted: false,
+    isValid: false,
+  },
+  {
+    id: "ability-scores",
+    title: "Atributos",
+    description: "Defina os valores dos seus atributos",
+    isCompleted: false,
+    isValid: false,
+  },
+  {
+    id: "skills",
+    title: "Perícias",
+    description: "Escolha suas perícias",
+    isCompleted: false,
+    isValid: false,
+  },
+  {
+    id: "equipment",
+    title: "Equipamentos",
+    description: "HP, CA e equipamentos iniciais",
+    isCompleted: false,
+    isValid: false,
+  },
+  {
+    id: "spells",
+    title: "Magias",
+    description: "Escolha suas magias (se aplicável)",
+    isCompleted: false,
+    isValid: false,
+  },
+  {
+    id: "personality",
+    title: "Personalização",
+    description: "Traços, ideais, vínculos e defeitos",
+    isCompleted: false,
+    isValid: false,
+  },
+];
+
+// ===========================
+// REACT QUERY HOOKS - TODOS OS DADOS COMPLETOS
 // ===========================
 
 function useRacesQuery() {
@@ -260,6 +359,10 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
+          spellcasting: null,
           url: "/api/classes/barbarian",
         },
         {
@@ -270,6 +373,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 1,
             spellcasting_ability: { index: "cha", name: "Carisma", url: "" },
@@ -285,6 +391,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 1,
             spellcasting_ability: { index: "wis", name: "Sabedoria", url: "" },
@@ -300,6 +409,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 1,
             spellcasting_ability: { index: "wis", name: "Sabedoria", url: "" },
@@ -315,6 +427,10 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
+          spellcasting: null,
           url: "/api/classes/fighter",
         },
         {
@@ -325,6 +441,10 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
+          spellcasting: null,
           url: "/api/classes/monk",
         },
         {
@@ -335,6 +455,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 2,
             spellcasting_ability: { index: "cha", name: "Carisma", url: "" },
@@ -350,6 +473,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 2,
             spellcasting_ability: { index: "wis", name: "Sabedoria", url: "" },
@@ -365,6 +491,10 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
+          spellcasting: null,
           url: "/api/classes/rogue",
         },
         {
@@ -375,6 +505,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 1,
             spellcasting_ability: { index: "cha", name: "Carisma", url: "" },
@@ -390,6 +523,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 1,
             spellcasting_ability: { index: "cha", name: "Carisma", url: "" },
@@ -405,6 +541,9 @@ function useClassesQuery() {
           proficiency_choices: [],
           saving_throws: [],
           starting_equipment: [],
+          class_levels: [],
+          multi_classing: {},
+          subclasses: [],
           spellcasting: {
             level: 1,
             spellcasting_ability: { index: "int", name: "Inteligência", url: "" },
@@ -428,6 +567,7 @@ function useBackgroundsQuery() {
           index: "acolyte",
           name: "Acólito",
           starting_proficiencies: [],
+          languages: [],
           starting_equipment: [],
           feature: {
             name: "Abrigo dos Fiéis",
@@ -491,6 +631,7 @@ function useBackgroundsQuery() {
           index: "criminal",
           name: "Criminoso",
           starting_proficiencies: [],
+          languages: [],
           starting_equipment: [],
           feature: {
             name: "Contato Criminal",
@@ -554,6 +695,7 @@ function useBackgroundsQuery() {
           index: "folk-hero",
           name: "Herói Popular",
           starting_proficiencies: [],
+          languages: [],
           starting_equipment: [],
           feature: {
             name: "Hospitalidade Rústica",
@@ -617,6 +759,7 @@ function useBackgroundsQuery() {
           index: "noble",
           name: "Nobre",
           starting_proficiencies: [],
+          languages: [],
           starting_equipment: [],
           feature: {
             name: "Posição de Privilégio",
@@ -680,6 +823,7 @@ function useBackgroundsQuery() {
           index: "sage",
           name: "Erudito",
           starting_proficiencies: [],
+          languages: [],
           starting_equipment: [],
           feature: {
             name: "Pesquisador",
@@ -743,6 +887,7 @@ function useBackgroundsQuery() {
           index: "soldier",
           name: "Soldado",
           starting_proficiencies: [],
+          languages: [],
           starting_equipment: [],
           feature: {
             name: "Posição Militar",
@@ -808,9 +953,9 @@ function useBackgroundsQuery() {
   });
 }
 
-function useSpellsQuery(enabled: boolean, level?: number, className?: string) {
+function useSpellsQuery(enabled: boolean = true, level?: number, classIndex?: string) {
   return useQuery({
-    queryKey: ["dnd", "spells", level, className],
+    queryKey: ["dnd", "spells", level, classIndex],
     queryFn: () => {
       // Mock spells data
       return [
@@ -868,6 +1013,26 @@ function useSpellsQuery(enabled: boolean, level?: number, className?: string) {
           subclasses: [],
           url: "/api/spells/cure-wounds",
         },
+        {
+          index: "magic-missile",
+          name: "Mísseis Mágicos",
+          desc: ["Três dardos de energia mágica"],
+          higher_level: [],
+          range: "120 pés",
+          components: ["V", "S"],
+          material: "",
+          ritual: false,
+          duration: "Instantâneo",
+          concentration: false,
+          casting_time: "1 ação",
+          level: 1,
+          attack_type: "ranged",
+          damage: { damage_type: { index: "force", name: "Força", url: "" } },
+          school: { index: "evocation", name: "Evocação", url: "" },
+          classes: [{ index: "wizard", name: "Mago", url: "" }],
+          subclasses: [],
+          url: "/api/spells/magic-missile",
+        },
       ];
     },
     enabled,
@@ -875,7 +1040,7 @@ function useSpellsQuery(enabled: boolean, level?: number, className?: string) {
   });
 }
 
-function useSubclassesQuery(enabled: boolean, classIndex?: string) {
+function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "subclasses", classIndex],
     queryFn: () => {
@@ -945,114 +1110,13 @@ function useSubclassesQuery(enabled: boolean, classIndex?: string) {
 }
 
 // ===========================
-// DEBOUNCE HOOK
-// ===========================
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-}
-
-// ===========================
-// INITIAL DATA
-// ===========================
-
-const initialCharacterData: CharacterCreationData = {
-  name: "",
-  selectedRace: null,
-  selectedSubrace: null,
-  selectedClass: null,
-  selectedSubclass: null,
-  selectedBackground: null,
-  level: 1,
-  alignment: "",
-  abilityScores: {
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10,
-  },
-  abilityMethod: "standard",
-  selectedSkills: [],
-  availableSkillChoices: 0,
-  hitPoints: 0,
-  armorClass: 10,
-  selectedSpells: [],
-  isSpellcaster: false,
-  spellcastingAbility: null,
-  personalityTraits: [],
-  ideals: [],
-  bonds: [],
-  flaws: [],
-};
-
-const characterCreationSteps: CharacterCreationStep[] = [
-  {
-    id: "basic-info",
-    title: "Informações Básicas",
-    description: "Nome, raça, classe e background",
-    isCompleted: false,
-    isValid: false,
-  },
-  {
-    id: "ability-scores",
-    title: "Atributos",
-    description: "Defina os valores dos seus atributos",
-    isCompleted: false,
-    isValid: false,
-  },
-  {
-    id: "skills",
-    title: "Perícias",
-    description: "Escolha suas perícias",
-    isCompleted: false,
-    isValid: false,
-  },
-  {
-    id: "equipment",
-    title: "Equipamentos",
-    description: "HP, CA e equipamentos iniciais",
-    isCompleted: false,
-    isValid: false,
-  },
-  {
-    id: "spells",
-    title: "Magias",
-    description: "Escolha suas magias (se aplicável)",
-    isCompleted: false,
-    isValid: false,
-  },
-  {
-    id: "personality",
-    title: "Personalização",
-    description: "Traços, ideais, vínculos e defeitos",
-    isCompleted: false,
-    isValid: false,
-  },
-];
-
-// ===========================
 // CONTEXT
 // ===========================
 
-const CharacterCreationContext =
-  createContext<CharacterCreationContextType | null>(null);
+const CharacterCreationContext = createContext<CharacterCreationContextType | null>(null);
 
 // ===========================
-// OPTIMIZED HOOK IMPLEMENTATION
+// MAIN HOOK IMPLEMENTATION
 // ===========================
 
 export const useCharacterCreation = (): CharacterCreationContextType => {
@@ -1084,8 +1148,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     error: classesError,
   } = useClassesQuery();
 
-  const { data: backgroundsData = [], isLoading: backgroundsLoading } =
-    useBackgroundsQuery();
+  const { data: backgroundsData = [], isLoading: backgroundsLoading } = useBackgroundsQuery();
 
   const { data: spellsData = [], isLoading: spellsLoading } = useSpellsQuery(
     characterData.isSpellcaster,
@@ -1094,7 +1157,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   );
 
   const { data: subclassesData = [], isLoading: subclassesLoading } = useSubclassesQuery(
-    !!characterData.selectedClass,
+    true,
     characterData.selectedClass?.index
   );
 
@@ -1256,28 +1319,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     );
   }, [characterData.selectedClass, subclassesData]);
 
-  const combinedAbilityBonuses = useMemo(() => {
-    const bonuses: Record<string, number> = {};
-
-    // Add race bonuses
-    if (characterData.selectedRace) {
-      characterData.selectedRace.ability_bonuses.forEach((bonus) => {
-        bonuses[bonus.ability_score.index] =
-          (bonuses[bonus.ability_score.index] || 0) + bonus.bonus;
-      });
-    }
-
-    // Add subrace bonuses
-    if (characterData.selectedSubrace) {
-      characterData.selectedSubrace.ability_bonuses.forEach((bonus) => {
-        bonuses[bonus.ability_score.index] =
-          (bonuses[bonus.ability_score.index] || 0) + bonus.bonus;
-      });
-    }
-
-    return bonuses;
-  }, [characterData.selectedRace, characterData.selectedSubrace]);
-
   // ===========================
   // UTILITY FUNCTIONS
   // ===========================
@@ -1288,18 +1329,13 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 
   const calculateAbilityScorePoints = useCallback(
     (scores: AbilityScores): number => {
-      const basePoints = 27;
-      const standardArray = [15, 14, 13, 12, 10, 8];
-      
       const costs: Record<number, number> = {
         8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9,
       };
 
-      const totalCost = Object.values(scores).reduce((sum, score) => {
+      return Object.values(scores).reduce((sum, score) => {
         return sum + (costs[score] || 0);
       }, 0);
-
-      return basePoints - totalCost;
     },
     []
   );
@@ -1351,37 +1387,31 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
             0
           );
           if (data.abilityMethod === "point_buy") {
-            const remainingPoints = calculateAbilityScorePoints(
-              data.abilityScores
-            );
-            if (remainingPoints < 0) errors.push("Pontos de atributo excedidos");
-            if (remainingPoints > 0)
-              warnings.push("Você ainda tem pontos para gastar");
+            const remainingPoints = 27 - calculateAbilityScorePoints(data.abilityScores);
+            if (remainingPoints !== 0) {
+              errors.push(`Você deve usar exatamente 27 pontos (restam ${remainingPoints})`);
+            }
           }
-          if (total < 60) warnings.push("Atributos muito baixos");
           break;
 
         case 2: // Skills
-          if (data.selectedSkills.length !== data.availableSkillChoices) {
-            errors.push(`Selecione ${data.availableSkillChoices} perícias`);
+          if (data.selectedSkills.length > data.availableSkillChoices) {
+            errors.push("Muitas perícias selecionadas");
           }
           break;
 
         case 3: // Equipment
-          if (data.hitPoints <= 0) errors.push("HP deve ser maior que 0");
-          if (data.armorClass < 10) warnings.push("CA muito baixa");
+          // Basic equipment validation
           break;
 
         case 4: // Spells
           if (data.isSpellcaster && data.selectedSpells.length === 0) {
-            warnings.push("Conjuradores geralmente começam com algumas magias");
+            warnings.push("Considere selecionar algumas magias");
           }
           break;
 
         case 5: // Personality
-          if (data.personalityTraits.length === 0) {
-            warnings.push("Adicione alguns traços de personalidade");
-          }
+          // Optional validation for personality traits
           break;
       }
 
@@ -1394,28 +1424,23 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     [calculateAbilityScorePoints]
   );
 
-  const validateCurrentStep = useCallback((): boolean => {
-    const validation = validateStep(currentStep, characterData);
-    return validation.isValid;
+  const validateCurrentStep = useCallback(() => {
+    return validateStep(currentStep, characterData);
   }, [currentStep, characterData, validateStep]);
 
-  const canProceed = useCallback((): boolean => {
-    return (
-      validateCurrentStep() && !loading && !racesLoading && !classesLoading
-    );
-  }, [validateCurrentStep, loading, racesLoading, classesLoading]);
+  const canProceed = useMemo(() => {
+    return validateCurrentStep().isValid;
+  }, [validateCurrentStep]);
 
   // ===========================
   // NAVIGATION
   // ===========================
 
   const nextStep = useCallback(() => {
-    if (canProceed() && currentStep < totalSteps - 1) {
+    if (currentStep < totalSteps - 1 && canProceed) {
       setCurrentStep((prev) => prev + 1);
-
-      // Mark current step as completed
-      setSteps((prev) =>
-        prev.map((step, index) =>
+      setSteps((prevSteps) =>
+        prevSteps.map((step, index) =>
           index === currentStep
             ? { ...step, isCompleted: true, isValid: true }
             : step
@@ -1440,7 +1465,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   );
 
   // ===========================
-  // ROBUST AUTO-RESET CALLBACKS
+  // AUTO-RESET CALLBACKS
   // ===========================
 
   const resetInvalidSubrace = useCallback(() => {
@@ -1449,7 +1474,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         characterData.selectedSubrace.race.index === characterData.selectedRace.index;
       
       if (!currentSubraceIsValid) {
-        console.log('Resetando subraça inválida:', characterData.selectedSubrace.name);
         setCharacterData(prev => ({
           ...prev,
           selectedSubrace: null
@@ -1464,7 +1488,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         characterData.selectedSubclass.class.index === characterData.selectedClass.index;
       
       if (!currentSubclassIsValid) {
-        console.log('Resetando subclasse inválida:', characterData.selectedSubclass.name);
         setCharacterData(prev => ({
           ...prev,
           selectedSubclass: null
@@ -1486,8 +1509,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         if (newData.selectedClass) {
           updated.isSpellcaster = !!newData.selectedClass.spellcasting;
           updated.spellcastingAbility =
-            newData.selectedClass.spellcasting?.spellcasting_ability.index ||
-            null;
+            newData.selectedClass.spellcasting?.spellcasting_ability.index || null;
           updated.availableSkillChoices = 2; // Simplified
 
           // Reset subclass if class changed
@@ -1497,9 +1519,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         }
 
         if (newData.selectedClass && updated.abilityScores && updated.level) {
-          const conModifier = getAbilityModifier(
-            updated.abilityScores.constitution
-          );
+          const conModifier = getAbilityModifier(updated.abilityScores.constitution);
           updated.hitPoints =
             newData.selectedClass.hit_die +
             conModifier +
@@ -1508,9 +1528,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         }
 
         if (newData.abilityScores) {
-          const dexModifier = getAbilityModifier(
-            updated.abilityScores.dexterity
-          );
+          const dexModifier = getAbilityModifier(updated.abilityScores.dexterity);
           updated.armorClass = 10 + dexModifier;
         }
 
@@ -1577,8 +1595,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       const { characterAPI } = await import("@/api/characterAPI");
 
       // Validate data before sending
-      const validationErrors =
-        characterAPI.validateCharacterData(characterData);
+      const validationErrors = characterAPI.validateCharacterData(characterData);
       if (validationErrors.length > 0) {
         throw new Error(`Dados inválidos: ${validationErrors.join(", ")}`);
       }
@@ -1603,7 +1620,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [characterData, totalSteps, validateStep, resetCharacter]);
 
   // ===========================
-  // EFFECTS FOR AUTO-RESET (CORREÇÃO ROBUSTA)
+  // EFFECTS FOR AUTO-RESET
   // ===========================
 
   useEffect(() => {
@@ -1623,6 +1640,10 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       setError("Erro ao carregar dados da API D&D. Usando dados locais.");
     }
   }, [racesError, classesError]);
+
+  // ===========================
+  // RETURN STATEMENT - CORREÇÃO PRINCIPAL AQUI
+  // ===========================
 
   return {
     // State
@@ -1667,7 +1688,30 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 
     // Subraces functions
     getAvailableSubraces: () => availableSubraces,
-    getCombinedAbilityBonuses: () => combinedAbilityBonuses,
+    
+    // ===========================
+    // CORREÇÃO PRINCIPAL: getCombinedAbilityBonuses retorna array ao invés de objeto
+    // ===========================
+    getCombinedAbilityBonuses: () => {
+      const bonusArray = [];
+      
+      // Add race bonuses
+      if (characterData.selectedRace) {
+        characterData.selectedRace.ability_bonuses.forEach((bonus) => {
+          bonusArray.push(bonus);
+        });
+      }
+
+      // Add subrace bonuses
+      if (characterData.selectedSubrace) {
+        characterData.selectedSubrace.ability_bonuses.forEach((bonus) => {
+          bonusArray.push(bonus);
+        });
+      }
+
+      return bonusArray;
+    },
+    
     getSubraceAbilityBonuses: () => 
       characterData.selectedSubrace ? characterData.selectedSubrace.ability_bonuses : [],
 
@@ -1715,9 +1759,7 @@ interface CharacterCreationProviderProps {
   children: React.ReactNode;
 }
 
-export const CharacterCreationProvider: React.FC<
-  CharacterCreationProviderProps
-> = ({ children }) => {
+export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps> = ({ children }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <CharacterCreationProviderInner>
@@ -1727,9 +1769,7 @@ export const CharacterCreationProvider: React.FC<
   );
 };
 
-const CharacterCreationProviderInner: React.FC<
-  CharacterCreationProviderProps
-> = ({ children }) => {
+const CharacterCreationProviderInner: React.FC<CharacterCreationProviderProps> = ({ children }) => {
   const characterCreation = useCharacterCreation();
 
   return (
