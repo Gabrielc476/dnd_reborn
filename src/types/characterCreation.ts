@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION TYPES - UPDATED WITH SUBRACES
+// CHARACTER CREATION TYPES - UPDATED WITH SUBRACES & SUBCLASSES
 // src/types/characterCreation.ts
 // ===========================
 
@@ -45,6 +45,23 @@ export interface DndRace {
   language_desc: string;
   traits: DndApiReference[];
   subraces: DndApiReference[];
+  url: string;
+}
+
+export interface DndSubclass {
+  index: string;
+  name: string;
+  class: DndApiReference;
+  subclass_flavor: string;
+  desc: string[];
+  subclass_levels: Array<{
+    level: number;
+    features: DndApiReference[];
+  }>;
+  spells?: Array<{
+    level: number;
+    spells: DndApiReference[];
+  }>;
   url: string;
 }
 
@@ -177,8 +194,9 @@ export interface CharacterCreationData {
   // Passo 1: Informações Básicas
   name: string;
   selectedRace: DndRace | null;
-  selectedSubrace: DndSubrace | null; // ← NOVA PROPRIEDADE
+  selectedSubrace: DndSubrace | null; // ← SUBRAÇA
   selectedClass: DndClass | null;
+  selectedSubclass: DndSubclass | null; // ← SUBCLASSE (NOVA)
   selectedBackground: DndBackground | null;
   level: number;
   alignment: string;
@@ -221,7 +239,8 @@ export interface CharacterCreationContextType {
   classes: DndClass[];
   backgrounds: DndBackground[];
   spells: DndSpell[];
-  subraces: DndSubrace[]; // ← NOVA PROPRIEDADE
+  subraces: DndSubrace[];
+  subclasses: DndSubclass[]; // ← NOVA PROPRIEDADE
 
   // Ações de navegação
   nextStep: () => void;
@@ -256,14 +275,23 @@ export interface CharacterCreationContextType {
   isLoadingRaces: boolean;
   isLoadingClasses: boolean;
   isLoadingSpells: boolean;
-  isLoadingSubraces: boolean; // ← NOVA PROPRIEDADE
+  isLoadingSubraces: boolean;
+  isLoadingSubclasses: boolean; // ← NOVA PROPRIEDADE
 
   // Funções específicas para subraças
-  getAvailableSubraces: () => DndSubrace[]; // ← NOVA FUNÇÃO
+  getAvailableSubraces: () => DndSubrace[];
   getSubraceAbilityBonuses: () => Array<{
     ability_score: DndApiReference;
     bonus: number;
-  }>; // ← NOVA FUNÇÃO
+  }>;
+  getCombinedAbilityBonuses: () => Array<{
+    ability_score: DndApiReference;
+    bonus: number;
+  }>;
+
+  // Funções específicas para subclasses (NOVAS)
+  getAvailableSubclasses: () => DndSubclass[];
+  getSubclassFeatures: (level?: number) => DndApiReference[];
 }
 
 // ===========================
@@ -457,7 +485,92 @@ export const ALIGNMENTS = [
 ];
 
 // ===========================
-// EXPORT ALL
+// SUBCLASS LEVEL THRESHOLDS
+// ===========================
+
+export const SUBCLASS_LEVELS: Record<string, number> = {
+  // Most classes get subclasses at level 3
+  fighter: 3,
+  rogue: 3,
+  ranger: 3,
+  barbarian: 3,
+  bard: 3,
+  monk: 3,
+  paladin: 3,
+  
+  // Exceptions
+  wizard: 2,    // School of Magic at level 2
+  warlock: 1,   // Patron at level 1
+  cleric: 1,    // Domain at level 1
+  druid: 2,     // Circle at level 2
+  sorcerer: 1,  // Origin at level 1
+};
+
+// ===========================
+// UTILITY FUNCTIONS FOR SUBCLASSES
+// ===========================
+
+/**
+ * Verifica se uma classe pode ter subclasse no nível especificado
+ */
+export function canHaveSubclass(classIndex: string, level: number): boolean {
+  const requiredLevel = SUBCLASS_LEVELS[classIndex] || 3;
+  return level >= requiredLevel;
+}
+
+/**
+ * Retorna o nível mínimo para subclasse de uma classe
+ */
+export function getSubclassLevel(classIndex: string): number {
+  return SUBCLASS_LEVELS[classIndex] || 3;
+}
+
+/**
+ * Verifica se uma subclasse está disponível no nível atual
+ */
+export function isSubclassAvailable(
+  classIndex: string, 
+  level: number, 
+  subclass: DndSubclass
+): boolean {
+  const requiredLevel = getSubclassLevel(classIndex);
+  return level >= requiredLevel && subclass.class.index === classIndex;
+}
+
+// ===========================
+// SUBCLASS FEATURE HELPERS
+// ===========================
+
+/**
+ * Filtra features de subclasse por nível
+ */
+export function getSubclassFeaturesForLevel(
+  subclass: DndSubclass, 
+  level: number
+): DndApiReference[] {
+  const features: DndApiReference[] = [];
+  
+  subclass.subclass_levels.forEach(levelData => {
+    if (levelData.level <= level) {
+      features.push(...levelData.features);
+    }
+  });
+  
+  return features;
+}
+
+/**
+ * Verifica se uma subclasse tem features no nível especificado
+ */
+export function hasSubclassFeaturesAtLevel(
+  subclass: DndSubclass, 
+  level: number
+): boolean {
+  return subclass.subclass_levels.some(levelData => levelData.level === level);
+}
+
+// ===========================
+// EXPORT ALL TYPES
 // ===========================
 
 export type {
@@ -465,6 +578,7 @@ export type {
   DndRace,
   DndSubrace,
   DndClass,
+  DndSubclass,
   DndBackground,
   DndSpell,
   CharacterCreationStep,

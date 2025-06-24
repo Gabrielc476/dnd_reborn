@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA
+// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA COM SUBCLASSES
 // ===========================
 "use client";
 
@@ -26,6 +26,7 @@ import {
   DndRace,
   DndSubrace,
   DndClass,
+  DndSubclass,
   DndBackground,
   DndSpell,
   DndApiReference,
@@ -186,6 +187,37 @@ class OptimizedDndApiService {
       }
       console.warn("Failed to fetch spells from API, using fallback");
       return this.getMockSpells();
+    }
+  }
+
+  async fetchSubclasses(classIndex?: string): Promise<DndSubclass[]> {
+    const cacheKey = `subclasses-${classIndex || "all"}`;
+    const signal = this.cancelPreviousRequest(cacheKey);
+
+    try {
+      let url = "https://www.dnd5eapi.co/api/subclasses";
+      if (classIndex) {
+        url = `https://www.dnd5eapi.co/api/classes/${classIndex}/subclasses`;
+      }
+
+      const data = await this.fetchWithCache<any>(url, cacheKey, signal);
+
+      const subclassPromises = data.results.map(async (subclass: any) => {
+        const subclassData = await this.fetchWithCache<DndSubclass>(
+          `https://www.dnd5eapi.co${subclass.url}`,
+          `subclass-${subclass.index}`,
+          signal
+        );
+        return subclassData;
+      });
+
+      return Promise.all(subclassPromises);
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw error;
+      }
+      console.warn("Failed to fetch subclasses from API, using fallback");
+      return this.getMockSubclasses(classIndex);
     }
   }
 
@@ -382,6 +414,140 @@ class OptimizedDndApiService {
         url: "/api/spells/fire-bolt",
       },
     ];
+  }
+
+  private getMockSubclasses(classIndex?: string): DndSubclass[] {
+    const allSubclasses = [
+      // Wizard subclasses
+      {
+        index: "school-of-evocation",
+        name: "Escola de Evocação",
+        class: { index: "wizard", name: "Mago", url: "" },
+        subclass_flavor: "Escola Arcana",
+        desc: [
+          "Focados em magias que manipulam energia e criam efeitos elementais.",
+          "Especialistas em magias de dano e destruição."
+        ],
+        subclass_levels: [
+          {
+            level: 2,
+            features: [
+              { index: "evocation-savant", name: "Especialista em Evocação", url: "" },
+              { index: "sculpt-spells", name: "Esculpir Magias", url: "" }
+            ]
+          }
+        ],
+        url: "/api/subclasses/school-of-evocation",
+      },
+      {
+        index: "school-of-abjuration",
+        name: "Escola de Abjuração",
+        class: { index: "wizard", name: "Mago", url: "" },
+        subclass_flavor: "Escola Arcana",
+        desc: [
+          "Especialistas em magias protetivas e de banimento.",
+          "Mestres em defender a si mesmos e aliados."
+        ],
+        subclass_levels: [
+          {
+            level: 2,
+            features: [
+              { index: "abjuration-savant", name: "Especialista em Abjuração", url: "" },
+              { index: "arcane-ward", name: "Proteção Arcana", url: "" }
+            ]
+          }
+        ],
+        url: "/api/subclasses/school-of-abjuration",
+      },
+      // Fighter subclasses
+      {
+        index: "champion",
+        name: "Campeão",
+        class: { index: "fighter", name: "Guerreiro", url: "" },
+        subclass_flavor: "Arquétipo Marcial",
+        desc: [
+          "O epítome do guerreiro, focado em combate físico aprimorado.",
+          "Especialistas em críticos e resistência."
+        ],
+        subclass_levels: [
+          {
+            level: 3,
+            features: [
+              { index: "improved-critical", name: "Crítico Aprimorado", url: "" }
+            ]
+          }
+        ],
+        url: "/api/subclasses/champion",
+      },
+      {
+        index: "battle-master",
+        name: "Mestre de Batalha",
+        class: { index: "fighter", name: "Guerreiro", url: "" },
+        subclass_flavor: "Arquétipo Marcial",
+        desc: [
+          "Guerreiros táticos que usam manobras especiais em combate.",
+          "Especialistas em controle de campo de batalha."
+        ],
+        subclass_levels: [
+          {
+            level: 3,
+            features: [
+              { index: "combat-superiority", name: "Superioridade em Combate", url: "" },
+              { index: "maneuvers", name: "Manobras", url: "" }
+            ]
+          }
+        ],
+        url: "/api/subclasses/battle-master",
+      },
+      // Rogue subclasses
+      {
+        index: "thief",
+        name: "Ladrão",
+        class: { index: "rogue", name: "Ladino", url: "" },
+        subclass_flavor: "Arquétipo de Ladino",
+        desc: [
+          "Especialistas em roubo, escalada e uso de objetos mágicos.",
+          "Mestres em infiltração e agilidade."
+        ],
+        subclass_levels: [
+          {
+            level: 3,
+            features: [
+              { index: "fast-hands", name: "Mãos Rápidas", url: "" },
+              { index: "second-story-work", name: "Especialista em Escalada", url: "" }
+            ]
+          }
+        ],
+        url: "/api/subclasses/thief",
+      },
+      {
+        index: "assassin",
+        name: "Assassino",
+        class: { index: "rogue", name: "Ladino", url: "" },
+        subclass_flavor: "Arquétipo de Ladino",
+        desc: [
+          "Mestres em eliminar alvos rapidamente e com discrição.",
+          "Especialistas em ataques surpresa e venenos."
+        ],
+        subclass_levels: [
+          {
+            level: 3,
+            features: [
+              { index: "bonus-proficiencies", name: "Proficiências Extras", url: "" },
+              { index: "assassinate", name: "Assassinar", url: "" }
+            ]
+          }
+        ],
+        url: "/api/subclasses/assassin",
+      },
+    ];
+
+    // Filter by class if specified
+    if (classIndex) {
+      return allSubclasses.filter(subclass => subclass.class.index === classIndex);
+    }
+
+    return allSubclasses;
   }
 }
 
@@ -605,6 +771,15 @@ function useSpellsQuery(enabled: boolean, level?: number, className?: string) {
   });
 }
 
+function useSubclassesQuery(enabled: boolean, classIndex?: string) {
+  return useQuery({
+    queryKey: ["dnd", "subclasses", classIndex],
+    queryFn: () => apiService.fetchSubclasses(classIndex),
+    enabled,
+    staleTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
 // ===========================
 // DEBOUNCE HOOK
 // ===========================
@@ -634,6 +809,7 @@ const initialCharacterData: CharacterCreationData = {
   selectedRace: null,
   selectedSubrace: null,
   selectedClass: null,
+  selectedSubclass: null,
   selectedBackground: null,
   level: 1,
   alignment: "",
@@ -753,6 +929,11 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     characterData.selectedClass?.index
   );
 
+  const { data: subclassesData = [], isLoading: subclassesLoading } = useSubclassesQuery(
+    !!characterData.selectedClass,
+    characterData.selectedClass?.index
+  );
+
   const totalSteps = steps.length;
 
   // ===========================
@@ -857,6 +1038,17 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return [];
   }, [characterData.selectedRace]);
 
+  // Available subclasses for selected class
+  const availableSubclasses = useMemo(() => {
+    if (!characterData.selectedClass) {
+      return [];
+    }
+
+    return subclassesData.filter(
+      (subclass) => subclass.class.index === characterData.selectedClass?.index
+    );
+  }, [characterData.selectedClass, subclassesData]);
+
   // Combined ability bonuses from race and subrace
   const combinedAbilityBonuses = useMemo(() => {
     const bonuses: Array<{
@@ -944,6 +1136,15 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
           if (data.selectedRace && data.selectedRace.subraces.length > 0 && !data.selectedSubrace) {
             errors.push("Subraça é obrigatória para esta raça");
           }
+
+          // Check if class has subclasses and level is sufficient
+          if (data.selectedClass && data.level >= 3) {
+            // Most classes get subclasses at level 3
+            const hasAvailableSubclasses = availableSubclasses.length > 0;
+            if (hasAvailableSubclasses && !data.selectedSubclass) {
+              warnings.push("Considere escolher uma subclasse para seu nível");
+            }
+          }
           break;
 
         case 1: // Ability Scores
@@ -985,7 +1186,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         warnings,
       };
     };
-  }, [calculateAbilityScorePoints]);
+  }, [calculateAbilityScorePoints, availableSubclasses]);
 
   const validateCurrentStep = useCallback((): boolean => {
     const validation = validateStep(currentStep, characterData);
@@ -1048,6 +1249,11 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
             newData.selectedClass.spellcasting?.spellcasting_ability.index ||
             null;
           updated.availableSkillChoices = 2; // Simplified
+
+          // Reset subclass if class changed
+          if (newData.selectedClass.index !== prev.selectedClass?.index) {
+            updated.selectedSubclass = null;
+          }
         }
 
         if (newData.selectedClass && updated.abilityScores && updated.level) {
@@ -1176,6 +1382,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     backgrounds: backgroundsData,
     spells: filteredSpells,
     subraces: availableSubraces,
+    subclasses: availableSubclasses,
 
     // Search
     ...searchHandlers,
@@ -1207,11 +1414,29 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     getSubraceAbilityBonuses: () => 
       characterData.selectedSubrace ? characterData.selectedSubrace.ability_bonuses : [],
 
+    // Subclasses functions
+    getAvailableSubclasses: () => availableSubclasses,
+    getSubclassFeatures: (level?: number) => {
+      if (!characterData.selectedSubclass) return [];
+      
+      const targetLevel = level || characterData.level;
+      const features: DndApiReference[] = [];
+      
+      characterData.selectedSubclass.subclass_levels.forEach(levelData => {
+        if (levelData.level <= targetLevel) {
+          features.push(...levelData.features);
+        }
+      });
+      
+      return features;
+    },
+
     // Loading states
     isLoadingRaces: racesLoading,
     isLoadingClasses: classesLoading,
     isLoadingSpells: spellsLoading,
     isLoadingSubraces: false, // Since we're using mock data for now
+    isLoadingSubclasses: subclassesLoading,
   };
 };
 
