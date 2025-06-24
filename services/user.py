@@ -1,8 +1,40 @@
 import bcrypt
+import re
 from typing import Dict, Any, Optional
 from database.schemas.user import User
 from database.repositories.user import create_user, get_user_by_email, get_user_by_username, get_user_by_id
 from pydantic import ValidationError
+
+
+def is_valid_email(email: str) -> bool:
+    """Validação customizada de email"""
+    if not isinstance(email, str):
+        return False
+
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(email_pattern, email.strip()))
+
+
+def is_valid_username(username: str) -> bool:
+    """Validação customizada de username"""
+    if not isinstance(username, str):
+        return False
+
+    username = username.strip()
+
+    if len(username) < 3 or len(username) > 50:
+        return False
+
+    # Permitir apenas letras, números e underscore
+    return bool(re.match(r'^[a-zA-Z0-9_]+$', username))
+
+
+def is_valid_password(password: str) -> bool:
+    """Validação customizada de senha"""
+    if not isinstance(password, str):
+        return False
+
+    return len(password) >= 6
 
 
 def register_user(data: Dict[str, Any]) -> Dict[str, Any]:
@@ -24,17 +56,18 @@ def register_user(data: Dict[str, Any]) -> Dict[str, Any]:
         if existing_username:
             return {"success": False, "error": "Username já existe"}
 
-        # Validar formato do email básico
-        if "@" not in data["email"] or "." not in data["email"]:
+        # Validar formato do email
+        if not is_valid_email(data["email"]):
             return {"success": False, "error": "Formato de email inválido"}
 
-        # Validar tamanho da senha
-        if len(data["password"]) < 6:
-            return {"success": False, "error": "Senha deve ter pelo menos 6 caracteres"}
+        # Validar username
+        if not is_valid_username(data["username"]):
+            return {"success": False,
+                    "error": "Username deve ter entre 3-50 caracteres e conter apenas letras, números e underscore"}
 
-        # Validar tamanho do username
-        if len(data["username"]) < 3:
-            return {"success": False, "error": "Username deve ter pelo menos 3 caracteres"}
+        # Validar tamanho da senha
+        if not is_valid_password(data["password"]):
+            return {"success": False, "error": "Senha deve ter pelo menos 6 caracteres"}
 
         # Hash da senha
         password_hash = bcrypt.hashpw(
@@ -44,8 +77,8 @@ def register_user(data: Dict[str, Any]) -> Dict[str, Any]:
 
         # Preparar dados para inserção
         user_to_create = {
-            "email": data["email"],
-            "username": data["username"],
+            "email": data["email"].lower().strip(),
+            "username": data["username"].strip(),
             "password": password_hash
         }
 
@@ -58,6 +91,8 @@ def register_user(data: Dict[str, Any]) -> Dict[str, Any]:
             "message": "Usuário criado com sucesso"
         }
 
+    except ValidationError as e:
+        return {"success": False, "error": f"Dados inválidos: {str(e)}"}
     except Exception as e:
         return {"success": False, "error": f"Erro interno: {str(e)}"}
 
@@ -69,8 +104,11 @@ def login_user(data: Dict[str, Any]) -> Dict[str, Any]:
         if not data.get("email") or not data.get("password"):
             return {"success": False, "error": "Email e senha são obrigatórios"}
 
+        # Normalizar email
+        email = data["email"].lower().strip()
+
         # Buscar usuário pelo email
-        user = get_user_by_email(data["email"])
+        user = get_user_by_email(email)
         if not user:
             return {"success": False, "error": "Email ou senha incorretos"}
 
