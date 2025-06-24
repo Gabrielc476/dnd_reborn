@@ -70,11 +70,41 @@ const validateStep = (stepIndex: number, characterData: CharacterCreationData): 
       if (!characterData.selectedBackground) errors.push("Background é obrigatório");
       break;
 
-    case 1: // Ability Scores
-      const total = Object.values(characterData.abilityScores).reduce((sum, val) => sum + val, 0);
-      if (total < 70 || total > 78) {
-        errors.push("Total de pontos de atributo inválido");
+    case 1: // Ability Scores - VALIDAÇÃO CORRIGIDA (SOLUÇÃO 1)
+      const scoreValues = Object.values(characterData.abilityScores);
+      
+      // Verificar se todos os valores estão dentro dos limites
+      const hasInvalidScores = scoreValues.some(score => score < 8 || score > 15);
+      if (hasInvalidScores) {
+        errors.push("Valores de atributos devem estar entre 8 e 15");
       }
+      
+      // Validação específica por método
+      if (characterData.abilityMethod === "standard") {
+        // Array padrão: [15,14,13,12,10,8]
+        const sortedScores = [...scoreValues].sort((a, b) => b - a);
+        const standardArray = [15, 14, 13, 12, 10, 8];
+        const isValidStandard = sortedScores.every((score, index) => score === standardArray[index]);
+        
+        if (!isValidStandard) {
+          errors.push("Use o array padrão: 15, 14, 13, 12, 10, 8");
+        }
+      } else if (characterData.abilityMethod === "point_buy") {
+        // Point buy: máximo 27 pontos
+        const calculatePointCost = (score: number): number => {
+          if (score <= 13) return Math.max(0, score - 8);
+          if (score === 14) return 7;
+          if (score === 15) return 9;
+          return 0;
+        };
+        
+        const totalCost = scoreValues.reduce((total, score) => total + calculatePointCost(score), 0);
+        
+        if (totalCost > 27) {
+          errors.push(`Pontos excedidos: ${totalCost}/27`);
+        }
+      }
+      // Para "roll" não há validação específica além dos limites
       break;
 
     case 2: // Skills
