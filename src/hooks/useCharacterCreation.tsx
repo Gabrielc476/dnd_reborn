@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK
+// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA
 // ===========================
 "use client";
 
@@ -24,9 +24,11 @@ import {
   CharacterCreationStep,
   AbilityScores,
   DndRace,
+  DndSubrace,
   DndClass,
   DndBackground,
   DndSpell,
+  DndApiReference,
   StepValidation,
 } from "@/types/characterCreation";
 
@@ -187,7 +189,7 @@ class OptimizedDndApiService {
     }
   }
 
-  // Mock data methods (same as before)
+  // Mock data methods
   private getMockRaces(): DndRace[] {
     return [
       {
@@ -228,7 +230,66 @@ class OptimizedDndApiService {
         subraces: [],
         url: "/api/races/human",
       },
-      // ... other mock races
+      {
+        index: "elf",
+        name: "Elfo",
+        speed: 30,
+        ability_bonuses: [
+          { ability_score: { index: "dex", name: "Destreza", url: "" }, bonus: 2 },
+        ],
+        alignment: "Caótico Bom",
+        age: "Elfos atingem a maturidade física aos 20 anos, mas não são considerados adultos até os 100 anos.",
+        size: "Medium",
+        size_description: "Elfos são ligeiramente menores que humanos.",
+        starting_proficiencies: [],
+        languages: [],
+        language_desc: "Comum e Élfico",
+        traits: [],
+        subraces: [
+          { index: "high-elf", name: "Alto Elfo", url: "/api/subraces/high-elf" },
+          { index: "wood-elf", name: "Elfo da Floresta", url: "/api/subraces/wood-elf" },
+        ],
+        url: "/api/races/elf",
+      },
+      {
+        index: "dwarf",
+        name: "Anão",
+        speed: 25,
+        ability_bonuses: [
+          { ability_score: { index: "con", name: "Constituição", url: "" }, bonus: 2 },
+        ],
+        alignment: "Leal",
+        age: "Anões atingem a maturidade aos 50 anos e vivem cerca de 350 anos.",
+        size: "Medium",
+        size_description: "Anões são baixos e robustos.",
+        starting_proficiencies: [],
+        languages: [],
+        language_desc: "Comum e Anão",
+        traits: [],
+        subraces: [
+          { index: "hill-dwarf", name: "Anão da Colina", url: "/api/subraces/hill-dwarf" },
+          { index: "mountain-dwarf", name: "Anão da Montanha", url: "/api/subraces/mountain-dwarf" },
+        ],
+        url: "/api/races/dwarf",
+      },
+      {
+        index: "halfling",
+        name: "Halfling",
+        speed: 25,
+        ability_bonuses: [
+          { ability_score: { index: "dex", name: "Destreza", url: "" }, bonus: 2 },
+        ],
+        alignment: "Leal Bom",
+        age: "Halflings atingem a maturidade aos 20 anos e vivem cerca de 150 anos.",
+        size: "Small",
+        size_description: "Halflings são pequenos e ágeis.",
+        starting_proficiencies: [],
+        languages: [],
+        language_desc: "Comum e Halfling",
+        traits: [],
+        subraces: [],
+        url: "/api/races/halfling",
+      },
     ];
   }
 
@@ -247,7 +308,36 @@ class OptimizedDndApiService {
         starting_equipment: [],
         url: "/api/classes/fighter",
       },
-      // ... other mock classes
+      {
+        index: "wizard",
+        name: "Mago",
+        hit_die: 6,
+        proficiencies: [],
+        proficiency_choices: [],
+        saving_throws: [
+          { index: "int", name: "Inteligência", url: "" },
+          { index: "wis", name: "Sabedoria", url: "" },
+        ],
+        starting_equipment: [],
+        spellcasting: {
+          level: 1,
+          spellcasting_ability: { index: "int", name: "Inteligência", url: "" },
+        },
+        url: "/api/classes/wizard",
+      },
+      {
+        index: "rogue",
+        name: "Ladino",
+        hit_die: 8,
+        proficiencies: [],
+        proficiency_choices: [],
+        saving_throws: [
+          { index: "dex", name: "Destreza", url: "" },
+          { index: "int", name: "Inteligência", url: "" },
+        ],
+        starting_equipment: [],
+        url: "/api/classes/rogue",
+      },
     ];
   }
 
@@ -273,7 +363,24 @@ class OptimizedDndApiService {
         desc: ["Você cria três dardos brilhantes de força mágica."],
         url: "/api/spells/magic-missile",
       },
-      // ... other mock spells
+      {
+        index: "fire-bolt",
+        name: "Raio de Fogo",
+        level: 0,
+        school: { index: "evocation", name: "Evocação", url: "" },
+        casting_time: "1 ação",
+        range: "120 pés",
+        components: ["V", "S"],
+        duration: "Instantâneo",
+        damage: {
+          damage_type: { index: "fire", name: "Fogo", url: "" },
+          damage_at_slot_level: {
+            "0": "1d10",
+          },
+        },
+        desc: ["Você arremessa uma mote de fogo em uma criatura ou objeto."],
+        url: "/api/spells/fire-bolt",
+      },
     ];
   }
 }
@@ -367,7 +474,122 @@ function useBackgroundsQuery() {
           },
           url: "/api/backgrounds/acolyte",
         },
-        // ... other backgrounds
+        {
+          index: "criminal",
+          name: "Criminoso",
+          starting_proficiencies: [],
+          starting_equipment: [],
+          feature: {
+            name: "Contato Criminal",
+            desc: [
+              "Você tem um contato confiável e fidedigno que atua como seu ligação para uma rede de outros criminosos.",
+            ],
+          },
+          personality_traits: {
+            choose: 2,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  string: "Eu sempre tenho um plano para o que fazer quando as coisas dão errado.",
+                },
+              ],
+            },
+          },
+          ideals: {
+            choose: 1,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  alignments: [],
+                  desc: "Liberdade. Correntes são feitas para serem quebradas.",
+                },
+              ],
+            },
+          },
+          bonds: {
+            choose: 1,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  string: "Eu sou culpado de um crime terrível. Espero que eu possa me redimir por isso.",
+                },
+              ],
+            },
+          },
+          flaws: {
+            choose: 1,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  string: "Quando vejo algo valioso, não consigo pensar em nada além de como roubá-lo.",
+                },
+              ],
+            },
+          },
+          url: "/api/backgrounds/criminal",
+        },
+        {
+          index: "folk-hero",
+          name: "Herói do Povo",
+          starting_proficiencies: [],
+          starting_equipment: [],
+          feature: {
+            name: "Hospitalidade Rústica",
+            desc: [
+              "Como você vem das fileiras do povo comum, você se encaixa entre eles com facilidade.",
+            ],
+          },
+          personality_traits: {
+            choose: 2,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  string: "Eu julgo as pessoas por suas ações, não por suas palavras.",
+                },
+              ],
+            },
+          },
+          ideals: {
+            choose: 1,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  alignments: [],
+                  desc: "Respeito. As pessoas merecem ser tratadas com dignidade e respeito.",
+                },
+              ],
+            },
+          },
+          bonds: {
+            choose: 1,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  string: "Eu protejo aqueles que não podem se proteger.",
+                },
+              ],
+            },
+          },
+          flaws: {
+            choose: 1,
+            from: {
+              options: [
+                {
+                  option_type: "string",
+                  string: "A pessoa tirânica que governa minha terra natal não vai parar por nada para me ver morto.",
+                },
+              ],
+            },
+          },
+          url: "/api/backgrounds/folk-hero",
+        },
       ];
     },
     staleTime: 60 * 60 * 1000, // 1 hour
@@ -410,6 +632,7 @@ function useDebounce<T>(value: T, delay: number): T {
 const initialCharacterData: CharacterCreationData = {
   name: "",
   selectedRace: null,
+  selectedSubrace: null,
   selectedClass: null,
   selectedBackground: null,
   level: 1,
@@ -560,6 +783,100 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     );
   }, [spellsData, debouncedSpellSearch]);
 
+  // Available subraces for selected race
+  const availableSubraces = useMemo(() => {
+    if (!characterData.selectedRace || !characterData.selectedRace.subraces) {
+      return [];
+    }
+
+    // For now, return mock subraces - in a real app, you'd fetch these from the API
+    const raceIndex = characterData.selectedRace.index;
+    
+    if (raceIndex === "elf") {
+      return [
+        {
+          index: "high-elf",
+          name: "Alto Elfo",
+          race: { index: "elf", name: "Elfo", url: "" },
+          desc: "Altos elfos são os mais mágicos dos elfos, com uma afinidade natural com magias arcanas.",
+          ability_bonuses: [
+            { ability_score: { index: "int", name: "Inteligência", url: "" }, bonus: 1 }
+          ],
+          starting_proficiencies: [],
+          languages: [],
+          racial_traits: [],
+          url: "/api/subraces/high-elf",
+        },
+        {
+          index: "wood-elf",
+          name: "Elfo da Floresta",
+          race: { index: "elf", name: "Elfo", url: "" },
+          desc: "Elfos da floresta são rápidos e furtivos, com uma conexão profunda com a natureza.",
+          ability_bonuses: [
+            { ability_score: { index: "wis", name: "Sabedoria", url: "" }, bonus: 1 }
+          ],
+          starting_proficiencies: [],
+          languages: [],
+          racial_traits: [],
+          url: "/api/subraces/wood-elf",
+        },
+      ];
+    }
+
+    if (raceIndex === "dwarf") {
+      return [
+        {
+          index: "hill-dwarf",
+          name: "Anão da Colina",
+          race: { index: "dwarf", name: "Anão", url: "" },
+          desc: "Anões da colina são resistentes e práticos, com uma constituição robusta.",
+          ability_bonuses: [
+            { ability_score: { index: "wis", name: "Sabedoria", url: "" }, bonus: 1 }
+          ],
+          starting_proficiencies: [],
+          languages: [],
+          racial_traits: [],
+          url: "/api/subraces/hill-dwarf",
+        },
+        {
+          index: "mountain-dwarf",
+          name: "Anão da Montanha",
+          race: { index: "dwarf", name: "Anão", url: "" },
+          desc: "Anões da montanha são guerreiros natos, treinados no uso de armaduras desde jovens.",
+          ability_bonuses: [
+            { ability_score: { index: "str", name: "Força", url: "" }, bonus: 2 }
+          ],
+          starting_proficiencies: [],
+          languages: [],
+          racial_traits: [],
+          url: "/api/subraces/mountain-dwarf",
+        },
+      ];
+    }
+
+    return [];
+  }, [characterData.selectedRace]);
+
+  // Combined ability bonuses from race and subrace
+  const combinedAbilityBonuses = useMemo(() => {
+    const bonuses: Array<{
+      ability_score: DndApiReference;
+      bonus: number;
+    }> = [];
+
+    // Add race bonuses
+    if (characterData.selectedRace) {
+      bonuses.push(...characterData.selectedRace.ability_bonuses);
+    }
+
+    // Add subrace bonuses
+    if (characterData.selectedSubrace) {
+      bonuses.push(...characterData.selectedSubrace.ability_bonuses);
+    }
+
+    return bonuses;
+  }, [characterData.selectedRace, characterData.selectedSubrace]);
+
   // ===========================
   // UTILITY FUNCTIONS (MEMOIZED)
   // ===========================
@@ -622,6 +939,11 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
           if (!data.selectedRace) errors.push("Raça é obrigatória");
           if (!data.selectedClass) errors.push("Classe é obrigatória");
           if (!data.selectedBackground) errors.push("Background é obrigatório");
+          
+          // Check if race requires subrace
+          if (data.selectedRace && data.selectedRace.subraces.length > 0 && !data.selectedSubrace) {
+            errors.push("Subraça é obrigatória para esta raça");
+          }
           break;
 
         case 1: // Ability Scores
@@ -853,6 +1175,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     classes: filteredClasses,
     backgrounds: backgroundsData,
     spells: filteredSpells,
+    subraces: availableSubraces,
 
     // Search
     ...searchHandlers,
@@ -878,10 +1201,17 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     calculateAbilityScorePoints,
     generateRandomAbilityScores,
 
+    // Subraces functions
+    getAvailableSubraces: () => availableSubraces,
+    getCombinedAbilityBonuses: () => combinedAbilityBonuses,
+    getSubraceAbilityBonuses: () => 
+      characterData.selectedSubrace ? characterData.selectedSubrace.ability_bonuses : [],
+
     // Loading states
     isLoadingRaces: racesLoading,
     isLoadingClasses: classesLoading,
     isLoadingSpells: spellsLoading,
+    isLoadingSubraces: false, // Since we're using mock data for now
   };
 };
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import {
   Zap,
@@ -19,33 +19,45 @@ import { AbilityScores } from "@/types/characterCreation";
 const ABILITY_INFO = {
   strength: {
     name: "Força",
+    short: "FOR",
     description: "Poder físico, atletismo, ataques corpo a corpo",
     icon: "💪",
+    color: "from-red-500 to-red-600",
   },
   dexterity: {
     name: "Destreza",
+    short: "DES",
     description: "Agilidade, reflexos, CA, ataques à distância",
     icon: "🏃",
+    color: "from-green-500 to-green-600",
   },
   constitution: {
     name: "Constituição",
+    short: "CON",
     description: "Saúde, resistência, pontos de vida",
     icon: "❤️",
+    color: "from-orange-500 to-orange-600",
   },
   intelligence: {
     name: "Inteligência",
+    short: "INT",
     description: "Raciocínio, memória, conhecimento",
     icon: "🧠",
+    color: "from-blue-500 to-blue-600",
   },
   wisdom: {
     name: "Sabedoria",
+    short: "SAB",
     description: "Percepção, intuição, vontade",
     icon: "👁️",
+    color: "from-purple-500 to-purple-600",
   },
   charisma: {
     name: "Carisma",
+    short: "CAR",
     description: "Força de personalidade, liderança",
     icon: "⭐",
+    color: "from-pink-500 to-pink-600",
   },
 };
 
@@ -170,81 +182,88 @@ export default function AbilityScoresStep() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="text-center space-y-2">
+      <div className="text-center pb-4">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-2xl mb-4">
           <Zap className="w-8 h-8 text-white" />
         </div>
-        <h2 className="text-3xl font-bold text-white">Atributos</h2>
+        <h2 className="text-3xl font-bold text-white mb-2">Atributos</h2>
         <p className="text-purple-200">
           Defina os valores dos atributos do seu personagem
         </p>
       </div>
 
-      {/* Method Selection */}
-      <Card className="bg-white/5 border-white/20">
-        <CardContent className="p-6">
-          <Label className="text-white text-lg font-semibold mb-4 block">
-            Método de Distribuição
-          </Label>
+      {/* Top Section: Method Selection + Point Counter */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        {/* Method Selection */}
+        <div className="xl:col-span-4">
+          <Card className="bg-white/5 border-white/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-lg">Método de Distribuição</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Button
+                  variant={
+                    characterData.abilityMethod === "standard"
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={() => handleMethodChange("standard")}
+                  className="h-auto p-4 text-left flex flex-col items-start space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Calculator className="w-5 h-5" />
+                    <span className="font-semibold">Array Padrão</span>
+                  </div>
+                  <p className="text-xs opacity-80">
+                    15, 14, 13, 12, 10, 8 - Balanceado
+                  </p>
+                </Button>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button
-              variant={
-                characterData.abilityMethod === "standard"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() => handleMethodChange("standard")}
-              className="h-auto p-4 text-left flex flex-col items-start space-y-2"
-            >
-              <div className="flex items-center space-x-2">
-                <Calculator className="w-5 h-5" />
-                <span className="font-semibold">Array Padrão</span>
+                <Button
+                  variant={
+                    characterData.abilityMethod === "point_buy"
+                      ? "default"
+                      : "outline"
+                  }
+                  onClick={() => handleMethodChange("point_buy")}
+                  className="h-auto p-4 text-left flex flex-col items-start space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Plus className="w-5 h-5" />
+                    <span className="font-semibold">Compra de Pontos</span>
+                  </div>
+                  <p className="text-xs opacity-80">27 pontos para distribuir</p>
+                </Button>
+
+                <Button
+                  variant={
+                    characterData.abilityMethod === "roll" ? "default" : "outline"
+                  }
+                  onClick={() => handleMethodChange("roll")}
+                  className="h-auto p-4 text-left flex flex-col items-start space-y-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <Dices className="w-5 h-5" />
+                    <span className="font-semibold">Rolagem</span>
+                  </div>
+                  <p className="text-xs opacity-80">4d6, descarte o menor</p>
+                </Button>
               </div>
-              <p className="text-xs opacity-80">
-                15, 14, 13, 12, 10, 8 - Balanceado
-              </p>
-            </Button>
+            </CardContent>
+          </Card>
+        </div>
 
-            <Button
-              variant={
-                characterData.abilityMethod === "point_buy"
-                  ? "default"
-                  : "outline"
-              }
-              onClick={() => handleMethodChange("point_buy")}
-              className="h-auto p-4 text-left flex flex-col items-start space-y-2"
-            >
-              <div className="flex items-center space-x-2">
-                <Plus className="w-5 h-5" />
-                <span className="font-semibold">Compra de Pontos</span>
-              </div>
-              <p className="text-xs opacity-80">27 pontos para distribuir</p>
-            </Button>
-
-            <Button
-              variant={
-                characterData.abilityMethod === "roll" ? "default" : "outline"
-              }
-              onClick={() => handleMethodChange("roll")}
-              className="h-auto p-4 text-left flex flex-col items-start space-y-2"
-            >
-              <div className="flex items-center space-x-2">
-                <Dices className="w-5 h-5" />
-                <span className="font-semibold">Rolagem</span>
-              </div>
-              <p className="text-xs opacity-80">4d6, descarte o menor</p>
-            </Button>
-          </div>
-
-          {characterData.abilityMethod === "point_buy" && (
-            <div className="mt-4 p-4 bg-blue-500/20 border border-blue-400/30 rounded-lg">
-              <div className="flex items-center justify-between">
-                <span className="text-blue-200">Pontos restantes:</span>
-                <span
-                  className={`text-xl font-bold ${
+        {/* Point Counter */}
+        {characterData.abilityMethod === "point_buy" && (
+          <div className="xl:col-span-1">
+            <Card className="bg-blue-500/20 border-blue-400/30 h-full">
+              <CardContent className="p-6 flex flex-col items-center justify-center text-center h-full">
+                <div className="text-blue-200 text-sm mb-2">Pontos Restantes</div>
+                <div
+                  className={`text-4xl font-bold ${
                     remainingPoints === 0
                       ? "text-green-400"
                       : remainingPoints < 0
@@ -253,110 +272,122 @@ export default function AbilityScoresStep() {
                   }`}
                 >
                   {remainingPoints}
-                </span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </div>
+                <div className="text-blue-200 text-xs mt-1">de 27</div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
 
-      {/* Ability Scores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {(Object.keys(ABILITY_INFO) as Array<keyof AbilityScores>).map(
-          (ability) => {
-            const info = ABILITY_INFO[ability];
-            const baseScore = characterData.abilityScores[ability];
-            const finalScore = finalScores[ability];
-            const modifier = getAbilityModifier(finalScore);
-            const totalBonus = getTotalBonusForAbility(ability);
-            const hasRacialBonus = totalBonus > 0;
+      {/* Main Content: Ability Scores in Horizontal Grid */}
+      <Card className="bg-white/5 border-white/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-white text-lg">Valores dos Atributos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4">
+            {(Object.keys(ABILITY_INFO) as Array<keyof AbilityScores>).map(
+              (ability) => {
+                const info = ABILITY_INFO[ability];
+                const baseScore = characterData.abilityScores[ability];
+                const finalScore = finalScores[ability];
+                const modifier = getAbilityModifier(finalScore);
+                const totalBonus = getTotalBonusForAbility(ability);
+                const hasRacialBonus = totalBonus > 0;
 
-            return (
-              <Card key={ability} className="bg-white/5 border-white/20">
-                <CardContent className="p-6">
-                  <div className="space-y-4">
-                    {/* Header */}
-                    <div className="flex items-center space-x-3">
-                      <span className="text-2xl">{info.icon}</span>
-                      <div>
-                        <h3 className="text-white font-semibold">
-                          {info.name}
-                        </h3>
-                        <p className="text-purple-200 text-xs">
-                          {info.description}
-                        </p>
+                return (
+                  <div key={ability} className="space-y-3">
+                    {/* Header with Icon */}
+                    <div className="text-center">
+                      <div
+                        className={`inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r ${info.color} rounded-xl mb-2`}
+                      >
+                        <span className="text-xl">{info.icon}</span>
+                      </div>
+                      <h3 className="text-white font-semibold text-sm">{info.short}</h3>
+                      <p className="text-purple-200 text-xs leading-tight">
+                        {info.name}
+                      </p>
+                    </div>
+
+                    {/* Score Display */}
+                    <div className="text-center">
+                      <div className="bg-white/10 border border-white/20 rounded-lg p-3">
+                        <div className="flex items-center justify-center space-x-1">
+                          <span className="text-2xl font-bold text-white">
+                            {baseScore}
+                          </span>
+                          {hasRacialBonus && (
+                            <span className="text-green-400 text-lg font-bold">
+                              +{totalBonus}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-purple-200 mt-1">
+                          {hasRacialBonus ? `Final: ${finalScore}` : 'Base'}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Score Controls */}
-                    <div className="flex items-center space-x-4">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => adjustAbilityScore(ability, -1)}
-                        disabled={!canAdjustDown(ability)}
-                        className="w-8 h-8 p-0 bg-white/5 border-white/20"
-                      >
-                        <Minus className="w-4 h-4" />
-                      </Button>
-
-                      <div className="text-center">
-                        <div className="bg-white/10 border border-white/20 rounded-lg px-4 py-2 min-w-[100px]">
-                          <div className="text-2xl font-bold text-white">
-                            {baseScore}
-                            {hasRacialBonus && (
-                              <span className="text-green-400 text-lg">
-                                +{totalBonus}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-purple-200">
-                            Final: {finalScore}
-                          </div>
-                        </div>
-                      </div>
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => adjustAbilityScore(ability, 1)}
-                        disabled={!canAdjustUp(ability)}
-                        className="w-8 h-8 p-0 bg-white/5 border-white/20"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-
-                      {/* Modifier */}
-                      <div className="bg-purple-500/20 border border-purple-400/30 rounded-lg px-3 py-2">
+                    {/* Modifier */}
+                    <div className="text-center">
+                      <div className="bg-purple-500/20 border border-purple-400/30 rounded-lg p-2">
                         <div className="text-purple-200 text-xs">Mod</div>
-                        <div className="text-white font-bold">
+                        <div className="text-white font-bold text-lg">
                           {modifier >= 0 ? "+" : ""}
                           {modifier}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          }
-        )}
-      </div>
 
-      {/* Combined Racial Bonuses Info */}
-      {combinedBonuses.length > 0 && (
-        <Card className="bg-green-500/10 border-green-400/20">
-          <CardContent className="p-4">
-            <div className="flex items-start space-x-2">
-              <Info className="w-5 h-5 text-green-400 mt-0.5" />
-              <div>
-                <h4 className="text-green-200 font-semibold text-sm">
-                  Bônus Raciais Aplicados
-                </h4>
-                <div className="space-y-1">
-                  {characterData.selectedRace && (
+                    {/* Controls */}
+                    <div className="flex items-center justify-center space-x-2">
+                      <Button
+                        size="sm"
+                        onClick={() => adjustAbilityScore(ability, -1)}
+                        disabled={!canAdjustDown(ability)}
+                        className="w-7 h-7 p-0 bg-white/5 border border-white/20 text-white hover:bg-white/10"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => adjustAbilityScore(ability, 1)}
+                        disabled={!canAdjustUp(ability)}
+                        className="w-7 h-7 p-0 bg-white/5 border border-white/20 text-white hover:bg-white/10"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              }
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Bottom Section: Info Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Combined Racial Bonuses Info */}
+        {combinedBonuses.length > 0 && (
+          <Card className="bg-green-500/10 border-green-400/20">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-green-200 text-lg flex items-center space-x-2">
+                <Info className="w-5 h-5 text-green-400" />
+                <span>Bônus Raciais</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-2 gap-4">
+                {characterData.selectedRace && (
+                  <div>
+                    <p className="text-green-200 font-medium text-sm">
+                      {characterData.selectedRace.name}:
+                    </p>
                     <p className="text-green-100 text-sm">
-                      <strong>{characterData.selectedRace.name}:</strong>{" "}
                       {characterData.selectedRace.ability_bonuses
                         .map(
                           (bonus) =>
@@ -364,10 +395,14 @@ export default function AbilityScoresStep() {
                         )
                         .join(", ")}
                     </p>
-                  )}
-                  {characterData.selectedSubrace && (
+                  </div>
+                )}
+                {characterData.selectedSubrace && (
+                  <div>
+                    <p className="text-green-200 font-medium text-sm">
+                      {characterData.selectedSubrace.name}:
+                    </p>
                     <p className="text-green-100 text-sm">
-                      <strong>{characterData.selectedSubrace.name}:</strong>{" "}
                       {characterData.selectedSubrace.ability_bonuses
                         .map(
                           (bonus) =>
@@ -375,31 +410,65 @@ export default function AbilityScoresStep() {
                         )
                         .join(", ")}
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+              <div className="pt-2 border-t border-green-400/20">
+                <p className="text-green-100 text-sm font-bold">
+                  Total: {combinedBonuses
+                    .map(
+                      (bonus) => `+${bonus.bonus} ${bonus.ability_score.name}`
+                    )
+                    .join(", ")}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Actions and Info */}
+        <Card className="bg-white/5 border-white/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-white text-lg">Ações</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {characterData.abilityMethod === "roll" && (
+              <Button
+                onClick={() =>
+                  updateCharacterData({
+                    abilityScores: generateRandomAbilityScores(),
+                  })
+                }
+                className="w-full bg-white/5 border border-white/20 text-white hover:bg-white/10"
+              >
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Rolar Novamente
+              </Button>
+            )}
+            
+            <div className="text-center">
+              <p className="text-purple-200 text-sm">
+                {characterData.abilityMethod === "standard" && 
+                  "Usando array padrão balanceado"}
+                {characterData.abilityMethod === "point_buy" && 
+                  `Distribua ${remainingPoints} pontos restantes`}
+                {characterData.abilityMethod === "roll" && 
+                  "Valores rolados aleatoriamente"}
+              </p>
+            </div>
+
+            {/* Ability Descriptions */}
+            <div className="space-y-2 mt-4">
+              <p className="text-purple-200 text-xs font-medium">Lembre-se:</p>
+              {Object.values(ABILITY_INFO).map((info, index) => (
+                <p key={index} className="text-purple-100 text-xs">
+                  <span className="font-medium">{info.short}:</span> {info.description}
+                </p>
+              ))}
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Reroll for Random Method */}
-      {characterData.abilityMethod === "roll" && (
-        <div className="text-center">
-          <Button
-            onClick={() =>
-              updateCharacterData({
-                abilityScores: generateRandomAbilityScores(),
-              })
-            }
-            variant="outline"
-            className="bg-white/5 border-white/20 text-white hover:bg-white/10"
-          >
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Rolar Novamente
-          </Button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
