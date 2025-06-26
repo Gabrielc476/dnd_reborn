@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION TYPES - UPDATED WITH SUBRACES & SUBCLASSES & API INTEGRATION
+// CHARACTER CREATION TYPES - COMPLETE WITH CONSTANTS AND UTILITIES
 // src/types/characterCreation.ts
 // ===========================
 
@@ -90,6 +90,10 @@ export interface DndClass {
   spellcasting?: {
     level: number;
     spellcasting_ability: DndApiReference;
+    info: Array<{
+      name: string;
+      desc: string[];
+    }>;
   };
   url: string;
 }
@@ -98,6 +102,7 @@ export interface DndBackground {
   index: string;
   name: string;
   starting_proficiencies: DndApiReference[];
+  languages: DndApiReference[];
   starting_equipment: Array<{
     equipment: DndApiReference;
     quantity: number;
@@ -108,40 +113,22 @@ export interface DndBackground {
   };
   personality_traits: {
     choose: number;
-    from: {
-      options: Array<{
-        option_type: string;
-        string: string;
-      }>;
-    };
+    from: string[];
   };
   ideals: {
     choose: number;
-    from: {
-      options: Array<{
-        option_type: string;
-        alignments: DndApiReference[];
-        desc: string;
-      }>;
-    };
+    from: Array<{
+      desc: string;
+      alignments: DndApiReference[];
+    }>;
   };
   bonds: {
     choose: number;
-    from: {
-      options: Array<{
-        option_type: string;
-        string: string;
-      }>;
-    };
+    from: string[];
   };
   flaws: {
     choose: number;
-    from: {
-      options: Array<{
-        option_type: string;
-        string: string;
-      }>;
-    };
+    from: string[];
   };
   url: string;
 }
@@ -149,26 +136,23 @@ export interface DndBackground {
 export interface DndSpell {
   index: string;
   name: string;
-  level: number;
-  school: DndApiReference;
-  casting_time: string;
+  desc: string[];
+  higher_level?: string[];
   range: string;
   components: string[];
   material?: string;
   ritual: boolean;
   duration: string;
   concentration: boolean;
+  casting_time: string;
+  level: number;
+  attack_type?: string;
   damage?: {
     damage_type: DndApiReference;
     damage_at_slot_level?: Record<string, string>;
+    damage_at_character_level?: Record<string, string>;
   };
-  attack_type?: string;
-  dc?: {
-    dc_type: DndApiReference;
-    dc_success: string;
-  };
-  desc: string[];
-  higher_level?: string[];
+  school: DndApiReference;
   classes: DndApiReference[];
   subclasses: DndApiReference[];
   url: string;
@@ -177,14 +161,6 @@ export interface DndSpell {
 // ===========================
 // CHARACTER CREATION TYPES
 // ===========================
-
-export interface CharacterCreationStep {
-  id: string;
-  title: string;
-  description: string;
-  isCompleted: boolean;
-  isValid: boolean;
-}
 
 export interface AbilityScores {
   strength: number;
@@ -196,7 +172,6 @@ export interface AbilityScores {
 }
 
 export interface CharacterCreationData {
-  // Passo 1: Informações Básicas
   name: string;
   selectedRace: DndRace | null;
   selectedSubrace: DndSubrace | null;
@@ -205,34 +180,28 @@ export interface CharacterCreationData {
   selectedBackground: DndBackground | null;
   level: number;
   alignment: string;
-
-  // Passo 2: Atributos
   abilityScores: AbilityScores;
   abilityMethod: "standard" | "point_buy" | "roll";
-
-  // Passo 3: Perícias
   selectedSkills: string[];
   availableSkillChoices: number;
-
-  // Passo 4: Equipamentos
   hitPoints: number;
   armorClass: number;
-
-  // Passo 5: Magias (se aplicável)
   selectedSpells: DndSpell[];
   isSpellcaster: boolean;
   spellcastingAbility: string | null;
-
-  // Passo 6: Personalização
   personalityTraits: string[];
   ideals: string[];
   bonds: string[];
   flaws: string[];
 }
 
-// ===========================
-// VALIDATION TYPES
-// ===========================
+export interface CharacterCreationStep {
+  id: string;
+  title: string;
+  description: string;
+  isCompleted: boolean;
+  isValid: boolean;
+}
 
 export interface StepValidation {
   isValid: boolean;
@@ -252,7 +221,7 @@ export interface SpellInfo {
 // ===========================
 
 export interface CharacterCreationContextType {
-  // Estado
+  // State
   currentStep: number;
   totalSteps: number;
   steps: CharacterCreationStep[];
@@ -260,7 +229,7 @@ export interface CharacterCreationContextType {
   loading: boolean;
   error: string | null;
 
-  // Dados da API
+  // API Data
   races: DndRace[];
   classes: DndClass[];
   backgrounds: DndBackground[];
@@ -268,7 +237,7 @@ export interface CharacterCreationContextType {
   subraces: DndSubrace[];
   subclasses: DndSubclass[];
 
-  // Estados de loading
+  // Loading states
   isLoadingRaces: boolean;
   isLoadingClasses: boolean;
   isLoadingBackgrounds: boolean;
@@ -276,7 +245,7 @@ export interface CharacterCreationContextType {
   isLoadingSubraces: boolean;
   isLoadingSubclasses: boolean;
 
-  // Erros
+  // Errors
   racesError?: Error | null;
   classesError?: Error | null;
   spellsError?: Error | null;
@@ -330,12 +299,118 @@ export interface CharacterCreationContextType {
   getAvailableSubclasses: () => DndSubclass[];
   getSubclassFeatures: (level?: number) => DndApiReference[];
 
-  // Informações sobre magias (NOVO)
+  // Informações sobre magias
   spellInfo: SpellInfo;
   maxSpellLevel: number;
   startingCantrips: number;
   startingSpells: number;
 }
+
+// ===========================
+// CONSTANTS - MISSING EXPORTS
+// ===========================
+
+export const ALIGNMENTS = [
+  { value: "lawful-good", label: "Leal e Bom", short: "LB" },
+  { value: "neutral-good", label: "Neutro e Bom", short: "NB" },
+  { value: "chaotic-good", label: "Caótico e Bom", short: "CB" },
+  { value: "lawful-neutral", label: "Leal e Neutro", short: "LN" },
+  { value: "true-neutral", label: "Neutro Absoluto", short: "N" },
+  { value: "chaotic-neutral", label: "Caótico e Neutro", short: "CN" },
+  { value: "lawful-evil", label: "Leal e Mau", short: "LM" },
+  { value: "neutral-evil", label: "Neutro e Mau", short: "NM" },
+  { value: "chaotic-evil", label: "Caótico e Mau", short: "CM" },
+];
+
+export const SKILLS = [
+  { key: "acrobatics", name: "Acrobacia", ability: "dexterity" },
+  { key: "animal-handling", name: "Lidar com Animais", ability: "wisdom" },
+  { key: "arcana", name: "Arcanismo", ability: "intelligence" },
+  { key: "athletics", name: "Atletismo", ability: "strength" },
+  { key: "deception", name: "Enganação", ability: "charisma" },
+  { key: "history", name: "História", ability: "intelligence" },
+  { key: "insight", name: "Intuição", ability: "wisdom" },
+  { key: "intimidation", name: "Intimidação", ability: "charisma" },
+  { key: "investigation", name: "Investigação", ability: "intelligence" },
+  { key: "medicine", name: "Medicina", ability: "wisdom" },
+  { key: "nature", name: "Natureza", ability: "intelligence" },
+  { key: "perception", name: "Percepção", ability: "wisdom" },
+  { key: "performance", name: "Atuação", ability: "charisma" },
+  { key: "persuasion", name: "Persuasão", ability: "charisma" },
+  { key: "religion", name: "Religião", ability: "intelligence" },
+  { key: "sleight-of-hand", name: "Prestidigitação", ability: "dexterity" },
+  { key: "stealth", name: "Furtividade", ability: "dexterity" },
+  { key: "survival", name: "Sobrevivência", ability: "wisdom" },
+];
+
+// ===========================
+// UTILITY FUNCTIONS - MISSING EXPORTS
+// ===========================
+
+/**
+ * Verifica se uma classe pode ter subclasse
+ */
+export const canHaveSubclass = (classIndex: string): boolean => {
+  // Classes que têm subclasses
+  const classesWithSubclasses = [
+    "barbarian", "bard", "cleric", "druid", "fighter", 
+    "monk", "paladin", "ranger", "rogue", "sorcerer", 
+    "warlock", "wizard"
+  ];
+  
+  return classesWithSubclasses.includes(classIndex);
+};
+
+/**
+ * Retorna o nível em que uma classe ganha subclasse
+ */
+export const getSubclassLevel = (classIndex: string): number => {
+  const subclassLevels: Record<string, number> = {
+    "barbarian": 3,
+    "bard": 3,
+    "cleric": 1,
+    "druid": 2,
+    "fighter": 3,
+    "monk": 3,
+    "paladin": 3,
+    "ranger": 3,
+    "rogue": 3,
+    "sorcerer": 1,
+    "warlock": 1,
+    "wizard": 2,
+  };
+  
+  return subclassLevels[classIndex] || 1;
+};
+
+/**
+ * Verifica se um personagem pode escolher subclasse no nível atual
+ */
+export const canChooseSubclass = (classIndex: string, level: number): boolean => {
+  if (!canHaveSubclass(classIndex)) return false;
+  return level >= getSubclassLevel(classIndex);
+};
+
+/**
+ * Retorna informações sobre o alinhamento
+ */
+export const getAlignmentInfo = (alignmentValue: string) => {
+  return ALIGNMENTS.find(alignment => alignment.value === alignmentValue);
+};
+
+/**
+ * Retorna informações sobre uma perícia
+ */
+export const getSkillInfo = (skillKey: string) => {
+  return SKILLS.find(skill => skill.key === skillKey);
+};
+
+/**
+ * Filtra perícias por habilidade
+ */
+export const getSkillsByAbility = (ability: string) => {
+  return SKILLS.filter(skill => skill.ability === ability);
+};
 
 // ===========================
 // UTILITY TYPES
@@ -351,6 +426,18 @@ export interface AbilityBonus {
 export interface Equipment {
   equipment: DndApiReference;
   quantity: number;
+}
+
+export interface Skill {
+  key: string;
+  name: string;
+  ability: string;
+}
+
+export interface Alignment {
+  value: string;
+  label: string;
+  short: string;
 }
 
 // ===========================
@@ -370,4 +457,6 @@ export type {
   AbilityScores,
   StepValidation,
   SpellInfo,
+  Skill,
+  Alignment,
 };

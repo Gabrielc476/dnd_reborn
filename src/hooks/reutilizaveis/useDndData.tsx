@@ -1,5 +1,5 @@
 // ===========================
-// USE DND DATA HOOK - UPDATED WITH OFFICIAL D&D API FOR SPELLS
+// USE DND DATA HOOK - UPDATED WITH OFFICIAL D&D API FOR SPELLS - FIXED EXPORT
 // ===========================
 "use client";
 
@@ -136,94 +136,74 @@ function useBackgroundsQuery() {
  */
 function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
-    queryKey: ["dnd", "spells", "official", classIndex],
-    queryFn: async () => {
-      if (classIndex) {
-        // Busca magias específicas da classe
-        return await fetchSpellsByClass(classIndex);
-      } else {
-        // Busca todas as magias
-        return await fetchAllSpells();
-      }
-    },
-    enabled,
-    staleTime: 30 * 60 * 1000, // 30 minutos
-    cacheTime: 60 * 60 * 1000, // 1 hora
-    retry: 2,
-    retryDelay: 1000,
-  });
-}
-
-function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
-  return useQuery({
-    queryKey: ["dnd", "subclasses", classIndex],
+    queryKey: ["dnd", "spells", classIndex],
     queryFn: () => {
       if (classIndex) {
-        return mockSubclasses.filter(subclass => subclass.class.index === classIndex);
+        return fetchSpellsByClass(classIndex);
       }
-      return mockSubclasses;
+      return fetchAllSpells();
     },
     enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes
   });
 }
 
-// ===========================
-// SPELL FILTERING UTILITIES
-// ===========================
-
 /**
- * Filtra magias baseado na classe e nível do personagem
+ * Hook para buscar subclasses da API oficial
  */
-function filterSpellsForCharacter(
-  spells: DndSpell[],
-  characterData: CharacterCreationData
-): DndSpell[] {
-  return spells.filter(spell => {
-    // Filtro por classe - verifica se a magia está disponível para a classe selecionada
-    if (characterData.selectedClass) {
-      const isAvailableForClass = spell.classes?.some(
-        spellClass => spellClass.index === characterData.selectedClass?.index
+function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
+  return useQuery({
+    queryKey: ["dnd", "subclasses", classIndex],
+    queryFn: () => {
+      // Usar dados mockados por enquanto
+      return mockSubclasses.filter(
+        subclass => !classIndex || subclass.class.index === classIndex
       );
-      
-      if (!isAvailableForClass) {
-        return false;
-      }
-    }
-
-    // Filtro por nível - personagens só podem aprender magias até determinado nível
-    const maxSpellLevel = getMaxSpellLevelForCharacter(characterData);
-    if (spell.level > maxSpellLevel) {
-      return false;
-    }
-
-    return true;
+    },
+    enabled,
+    staleTime: 60 * 60 * 1000, // 1 hour
   });
 }
 
+// ===========================
+// UTILITY FUNCTIONS
+// ===========================
+
 /**
- * Calcula o nível máximo de magia que o personagem pode aprender
+ * Filtra magias disponíveis para um personagem
  */
-function getMaxSpellLevelForCharacter(characterData: CharacterCreationData): number {
+function filterSpellsForCharacter(spells: DndSpell[], characterData: CharacterCreationData): DndSpell[] {
   if (!characterData.isSpellcaster || !characterData.selectedClass) {
-    return 0;
+    return [];
   }
 
-  const characterLevel = characterData.level;
-  const classIndex = characterData.selectedClass.index;
+  // Filtrar por classe
+  return spells.filter(spell => 
+    spell.classes.some(cls => cls.index === characterData.selectedClass?.index)
+  );
+}
 
-  // Diferentes classes têm progressões diferentes de magia
+/**
+ * Retorna o nível máximo de magia para um personagem
+ */
+function getMaxSpellLevelForCharacter(characterData: CharacterCreationData): number {
+  if (!characterData.isSpellcaster || !characterData.selectedClass) return 0;
+
+  const classIndex = characterData.selectedClass.index;
+  const characterLevel = characterData.level;
+
   switch (classIndex) {
     case "wizard":
     case "sorcerer":
     case "cleric":
     case "druid":
     case "bard":
-      // Conjuradores completos
-      return Math.min(9, Math.ceil(characterLevel / 2));
-    
     case "warlock":
-      // Bruxos têm progressão única
+      // Conjuradores completos
+      if (characterLevel >= 17) return 9;
+      if (characterLevel >= 15) return 8;
+      if (characterLevel >= 13) return 7;
+      if (characterLevel >= 11) return 6;
       if (characterLevel >= 9) return 5;
       if (characterLevel >= 7) return 4;
       if (characterLevel >= 5) return 3;
@@ -285,7 +265,7 @@ function getStartingSpellsForClass(classIndex: string): { cantrips: number; spel
 }
 
 // ===========================
-// MAIN HOOK
+// MAIN HOOK - PROPERLY EXPORTED
 // ===========================
 
 export const useDndData = (
@@ -483,3 +463,9 @@ export const useDndData = (
     startingSpells: spellInfo.spells,
   };
 };
+
+// ===========================
+// DEFAULT EXPORT FOR BACKWARD COMPATIBILITY
+// ===========================
+
+export default useDndData;
