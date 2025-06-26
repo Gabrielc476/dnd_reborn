@@ -1,11 +1,9 @@
 // ===========================
-// HOOK USESSPELLS REUTILIZÁVEL E OTIMIZADO
-// src/hooks/reutilizaveis/useSpells.tsx
+// USE SPELLS HOOK - SEM REACT QUERY
 // ===========================
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { DndSpell } from "@/types/characterCreation";
 
 // ===========================
@@ -36,200 +34,342 @@ interface UseSpellsReturn {
 }
 
 // ===========================
-// CONSTANTS
+// DADOS HARDCODED DE MAGIAS POR CLASSE
 // ===========================
 
-const DND_API_BASE_URL = "https://www.dnd5eapi.co/api";
-const DEFAULT_STALE_TIME = 30 * 60 * 1000; // 30 minutos
-
-// ===========================
-// API FUNCTIONS
-// ===========================
-
-/**
- * Busca magias otimizada por classe e nível
- */
-async function fetchSpellsForClass(
-  classIndex: string, 
-  maxLevel: number = 9
-): Promise<DndSpell[]> {
-  try {
-    console.log(`🎯 Buscando magias para ${classIndex} (max nível: ${maxLevel})`);
-
-    // 1. Buscar lista de magias da classe
-    const classSpellsResponse = await fetch(`${DND_API_BASE_URL}/classes/${classIndex}/spells`);
-    
-    if (!classSpellsResponse.ok) {
-      throw new Error(`Erro ao buscar magias da classe: ${classSpellsResponse.status}`);
-    }
-    
-    const classSpellsData = await classSpellsResponse.json();
-    
-    if (!classSpellsData.results?.length) {
-      console.log(`📝 Nenhuma magia encontrada para ${classIndex}`);
-      return [];
-    }
-
-    // 2. Buscar detalhes das magias em lotes pequenos
-    const batchSize = 6;
-    const allSpells: DndSpell[] = [];
-    const totalBatches = Math.ceil(classSpellsData.results.length / batchSize);
-    
-    for (let i = 0; i < classSpellsData.results.length; i += batchSize) {
-      const batch = classSpellsData.results.slice(i, i + batchSize);
-      const batchNumber = Math.floor(i / batchSize) + 1;
-      
-      console.log(`🔄 Carregando lote ${batchNumber}/${totalBatches} (${batch.length} magias)`);
-      
-      const batchPromises = batch.map(async (spellRef: any, index: number) => {
-        try {
-          // Delay escalonado para evitar rate limiting
-          await new Promise(resolve => setTimeout(resolve, index * 200));
-          
-          const spellResponse = await fetch(`${DND_API_BASE_URL}${spellRef.url}`);
-          
-          if (!spellResponse.ok) {
-            console.warn(`⚠️ Erro ao buscar ${spellRef.name}: ${spellResponse.status}`);
-            return null;
-          }
-          
-          const spell: DndSpell = await spellResponse.json();
-          
-          // Filtrar por nível durante o carregamento para economizar memória
-          if (spell.level <= maxLevel) {
-            return spell;
-          }
-          
-          return null;
-          
-        } catch (error) {
-          console.warn(`❌ Falha ao carregar ${spellRef.name}:`, error);
-          return null;
-        }
-      });
-      
-      const batchResults = await Promise.all(batchPromises);
-      const validSpells = batchResults.filter(Boolean) as DndSpell[];
-      
-      allSpells.push(...validSpells);
-      
-      // Delay entre lotes
-      if (i + batchSize < classSpellsData.results.length) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-      }
-    }
-
-    console.log(`✅ Carregadas ${allSpells.length} magias para ${classIndex}`);
-    return allSpells;
-    
-  } catch (error) {
-    console.error(`❌ Erro ao buscar magias para ${classIndex}:`, error);
-    throw new Error(`Falha ao carregar magias: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-  }
-}
-
-/**
- * Fallback: retorna magias mock básicas
- */
-function getMockSpells(classIndex: string): DndSpell[] {
-  console.log(`🔄 Usando magias mock para ${classIndex}`);
-  
-  const mockSpells: DndSpell[] = [
+const SPELL_DATA: Record<string, DndSpell[]> = {
+  wizard: [
     {
-      index: "cantrip-light",
-      name: "Light",
+      index: "light",
+      name: "Luz",
       level: 0,
-      desc: ["You touch one object that is no larger than 10 feet in any dimension."],
+      desc: ["Você toca um objeto que não seja maior que 3 metros em qualquer dimensão. Até a magia acabar, o objeto emite luz plena num raio de 6 metros e penumbra por mais 6 metros."],
       higher_level: [],
-      range: "Touch",
+      range: "Toque",
       components: ["V", "M"],
-      material: "A firefly or phosphorescent moss",
+      material: "Um vaga-lume ou musgo fosforescente",
       ritual: false,
-      duration: "1 hour",
+      duration: "1 hora",
       concentration: false,
-      casting_time: "1 action",
-      school: { index: "evocation", name: "Evocation", url: "/api/magic-schools/evocation" },
-      classes: [{ index: classIndex, name: classIndex, url: `/api/classes/${classIndex}` }],
+      casting_time: "1 ação",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "wizard", name: "Mago", url: "/api/classes/wizard" }],
       subclasses: [],
       url: "/api/spells/light"
     },
     {
-      index: "magic-missile",
-      name: "Magic Missile",
-      level: 1,
-      desc: ["You create three glowing darts of magical force."],
+      index: "mage-hand",
+      name: "Mão Mágica",
+      level: 0,
+      desc: ["Uma mão espectral e flutuante aparece num ponto que você escolher, dentro do alcance."],
       higher_level: [],
-      range: "120 feet",
+      range: "9 metros",
       components: ["V", "S"],
       ritual: false,
-      duration: "Instantaneous",
+      duration: "1 minuto",
       concentration: false,
-      casting_time: "1 action",
-      school: { index: "evocation", name: "Evocation", url: "/api/magic-schools/evocation" },
-      classes: [{ index: classIndex, name: classIndex, url: `/api/classes/${classIndex}` }],
+      casting_time: "1 ação",
+      school: { index: "conjuration", name: "Conjuração", url: "/api/magic-schools/conjuration" },
+      classes: [{ index: "wizard", name: "Mago", url: "/api/classes/wizard" }],
+      subclasses: [],
+      url: "/api/spells/mage-hand"
+    },
+    {
+      index: "prestidigitation",
+      name: "Prestidigitação",
+      level: 0,
+      desc: ["Esta magia é um truque menor usado por conjuradores novatos para praticar."],
+      higher_level: [],
+      range: "3 metros",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "Até 1 hora",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "transmutation", name: "Transmutação", url: "/api/magic-schools/transmutation" },
+      classes: [{ index: "wizard", name: "Mago", url: "/api/classes/wizard" }],
+      subclasses: [],
+      url: "/api/spells/prestidigitation"
+    },
+    {
+      index: "magic-missile",
+      name: "Mísseis Mágicos",
+      level: 1,
+      desc: ["Você cria três dardos brilhantes de força mágica. Cada dardo atinge uma criatura, à sua escolha, que você possa ver dentro do alcance."],
+      higher_level: ["Quando você conjurar essa magia usando um espaço de magia de 2º nível ou superior, a magia cria mais um dardo para cada nível do espaço acima do 1º."],
+      range: "36 metros",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "wizard", name: "Mago", url: "/api/classes/wizard" }],
       subclasses: [],
       url: "/api/spells/magic-missile"
+    },
+    {
+      index: "shield",
+      name: "Escudo",
+      level: 1,
+      desc: ["Uma barreira invisível de força mágica aparece e o protege."],
+      higher_level: [],
+      range: "Pessoal",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "1 rodada",
+      concentration: false,
+      casting_time: "1 reação",
+      school: { index: "abjuration", name: "Abjuração", url: "/api/magic-schools/abjuration" },
+      classes: [{ index: "wizard", name: "Mago", url: "/api/classes/wizard" }],
+      subclasses: [],
+      url: "/api/spells/shield"
+    },
+    {
+      index: "detect-magic",
+      name: "Detectar Magia",
+      level: 1,
+      desc: ["Pela duração, você sente a presença de magia a até 9 metros de você."],
+      higher_level: [],
+      range: "Pessoal",
+      components: ["V", "S"],
+      ritual: true,
+      duration: "10 minutos",
+      concentration: true,
+      casting_time: "1 ação",
+      school: { index: "divination", name: "Adivinhação", url: "/api/magic-schools/divination" },
+      classes: [{ index: "wizard", name: "Mago", url: "/api/classes/wizard" }],
+      subclasses: [],
+      url: "/api/spells/detect-magic"
     }
-  ];
-  
-  return mockSpells;
-}
+  ],
+  cleric: [
+    {
+      index: "guidance",
+      name: "Orientação",
+      level: 0,
+      desc: ["Você toca uma criatura voluntária. Uma vez, antes da magia acabar, o alvo pode rolar um d4 e adicionar o resultado a um teste de habilidade, à escolha dele."],
+      higher_level: [],
+      range: "Toque",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "1 minuto",
+      concentration: true,
+      casting_time: "1 ação",
+      school: { index: "divination", name: "Adivinhação", url: "/api/magic-schools/divination" },
+      classes: [{ index: "cleric", name: "Clérico", url: "/api/classes/cleric" }],
+      subclasses: [],
+      url: "/api/spells/guidance"
+    },
+    {
+      index: "sacred-flame",
+      name: "Chama Sagrada",
+      level: 0,
+      desc: ["Uma chama parecida com radiância desce sobre uma criatura que você possa ver, dentro do alcance."],
+      higher_level: [],
+      range: "18 metros",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "cleric", name: "Clérico", url: "/api/classes/cleric" }],
+      subclasses: [],
+      url: "/api/spells/sacred-flame"
+    },
+    {
+      index: "thaumaturgy",
+      name: "Taumaturgia",
+      level: 0,
+      desc: ["Você manifesta uma maravilha menor, um sinal de poder sobrenatural, dentro do alcance."],
+      higher_level: [],
+      range: "9 metros",
+      components: ["V"],
+      ritual: false,
+      duration: "Até 1 minuto",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "transmutation", name: "Transmutação", url: "/api/magic-schools/transmutation" },
+      classes: [{ index: "cleric", name: "Clérico", url: "/api/classes/cleric" }],
+      subclasses: [],
+      url: "/api/spells/thaumaturgy"
+    },
+    {
+      index: "cure-wounds",
+      name: "Curar Ferimentos",
+      level: 1,
+      desc: ["Uma criatura que você tocar recupera pontos de vida iguais a 1d8 + seu modificador de habilidade de conjuração."],
+      higher_level: ["Quando você conjurar essa magia usando um espaço de magia de 2º nível ou superior, a cura aumenta em 1d8 para cada nível do espaço acima do 1º."],
+      range: "Toque",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "cleric", name: "Clérico", url: "/api/classes/cleric" }],
+      subclasses: [],
+      url: "/api/spells/cure-wounds"
+    },
+    {
+      index: "bless",
+      name: "Bênção",
+      level: 1,
+      desc: ["Você abençoa até três criaturas, à sua escolha, dentro do alcance."],
+      higher_level: ["Quando você conjurar essa magia usando um espaço de magia de 2º nível ou superior, você pode mirar uma criatura adicional para cada nível do espaço acima do 1º."],
+      range: "9 metros",
+      components: ["V", "S", "M"],
+      material: "Um pouco de água benta",
+      ritual: false,
+      duration: "1 minuto",
+      concentration: true,
+      casting_time: "1 ação",
+      school: { index: "enchantment", name: "Encantamento", url: "/api/magic-schools/enchantment" },
+      classes: [{ index: "cleric", name: "Clérico", url: "/api/classes/cleric" }],
+      subclasses: [],
+      url: "/api/spells/bless"
+    }
+  ],
+  sorcerer: [
+    {
+      index: "fire-bolt",
+      name: "Projétil de Fogo",
+      level: 0,
+      desc: ["Você arremessa um cisco de fogo em direção a uma criatura ou objeto dentro do alcance."],
+      higher_level: [],
+      range: "36 metros",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" }],
+      subclasses: [],
+      url: "/api/spells/fire-bolt"
+    },
+    {
+      index: "minor-illusion",
+      name: "Ilusão Menor",
+      level: 0,
+      desc: ["Você cria um som ou uma imagem de um objeto, dentro do alcance, que permanece pela duração."],
+      higher_level: [],
+      range: "9 metros",
+      components: ["S", "M"],
+      material: "Um pouco de lã ou uma pequena vareta",
+      ritual: false,
+      duration: "1 minuto",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "illusion", name: "Ilusão", url: "/api/magic-schools/illusion" },
+      classes: [{ index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" }],
+      subclasses: [],
+      url: "/api/spells/minor-illusion"
+    }
+  ],
+  bard: [
+    {
+      index: "vicious-mockery",
+      name: "Zombaria Cruel",
+      level: 0,
+      desc: ["Você libera uma enxurrada de insultos impregnados com sutis encantamentos numa criatura que você possa ver, dentro do alcance."],
+      higher_level: [],
+      range: "18 metros",
+      components: ["V"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "enchantment", name: "Encantamento", url: "/api/magic-schools/enchantment" },
+      classes: [{ index: "bard", name: "Bardo", url: "/api/classes/bard" }],
+      subclasses: [],
+      url: "/api/spells/vicious-mockery"
+    },
+    {
+      index: "healing-word",
+      name: "Palavra de Cura",
+      level: 1,
+      desc: ["Uma criatura, à sua escolha, que você possa ver dentro do alcance, recupera pontos de vida iguais a 1d4 + seu modificador de habilidade de conjuração."],
+      higher_level: ["Quando você conjurar essa magia usando um espaço de magia de 2º nível ou superior, a cura aumenta em 1d4 para cada nível do espaço acima do 1º."],
+      range: "18 metros",
+      components: ["V"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação bônus",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "bard", name: "Bardo", url: "/api/classes/bard" }],
+      subclasses: [],
+      url: "/api/spells/healing-word"
+    }
+  ],
+  warlock: [
+    {
+      index: "eldritch-blast",
+      name: "Rajada Sobrenatural",
+      level: 0,
+      desc: ["Um raio de energia crepitante ricocheteia em direção a uma criatura dentro do alcance."],
+      higher_level: [],
+      range: "36 metros",
+      components: ["V", "S"],
+      ritual: false,
+      duration: "Instantânea",
+      concentration: false,
+      casting_time: "1 ação",
+      school: { index: "evocation", name: "Evocação", url: "/api/magic-schools/evocation" },
+      classes: [{ index: "warlock", name: "Bruxo", url: "/api/classes/warlock" }],
+      subclasses: [],
+      url: "/api/spells/eldritch-blast"
+    },
+    {
+      index: "hex",
+      name: "Maldição",
+      level: 1,
+      desc: ["Você coloca uma maldição numa criatura que você possa ver dentro do alcance."],
+      higher_level: ["Quando você conjurar essa magia usando um espaço de magia de 3º ou 4º nível, você pode manter sua concentração na magia por até 8 horas."],
+      range: "27 metros",
+      components: ["V", "S", "M"],
+      material: "O olho petrificado de um tritão",
+      ritual: false,
+      duration: "1 hora",
+      concentration: true,
+      casting_time: "1 ação bônus",
+      school: { index: "enchantment", name: "Encantamento", url: "/api/magic-schools/enchantment" },
+      classes: [{ index: "warlock", name: "Bruxo", url: "/api/classes/warlock" }],
+      subclasses: [],
+      url: "/api/spells/hex"
+    }
+  ]
+};
 
 // ===========================
-// MAIN HOOK
+// HOOK PRINCIPAL
 // ===========================
 
 export const useSpells = (
   filters: SpellFilters = {},
   options: UseSpellsOptions = {}
 ): UseSpellsReturn => {
-  const {
-    enabled = true,
-    autoFetch = false,
-    staleTime = DEFAULT_STALE_TIME
-  } = options;
-
   const [currentFilters, setCurrentFilters] = useState<SpellFilters>(filters);
-  const [shouldFetch, setShouldFetch] = useState(autoFetch);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Query Key baseada nos filtros atuais
-  const queryKey = useMemo(() => [
-    "spells",
-    currentFilters.classIndex,
-    currentFilters.maxLevel,
-    currentFilters.school
-  ], [currentFilters]);
-
-  // React Query para buscar magias
-  const {
-    data: spells = [],
-    isLoading,
-    error,
-    refetch
-  } = useQuery({
-    queryKey,
-    queryFn: async () => {
-      if (!currentFilters.classIndex) {
-        return [];
+  // Obter magias da classe
+  const spells = useMemo(() => {
+    if (!currentFilters.classIndex) return [];
+    
+    const classSpells = SPELL_DATA[currentFilters.classIndex] || [];
+    
+    // Filtrar por nível máximo
+    return classSpells.filter(spell => {
+      if (currentFilters.maxLevel !== undefined) {
+        return spell.level <= currentFilters.maxLevel;
       }
+      return true;
+    });
+  }, [currentFilters.classIndex, currentFilters.maxLevel]);
 
-      try {
-        return await fetchSpellsForClass(
-          currentFilters.classIndex,
-          currentFilters.maxLevel || 9
-        );
-      } catch (error) {
-        console.warn("🔄 API falhou, usando dados mock");
-        return getMockSpells(currentFilters.classIndex);
-      }
-    },
-    enabled: enabled && shouldFetch && !!currentFilters.classIndex,
-    staleTime,
-    retry: 2,
-    retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-
-  // Filtros adicionais em memória
+  // Filtros adicionais
   const filteredSpells = useMemo(() => {
     let filtered = spells;
 
@@ -252,26 +392,24 @@ export const useSpells = (
     return filtered;
   }, [spells, currentFilters.school, currentFilters.searchTerm]);
 
-  // Função para buscar magias com novos filtros
+  // Função para buscar magias
   const fetchSpells = useCallback((newFilters: SpellFilters) => {
-    console.log("🎯 Iniciando busca de magias:", newFilters);
+    console.log("🎯 Atualizando filtros de magias:", newFilters);
     setCurrentFilters(newFilters);
-    setShouldFetch(true);
   }, []);
 
   // Função para limpar magias
   const clearSpells = useCallback(() => {
     setCurrentFilters({});
-    setShouldFetch(false);
   }, []);
 
   return {
-    spells,
-    isLoading,
-    error: error as Error | null,
+    spells: filteredSpells,
+    isLoading: false, // Sempre false pois os dados são instantâneos
+    error: null, // Nunca há erro com dados hardcoded
     fetchSpells,
     clearSpells,
-    hasSpells: spells.length > 0,
+    hasSpells: filteredSpells.length > 0,
     filteredSpells,
   };
 };
@@ -291,7 +429,7 @@ export const useCharacterSpells = (characterData: {
     const classIndex = characterData.selectedClass.index;
     const level = characterData.level;
 
-    // Lógica para calcular nível máximo de magia baseado na classe e nível
+    // Lógica para calcular nível máximo de magia
     switch (classIndex) {
       case "wizard":
       case "sorcerer":
@@ -325,7 +463,7 @@ export const useCharacterSpells = (characterData: {
     maxLevel: maxSpellLevel,
   }, {
     enabled: characterData.isSpellcaster,
-    autoFetch: false, // Só busca quando solicitado
+    autoFetch: false,
   });
 
   return {
