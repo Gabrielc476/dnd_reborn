@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,8 @@ import {
   Flame,
   Info,
   RotateCcw,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import SearchableList from "../ui/SearchableList";
 
@@ -52,9 +54,14 @@ export default function SpellsStep() {
     spellSearch,
     setSpellSearch,
     getAbilityModifier,
+    spellInfo,
+    maxSpellLevel,
+    startingCantrips,
+    startingSpells,
+    spellsError,
   } = useCharacterCreationContext();
 
-  const [selectedLevel, setSelectedLevel] = useState(0);
+  const [selectedLevel, setSelectedLevel] = useState<number | null>(null);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
 
   // If not a spellcaster, show a different UI
@@ -100,20 +107,45 @@ export default function SpellsStep() {
   const spellAttackBonus = spellcastingMod + proficiencyBonus;
   const spellSaveDC = 8 + spellcastingMod + proficiencyBonus;
 
-  // Filter spells
-  const filteredSpells = spells.filter((spell) => {
-    const levelMatch = selectedLevel === 0 || spell.level === selectedLevel;
-    const schoolMatch =
-      !selectedSchool || spell.school.index === selectedSchool;
-    const searchMatch =
-      !spellSearch ||
-      spell.name.toLowerCase().includes(spellSearch.toLowerCase()) ||
-      spell.desc.some((d) =>
-        d.toLowerCase().includes(spellSearch.toLowerCase())
-      );
+  // Advanced spell filtering
+  const filteredSpells = useMemo(() => {
+    let filtered = spells;
 
-    return levelMatch && schoolMatch && searchMatch;
-  });
+    // Filter by selected level
+    if (selectedLevel !== null) {
+      filtered = filtered.filter(spell => spell.level === selectedLevel);
+    }
+
+    // Filter by selected school
+    if (selectedSchool) {
+      filtered = filtered.filter(spell => spell.school.index === selectedSchool);
+    }
+
+    return filtered;
+  }, [spells, selectedLevel, selectedSchool]);
+
+  // Get available spell levels for this character
+  const availableSpellLevels = useMemo(() => {
+    const levels = new Set(spells.map(spell => spell.level));
+    return Array.from(levels).sort((a, b) => a - b);
+  }, [spells]);
+
+  // Get unique schools from available spells
+  const uniqueSchools = useMemo(() => {
+    const schools = new Set(spells.map(spell => spell.school.index));
+    return Array.from(schools);
+  }, [spells]);
+
+  // Separate cantrips and leveled spells
+  const cantrips = useMemo(() => 
+    filteredSpells.filter(spell => spell.level === 0), 
+    [filteredSpells]
+  );
+  
+  const leveledSpells = useMemo(() => 
+    filteredSpells.filter(spell => spell.level > 0), 
+    [filteredSpells]
+  );
 
   const handleSpellToggle = (spellIndex: string) => {
     const spell = spells.find((s) => s.index === spellIndex);
@@ -130,6 +162,20 @@ export default function SpellsStep() {
         ),
       });
     } else {
+      // Validate spell selection limits
+      const selectedCantrips = characterData.selectedSpells.filter(s => s.level === 0).length;
+      const selectedLevelSpells = characterData.selectedSpells.filter(s => s.level > 0).length;
+
+      if (spell.level === 0 && selectedCantrips >= startingCantrips) {
+        alert(`Você já selecionou o máximo de truques (${startingCantrips}) para sua classe.`);
+        return;
+      }
+
+      if (spell.level > 0 && selectedLevelSpells >= startingSpells) {
+        alert(`Você já selecionou o máximo de magias (${startingSpells}) para sua classe.`);
+        return;
+      }
+
       updateCharacterData({
         selectedSpells: [...characterData.selectedSpells, spell],
       });
@@ -145,7 +191,9 @@ export default function SpellsStep() {
     return IconComponent;
   };
 
-  const uniqueSchools = Array.from(new Set(spells.map((s) => s.school.index)));
+  // Count selected spells by type
+  const selectedCantrips = characterData.selectedSpells.filter(s => s.level === 0).length;
+  const selectedLevelSpells = characterData.selectedSpells.filter(s => s.level > 0).length;
 
   return (
     <div className="space-y-8">
@@ -160,10 +208,30 @@ export default function SpellsStep() {
         </p>
       </div>
 
+      {/* Error Handling */}
+      {spellsError && (
+        <Card className="bg-red-500/20 border-red-400/30">
+          <CardContent className="p-4">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="text-red-200 font-semibold text-sm">
+                  Erro ao carregar magias
+                </h4>
+                <p className="text-red-100 text-sm mt-1">
+                  Não foi possível carregar as magias da API oficial do D&D 5e. 
+                  Verifique sua conexão com a internet.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Spellcasting Stats */}
       <Card className="bg-white/5 border-white/20">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="text-center">
               <div className="bg-purple-500/20 border border-purple-400/30 rounded-lg p-4">
                 <Zap className="w-8 h-8 text-purple-400 mx-auto mb-2" />
@@ -193,21 +261,46 @@ export default function SpellsStep() {
                 <div className="text-blue-200 text-sm">CD de Resistência</div>
               </div>
             </div>
+
+            <div className="text-center">
+              <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-4">
+                <div className="text-2xl font-bold text-green-400">
+                  {maxSpellLevel}
+                </div>
+                <div className="text-green-200 text-sm">Nível Máximo</div>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Selected Spells Count */}
+      {/* Spell Selection Summary */}
       <Card className="bg-white/5 border-white/20">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
-            <div>
-              <Label className="text-white font-semibold">
-                Magias Selecionadas: {characterData.selectedSpells.length}
-              </Label>
-              <p className="text-purple-200 text-sm">
-                Escolha as magias que seu personagem conhece inicialmente
-              </p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-white font-semibold">
+                  Truques: {selectedCantrips}/{startingCantrips}
+                </Label>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
+                  <div 
+                    className="bg-purple-500 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${(selectedCantrips / startingCantrips) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-white font-semibold">
+                  Magias: {selectedLevelSpells}/{startingSpells}
+                </Label>
+                <div className="w-full bg-gray-700 rounded-full h-2 mt-1">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${(selectedLevelSpells / startingSpells) * 100}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
             {characterData.selectedSpells.length > 0 && (
@@ -245,13 +338,13 @@ export default function SpellsStep() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
-                  variant={selectedLevel === 0 ? "default" : "outline"}
-                  onClick={() => setSelectedLevel(0)}
+                  variant={selectedLevel === null ? "default" : "outline"}
+                  onClick={() => setSelectedLevel(null)}
                   className="text-xs"
                 >
                   Todos
                 </Button>
-                {[0, 1, 2, 3].map((level) => (
+                {availableSpellLevels.map((level) => (
                   <Button
                     key={level}
                     size="sm"
@@ -304,8 +397,15 @@ export default function SpellsStep() {
 
             {isLoadingSpells ? (
               <div className="text-center py-8">
-                <div className="w-8 h-8 border-2 border-purple-300 border-t-white rounded-full animate-spin mx-auto"></div>
-                <p className="text-purple-200 mt-2">Carregando magias...</p>
+                <Loader2 className="w-8 h-8 text-purple-300 animate-spin mx-auto" />
+                <p className="text-purple-200 mt-2">Carregando magias da API oficial...</p>
+              </div>
+            ) : filteredSpells.length === 0 ? (
+              <div className="text-center py-8">
+                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-400">
+                  Nenhuma magia encontrada com os filtros selecionados.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
@@ -324,27 +424,25 @@ export default function SpellsStep() {
                         p-4 rounded-lg border cursor-pointer transition-all duration-200
                         ${
                           isSelected
-                            ? "bg-purple-500/20 border-purple-400/50"
+                            ? "bg-purple-500/20 border-purple-400/50 ring-2 ring-purple-400/30"
                             : "bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/30"
                         }
                       `}
                       onClick={() => handleSpellToggle(spell.index)}
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-2">
-                            {isSelected ? (
-                              <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />
-                            ) : (
-                              <Circle className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                            )}
-                            <h4 className="text-white font-medium text-sm truncate">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="text-white font-semibold text-sm">
                               {spell.name}
                             </h4>
+                            {isSelected && (
+                              <CheckCircle className="w-4 h-4 text-purple-400" />
+                            )}
                           </div>
 
-                          <div className="flex items-center space-x-3 mb-2">
-                            <span className="text-xs px-2 py-1 bg-black/30 rounded text-gray-300">
+                          <div className="flex items-center space-x-3 mt-1">
+                            <span className="text-xs text-gray-300 bg-white/10 px-2 py-1 rounded">
                               {spell.level === 0
                                 ? "Truque"
                                 : `Nível ${spell.level}`}
@@ -361,7 +459,7 @@ export default function SpellsStep() {
                             </div>
                           </div>
 
-                          <p className="text-purple-200 text-xs line-clamp-2">
+                          <p className="text-purple-200 text-xs line-clamp-2 mt-2">
                             {spell.desc[0]?.substring(0, 100)}...
                           </p>
 
@@ -380,20 +478,19 @@ export default function SpellsStep() {
         </CardContent>
       </Card>
 
-      {/* Starting Spells Info */}
+      {/* Class-specific spell info */}
       <Card className="bg-blue-500/10 border-blue-400/20">
         <CardContent className="p-4">
           <div className="flex items-start space-x-2">
             <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
             <div>
               <h4 className="text-blue-200 font-semibold text-sm">
-                Magias Iniciais
+                Informações sobre Magias da {characterData.selectedClass?.name}
               </h4>
               <p className="text-blue-100 text-sm mt-1">
-                A quantidade de magias que você conhece depende da sua classe.
-                Magos começam com 6 magias de 1º nível no grimório, enquanto
-                feiticeiros conhecem 4 truques e 2 magias de 1º nível. Consulte
-                sua classe para detalhes.
+                Sua classe permite {startingCantrips} truques e {startingSpells} magias de 1º nível no início. 
+                Você pode aprender magias até o {maxSpellLevel}º nível baseado no seu nível de personagem.
+                As magias mostradas são filtradas automaticamente para sua classe.
               </p>
             </div>
           </div>

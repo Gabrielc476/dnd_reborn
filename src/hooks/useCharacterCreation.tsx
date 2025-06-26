@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - REFACTORED VERSION
+// OPTIMIZED CHARACTER CREATION HOOK - COMPLETE VERSION WITH API INTEGRATION
 // ===========================
 "use client";
 
@@ -52,43 +52,37 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Use refactored hooks
+  // Use refactored hooks - CHARACTER DATA FIRST
   const {
     characterData,
     updateCharacterData,
     resetCharacterData,
-    getCombinedAbilityBonuses,
-    getSubraceAbilityBonuses,
   } = useCharacterData();
 
   const {
     currentStep,
     totalSteps,
     steps,
-    validateCurrentStep,
-    canProceed,
     nextStep,
     previousStep,
     goToStep,
     resetSteps,
-    validateAllSteps,
-    validateStep,
-  } = useCharacterSteps(characterData);
+    updateStepCompletion,
+    validateStep: validateStepFunction,
+    canProceed: canProceedFunction,
+  } = useCharacterSteps();
 
   const {
-    setRaceSearch,
-    setClassSearch,
-    setSpellSearch,
-    setBackgroundSearch,
     raceSearch,
     classSearch,
     spellSearch,
     backgroundSearch,
-    debouncedRaceSearch,
-    debouncedClassSearch,
-    debouncedSpellSearch,
-    debouncedBackgroundSearch,
+    setRaceSearch,
+    setClassSearch,
+    setSpellSearch,
+    setBackgroundSearch,
     clearAllSearches,
+    searchTerms,
   } = useCharacterSearch();
 
   const {
@@ -98,9 +92,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     spells,
     subraces,
     subclasses,
-    getAvailableSubraces,
-    getAvailableSubclasses,
-    getSubclassFeatures,
     isLoadingRaces,
     isLoadingClasses,
     isLoadingBackgrounds,
@@ -109,12 +100,17 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     isLoadingSubclasses,
     racesError,
     classesError,
-  } = useDndData(characterData, {
-    debouncedRaceSearch,
-    debouncedClassSearch,
-    debouncedSpellSearch,
-    debouncedBackgroundSearch,
-  });
+    spellsError,
+    getAvailableSubraces,
+    getAvailableSubclasses,
+    getSubclassFeatures,
+    getCombinedAbilityBonuses,
+    getSubraceAbilityBonuses,
+    spellInfo,
+    maxSpellLevel,
+    startingCantrips,
+    startingSpells,
+  } = useDndData(characterData, searchTerms);
 
   const {
     getAbilityModifier,
@@ -130,6 +126,32 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     getCarryingCapacity,
     getInitiativeModifier,
   } = useCharacterCalculations();
+
+  // ===========================
+  // VALIDATION HELPER
+  // ===========================
+
+  const validateAllSteps = useCallback(() => {
+    const validations = [];
+    for (let i = 0; i < totalSteps; i++) {
+      validations.push(validateStepFunction(i, characterData));
+    }
+    return validations;
+  }, [totalSteps, validateStepFunction, characterData]);
+
+  // ===========================
+  // VALIDATION FUNCTIONS
+  // ===========================
+
+  const validateCurrentStep = useCallback((): boolean => {
+    const validation = validateStepFunction(currentStep, characterData);
+    updateStepCompletion(currentStep, validation.isValid);
+    return validation.isValid;
+  }, [currentStep, characterData, validateStepFunction, updateStepCompletion]);
+
+  const canProceed = useCallback((): boolean => {
+    return canProceedFunction(characterData);
+  }, [canProceedFunction, characterData]);
 
   // ===========================
   // RESET FUNCTION
@@ -208,6 +230,82 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [characterData, error]);
 
   // ===========================
+  // AUTO-UPDATE SPELLCASTER STATUS
+  // ===========================
+
+  useEffect(() => {
+    if (characterData.selectedClass) {
+      const isSpellcaster = !!characterData.selectedClass.spellcasting || 
+                           (characterData.selectedSubclass && 
+                            ['arcane-trickster', 'eldritch-knight'].includes(characterData.selectedSubclass.index));
+      
+      const spellcastingAbility = characterData.selectedClass.spellcasting?.spellcasting_ability.index || null;
+
+      if (characterData.isSpellcaster !== isSpellcaster || 
+          characterData.spellcastingAbility !== spellcastingAbility) {
+        updateCharacterData({
+          isSpellcaster,
+          spellcastingAbility,
+          selectedSpells: isSpellcaster ? characterData.selectedSpells : []
+        });
+      }
+    }
+  }, [characterData.selectedClass, characterData.selectedSubclass, updateCharacterData]);
+
+  // ===========================
+  // AUTO-UPDATE SKILL CHOICES
+  // ===========================
+
+  useEffect(() => {
+    if (characterData.selectedClass) {
+      const skillChoices = characterData.selectedClass.proficiency_choices?.find(
+        choice => choice.type === "proficiencies"
+      )?.choose || 0;
+
+      if (characterData.availableSkillChoices !== skillChoices) {
+        updateCharacterData({
+          availableSkillChoices: skillChoices,
+          selectedSkills: characterData.selectedSkills.slice(0, skillChoices)
+        });
+      }
+    }
+  }, [characterData.selectedClass, updateCharacterData]);
+
+  // ===========================
+  // AUTO-CALCULATE STATS
+  // ===========================
+
+  useEffect(() => {
+    if (characterData.selectedClass && characterData.abilityScores) {
+      const conModifier = getAbilityModifier(characterData.abilityScores.constitution);
+      const dexModifier = getAbilityModifier(characterData.abilityScores.dexterity);
+      
+      const hitPoints = calculateHitPoints(
+        characterData.selectedClass,
+        characterData.level,
+        conModifier
+      );
+      
+      const armorClass = calculateArmorClass(dexModifier);
+
+      if (characterData.hitPoints !== hitPoints || characterData.armorClass !== armorClass) {
+        updateCharacterData({
+          hitPoints,
+          armorClass
+        });
+      }
+    }
+  }, [
+    characterData.selectedClass,
+    characterData.abilityScores,
+    characterData.level,
+    getAbilityModifier,
+    calculateHitPoints,
+    calculateArmorClass,
+    updateCharacterData
+  ]);
+
+  // ===========================
   // RETURN STATEMENT
   // ===========================
 
@@ -217,7 +315,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     totalSteps,
     steps,
     characterData,
-    loading: loading || isLoadingRaces || isLoadingClasses || isLoadingBackgrounds,
+    loading: loading || isLoadingRaces || isLoadingClasses || isLoadingBackgrounds || isLoadingSpells,
     error,
 
     // API Data
@@ -227,6 +325,19 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     spells,
     subraces,
     subclasses,
+
+    // Loading states
+    isLoadingRaces,
+    isLoadingClasses,
+    isLoadingBackgrounds,
+    isLoadingSpells,
+    isLoadingSubraces,
+    isLoadingSubclasses,
+
+    // Errors
+    racesError,
+    classesError,
+    spellsError,
 
     // Search
     setRaceSearch,
@@ -277,12 +388,11 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     getAvailableSubclasses,
     getSubclassFeatures,
 
-    // Loading states
-    isLoadingRaces,
-    isLoadingClasses,
-    isLoadingSpells,
-    isLoadingSubraces,
-    isLoadingSubclasses,
+    // Spell information (NEW)
+    spellInfo,
+    maxSpellLevel,
+    startingCantrips,
+    startingSpells,
   };
 };
 

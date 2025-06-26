@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION TYPES - UPDATED WITH SUBRACES & SUBCLASSES
+// CHARACTER CREATION TYPES - UPDATED WITH SUBRACES & SUBCLASSES & API INTEGRATION
 // src/types/characterCreation.ts
 // ===========================
 
@@ -154,7 +154,10 @@ export interface DndSpell {
   casting_time: string;
   range: string;
   components: string[];
+  material?: string;
+  ritual: boolean;
   duration: string;
+  concentration: boolean;
   damage?: {
     damage_type: DndApiReference;
     damage_at_slot_level?: Record<string, string>;
@@ -166,6 +169,8 @@ export interface DndSpell {
   };
   desc: string[];
   higher_level?: string[];
+  classes: DndApiReference[];
+  subclasses: DndApiReference[];
   url: string;
 }
 
@@ -194,9 +199,9 @@ export interface CharacterCreationData {
   // Passo 1: Informações Básicas
   name: string;
   selectedRace: DndRace | null;
-  selectedSubrace: DndSubrace | null; // ← SUBRAÇA
+  selectedSubrace: DndSubrace | null;
   selectedClass: DndClass | null;
-  selectedSubclass: DndSubclass | null; // ← SUBCLASSE (NOVA)
+  selectedSubclass: DndSubclass | null;
   selectedBackground: DndBackground | null;
   level: number;
   alignment: string;
@@ -225,6 +230,27 @@ export interface CharacterCreationData {
   flaws: string[];
 }
 
+// ===========================
+// VALIDATION TYPES
+// ===========================
+
+export interface StepValidation {
+  isValid: boolean;
+  errors: string[];
+}
+
+export interface SpellInfo {
+  cantrips: number;
+  spells: number;
+  maxSpellLevel: number;
+  availableCantrips?: DndSpell[];
+  availableLevelSpells?: DndSpell[];
+}
+
+// ===========================
+// CONTEXT TYPE
+// ===========================
+
 export interface CharacterCreationContextType {
   // Estado
   currentStep: number;
@@ -240,7 +266,30 @@ export interface CharacterCreationContextType {
   backgrounds: DndBackground[];
   spells: DndSpell[];
   subraces: DndSubrace[];
-  subclasses: DndSubclass[]; // ← NOVA PROPRIEDADE
+  subclasses: DndSubclass[];
+
+  // Estados de loading
+  isLoadingRaces: boolean;
+  isLoadingClasses: boolean;
+  isLoadingBackgrounds: boolean;
+  isLoadingSpells: boolean;
+  isLoadingSubraces: boolean;
+  isLoadingSubclasses: boolean;
+
+  // Erros
+  racesError?: Error | null;
+  classesError?: Error | null;
+  spellsError?: Error | null;
+
+  // Busca
+  raceSearch: string;
+  classSearch: string;
+  spellSearch: string;
+  backgroundSearch: string;
+  setRaceSearch: (search: string) => void;
+  setClassSearch: (search: string) => void;
+  setSpellSearch: (search: string) => void;
+  setBackgroundSearch: (search: string) => void;
 
   // Ações de navegação
   nextStep: () => void;
@@ -258,319 +307,54 @@ export interface CharacterCreationContextType {
   // Finalização
   createCharacter: () => Promise<void>;
 
-  // Utilitários
+  // Utilidades
   getAbilityModifier: (score: number) => number;
   calculateAbilityScorePoints: (scores: AbilityScores) => number;
   generateRandomAbilityScores: () => AbilityScores;
+  getProficiencyBonus: (level: number) => number;
+  getSkillModifier: (skill: string, scores: AbilityScores) => number;
+  getSavingThrowModifier: (ability: string, scores: AbilityScores) => number;
+  calculateHitPoints: (characterClass: DndClass, level: number, conModifier: number) => number;
+  calculateArmorClass: (dexModifier: number, armor?: any) => number;
+  getSpellAttackBonus: (spellcastingMod: number, proficiencyBonus: number) => number;
+  getSpellSaveDC: (spellcastingMod: number, proficiencyBonus: number) => number;
+  getCarryingCapacity: (strength: number) => number;
+  getInitiativeModifier: (dexModifier: number) => number;
 
-  // Busca
-  raceSearch: string;
-  setRaceSearch: (search: string) => void;
-  classSearch: string;
-  setClassSearch: (search: string) => void;
-  spellSearch: string;
-  setSpellSearch: (search: string) => void;
-
-  // Estados de carregamento
-  isLoadingRaces: boolean;
-  isLoadingClasses: boolean;
-  isLoadingSpells: boolean;
-  isLoadingSubraces: boolean;
-  isLoadingSubclasses: boolean; // ← NOVA PROPRIEDADE
-
-  // Funções específicas para subraças
+  // Funções de subraças
   getAvailableSubraces: () => DndSubrace[];
-  getSubraceAbilityBonuses: () => Array<{
-    ability_score: DndApiReference;
-    bonus: number;
-  }>;
-  getCombinedAbilityBonuses: () => Array<{
-    ability_score: DndApiReference;
-    bonus: number;
-  }>;
+  getCombinedAbilityBonuses: () => Record<string, number>;
+  getSubraceAbilityBonuses: () => Array<{ ability_score: DndApiReference; bonus: number }>;
 
-  // Funções específicas para subclasses (NOVAS)
+  // Funções de subclasses
   getAvailableSubclasses: () => DndSubclass[];
   getSubclassFeatures: (level?: number) => DndApiReference[];
+
+  // Informações sobre magias (NOVO)
+  spellInfo: SpellInfo;
+  maxSpellLevel: number;
+  startingCantrips: number;
+  startingSpells: number;
 }
 
 // ===========================
-// VALIDATION TYPES
+// UTILITY TYPES
 // ===========================
 
-export interface ValidationRule {
-  field: string;
-  message: string;
-  validator: (data: CharacterCreationData) => boolean;
+export type AbilityKey = keyof AbilityScores;
+
+export interface AbilityBonus {
+  ability_score: DndApiReference;
+  bonus: number;
 }
 
-export interface StepValidation {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-}
-
-// ===========================
-// SKILL DEFINITIONS
-// ===========================
-
-export interface SkillDefinition {
-  key: string;
-  name: string;
-  ability: keyof AbilityScores;
-  description: string;
-}
-
-export const SKILLS: SkillDefinition[] = [
-  {
-    key: "athletics",
-    name: "Atletismo",
-    ability: "strength",
-    description: "Escalar, saltar, nadar",
-  },
-  {
-    key: "acrobatics",
-    name: "Acrobacia",
-    ability: "dexterity",
-    description: "Equilibrar-se, rolar, virar cambalhotas",
-  },
-  {
-    key: "sleight_of_hand",
-    name: "Prestidigitação",
-    ability: "dexterity",
-    description: "Bater carteira, truques de mão",
-  },
-  {
-    key: "stealth",
-    name: "Furtividade",
-    ability: "dexterity",
-    description: "Esconder-se, mover-se silenciosamente",
-  },
-  {
-    key: "arcana",
-    name: "Arcano",
-    ability: "intelligence",
-    description: "Conhecimento sobre magias e itens mágicos",
-  },
-  {
-    key: "history",
-    name: "História",
-    ability: "intelligence",
-    description: "Conhecimento sobre eventos históricos",
-  },
-  {
-    key: "investigation",
-    name: "Investigação",
-    ability: "intelligence",
-    description: "Procurar pistas e fazer deduções",
-  },
-  {
-    key: "nature",
-    name: "Natureza",
-    ability: "intelligence",
-    description: "Conhecimento sobre o mundo natural",
-  },
-  {
-    key: "religion",
-    name: "Religião",
-    ability: "intelligence",
-    description: "Conhecimento sobre divindades e rituais",
-  },
-  {
-    key: "animal_handling",
-    name: "Lidar com Animais",
-    ability: "wisdom",
-    description: "Controlar e acalmar animais",
-  },
-  {
-    key: "insight",
-    name: "Intuição",
-    ability: "wisdom",
-    description: "Determinar as verdadeiras intenções",
-  },
-  {
-    key: "medicine",
-    name: "Medicina",
-    ability: "wisdom",
-    description: "Tratar ferimentos e doenças",
-  },
-  {
-    key: "perception",
-    name: "Percepção",
-    ability: "wisdom",
-    description: "Notar detalhes com os sentidos",
-  },
-  {
-    key: "survival",
-    name: "Sobrevivência",
-    ability: "wisdom",
-    description: "Rastrear, navegar e encontrar abrigo",
-  },
-  {
-    key: "deception",
-    name: "Enganação",
-    ability: "charisma",
-    description: "Mentir convincentemente",
-  },
-  {
-    key: "intimidation",
-    name: "Intimidação",
-    ability: "charisma",
-    description: "Influenciar através de ameaças",
-  },
-  {
-    key: "performance",
-    name: "Atuação",
-    ability: "charisma",
-    description: "Entreter uma audiência",
-  },
-  {
-    key: "persuasion",
-    name: "Persuasão",
-    ability: "charisma",
-    description: "Influenciar com tato e carisma",
-  },
-];
-
-// ===========================
-// ALIGNMENT OPTIONS
-// ===========================
-
-export const ALIGNMENTS = [
-  {
-    value: "lawful-good",
-    label: "Leal e Bom",
-    description: "Age com compaixão e honra",
-  },
-  {
-    value: "neutral-good",
-    label: "Neutro e Bom",
-    description: "Faz o melhor que pode para ajudar outros",
-  },
-  {
-    value: "chaotic-good",
-    label: "Caótico e Bom",
-    description: "Age conforme sua consciência",
-  },
-  {
-    value: "lawful-neutral",
-    label: "Leal e Neutro",
-    description: "Age de acordo com lei e tradição",
-  },
-  {
-    value: "true-neutral",
-    label: "Neutro Verdadeiro",
-    description: "Prefere manter-se fora de questões morais",
-  },
-  {
-    value: "chaotic-neutral",
-    label: "Caótico e Neutro",
-    description: "Segue seus caprichos",
-  },
-  {
-    value: "lawful-evil",
-    label: "Leal e Mau",
-    description: "Toma o que quer dentro dos limites da lei",
-  },
-  {
-    value: "neutral-evil",
-    label: "Neutro e Mau",
-    description: "Faz o que pode escapar impune",
-  },
-  {
-    value: "chaotic-evil",
-    label: "Caótico e Mau",
-    description: "Age com violência arbitrária",
-  },
-];
-
-// ===========================
-// SUBCLASS LEVEL THRESHOLDS
-// ===========================
-
-export const SUBCLASS_LEVELS: Record<string, number> = {
-  // Most classes get subclasses at level 3
-  fighter: 3,
-  rogue: 3,
-  ranger: 3,
-  barbarian: 3,
-  bard: 3,
-  monk: 3,
-  paladin: 3,
-  
-  // Exceptions
-  wizard: 2,    // School of Magic at level 2
-  warlock: 1,   // Patron at level 1
-  cleric: 1,    // Domain at level 1
-  druid: 2,     // Circle at level 2
-  sorcerer: 1,  // Origin at level 1
-};
-
-// ===========================
-// UTILITY FUNCTIONS FOR SUBCLASSES
-// ===========================
-
-/**
- * Verifica se uma classe pode ter subclasse no nível especificado
- */
-export function canHaveSubclass(classIndex: string, level: number): boolean {
-  const requiredLevel = SUBCLASS_LEVELS[classIndex] || 3;
-  return level >= requiredLevel;
-}
-
-/**
- * Retorna o nível mínimo para subclasse de uma classe
- */
-export function getSubclassLevel(classIndex: string): number {
-  return SUBCLASS_LEVELS[classIndex] || 3;
-}
-
-/**
- * Verifica se uma subclasse está disponível no nível atual
- */
-export function isSubclassAvailable(
-  classIndex: string, 
-  level: number, 
-  subclass: DndSubclass
-): boolean {
-  const requiredLevel = getSubclassLevel(classIndex);
-  return level >= requiredLevel && subclass.class.index === classIndex;
+export interface Equipment {
+  equipment: DndApiReference;
+  quantity: number;
 }
 
 // ===========================
-// SUBCLASS FEATURE HELPERS
-// ===========================
-
-/**
- * Filtra features de subclasse por nível
- */
-export function getSubclassFeaturesForLevel(
-  subclass: DndSubclass, 
-  level: number
-): DndApiReference[] {
-  const features: DndApiReference[] = [];
-  
-  subclass.subclass_levels.forEach(levelData => {
-    if (levelData.level <= level) {
-      features.push(...levelData.features);
-    }
-  });
-  
-  return features;
-}
-
-/**
- * Verifica se uma subclasse tem features no nível especificado
- */
-export function hasSubclassFeaturesAtLevel(
-  subclass: DndSubclass, 
-  level: number
-): boolean {
-  return subclass.subclass_levels.some(levelData => levelData.level === level);
-}
-
-// ===========================
-// EXPORT ALL TYPES
+// EXPORT TYPES FOR EXTERNAL USE
 // ===========================
 
 export type {
@@ -581,11 +365,9 @@ export type {
   DndSubclass,
   DndBackground,
   DndSpell,
+  CharacterCreationData,
   CharacterCreationStep,
   AbilityScores,
-  CharacterCreationData,
-  CharacterCreationContextType,
-  ValidationRule,
   StepValidation,
-  SkillDefinition,
+  SpellInfo,
 };
