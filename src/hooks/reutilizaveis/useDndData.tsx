@@ -1,110 +1,23 @@
 // ===========================
-// USE DND DATA HOOK - UPDATED WITH OFFICIAL D&D API FOR SPELLS - FIXED EXPORT
+// USE DND DATA HOOK - COMPLETO COM SISTEMA DE MAGIAS OTIMIZADO
+// src/hooks/reutilizaveis/useDndData.tsx
 // ===========================
 "use client";
 
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CharacterCreationData, DndSubrace, DndSpell } from "@/types/characterCreation";
+import { CharacterCreationData } from "@/types/characterCreation";
 import { mockRaces } from "@/data/mockRaces";
 import { mockClasses } from "@/data/mockClasses";
 import { mockBackgrounds } from "@/data/mockBackgrounds";
 import { mockSubraces } from "@/data/mockSubRaces";
 import { mockSubclasses } from "@/data/mockSubClasses";
 
-// ===========================
-// D&D API CONSTANTS
-// ===========================
-
-const DND_API_BASE_URL = "https://www.dnd5eapi.co/api";
+// IMPORTAR O NOVO HOOK DE MAGIAS OTIMIZADO
+import { useCharacterSpells } from "@/hooks/reutilizaveis/useSpells";
 
 // ===========================
-// D&D API FUNCTIONS
-// ===========================
-
-/**
- * Função para fazer requisições à API oficial D&D 5e
- */
-async function fetchFromDndAPI<T>(endpoint: string): Promise<T> {
-  const url = `${DND_API_BASE_URL}${endpoint}`;
-  
-  try {
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error(`Erro ao buscar dados da API D&D: ${endpoint}`, error);
-    throw new Error(`Erro ao carregar dados: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
-  }
-}
-
-/**
- * Busca todas as magias da API oficial
- */
-async function fetchAllSpells(): Promise<DndSpell[]> {
-  try {
-    // Primeiro busca a lista de magias
-    const spellsList = await fetchFromDndAPI<{
-      results: Array<{ index: string; name: string; url: string }>;
-    }>('/spells');
-
-    // Depois busca os detalhes de cada magia em batches para evitar sobrecarga
-    const batchSize = 20;
-    const allSpells: DndSpell[] = [];
-    
-    for (let i = 0; i < spellsList.results.length; i += batchSize) {
-      const batch = spellsList.results.slice(i, i + batchSize);
-      const batchPromises = batch.map(spell => 
-        fetchFromDndAPI<DndSpell>(`/spells/${spell.index}`)
-      );
-      
-      const batchResults = await Promise.all(batchPromises);
-      allSpells.push(...batchResults);
-    }
-
-    return allSpells;
-  } catch (error) {
-    console.error('Erro ao buscar magias da API oficial:', error);
-    throw error;
-  }
-}
-
-/**
- * Busca magias por classe da API oficial
- */
-async function fetchSpellsByClass(classIndex: string): Promise<DndSpell[]> {
-  try {
-    const classSpells = await fetchFromDndAPI<{
-      results: Array<{ index: string; name: string; url: string }>;
-    }>(`/classes/${classIndex}/spells`);
-
-    // Busca detalhes das magias em batches
-    const batchSize = 15;
-    const spells: DndSpell[] = [];
-    
-    for (let i = 0; i < classSpells.results.length; i += batchSize) {
-      const batch = classSpells.results.slice(i, i + batchSize);
-      const batchPromises = batch.map(spell => 
-        fetchFromDndAPI<DndSpell>(`/spells/${spell.index}`)
-      );
-      
-      const batchResults = await Promise.all(batchPromises);
-      spells.push(...batchResults);
-    }
-
-    return spells;
-  } catch (error) {
-    console.error(`Erro ao buscar magias da classe ${classIndex}:`, error);
-    throw error;
-  }
-}
-
-// ===========================
-// REACT QUERY HOOKS
+// REACT QUERY HOOKS PARA DADOS BÁSICOS
 // ===========================
 
 function useRacesQuery() {
@@ -131,31 +44,11 @@ function useBackgroundsQuery() {
   });
 }
 
-/**
- * Hook para buscar magias da API oficial com filtros
- */
-function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
-  return useQuery({
-    queryKey: ["dnd", "spells", classIndex],
-    queryFn: () => {
-      if (classIndex) {
-        return fetchSpellsByClass(classIndex);
-      }
-      return fetchAllSpells();
-    },
-    enabled,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-  });
-}
-
-/**
- * Hook para buscar subclasses da API oficial
- */
 function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "subclasses", classIndex],
     queryFn: () => {
-      // Usar dados mockados por enquanto
+      // Usar dados mockados
       return mockSubclasses.filter(
         subclass => !classIndex || subclass.class.index === classIndex
       );
@@ -168,20 +61,6 @@ function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
 // ===========================
 // UTILITY FUNCTIONS
 // ===========================
-
-/**
- * Filtra magias disponíveis para um personagem
- */
-function filterSpellsForCharacter(spells: DndSpell[], characterData: CharacterCreationData): DndSpell[] {
-  if (!characterData.isSpellcaster || !characterData.selectedClass) {
-    return [];
-  }
-
-  // Filtrar por classe
-  return spells.filter(spell => 
-    spell.classes.some(cls => cls.index === characterData.selectedClass?.index)
-  );
-}
 
 /**
  * Retorna o nível máximo de magia para um personagem
@@ -198,7 +77,6 @@ function getMaxSpellLevelForCharacter(characterData: CharacterCreationData): num
     case "cleric":
     case "druid":
     case "bard":
-    case "warlock":
       // Conjuradores completos
       if (characterLevel >= 17) return 9;
       if (characterLevel >= 15) return 8;
@@ -215,6 +93,14 @@ function getMaxSpellLevelForCharacter(characterData: CharacterCreationData): num
       // Meio-conjuradores
       if (characterLevel < 2) return 0;
       return Math.min(5, Math.ceil((characterLevel - 1) / 4) + 1);
+    
+    case "warlock":
+      // Warlock tem progressão especial
+      if (characterLevel >= 9) return 5;
+      if (characterLevel >= 7) return 4;
+      if (characterLevel >= 5) return 3;
+      if (characterLevel >= 3) return 2;
+      return 1;
     
     case "rogue":
       // Ladino Trapaceiro Arcano
@@ -265,7 +151,7 @@ function getStartingSpellsForClass(classIndex: string): { cantrips: number; spel
 }
 
 // ===========================
-// MAIN HOOK - PROPERLY EXPORTED
+// MAIN HOOK - OTIMIZADO COM NOVO SISTEMA DE MAGIAS
 // ===========================
 
 export const useDndData = (
@@ -277,7 +163,10 @@ export const useDndData = (
     debouncedBackgroundSearch: string;
   }
 ) => {
-  // Data queries usando mock data para tudo exceto magias
+  // ===========================
+  // QUERIES PARA DADOS BÁSICOS (RÁPIDOS)
+  // ===========================
+
   const {
     data: racesData = [],
     isLoading: racesLoading,
@@ -295,16 +184,6 @@ export const useDndData = (
     isLoading: backgroundsLoading 
   } = useBackgroundsQuery();
 
-  // Magias da API oficial com filtros por classe
-  const { 
-    data: spellsData = [], 
-    isLoading: spellsLoading,
-    error: spellsError
-  } = useSpellsQuery(
-    characterData.isSpellcaster,
-    characterData.selectedClass?.index
-  );
-
   const { 
     data: subclassesData = [], 
     isLoading: subclassesLoading 
@@ -313,7 +192,28 @@ export const useDndData = (
     characterData.selectedClass?.index
   );
 
-  // Filtered data based on search terms
+  // ===========================
+  // NOVO SISTEMA DE MAGIAS OTIMIZADO
+  // ===========================
+
+  const {
+    spells: spellsData,
+    isLoading: spellsLoading,
+    error: spellsError,
+    fetchSpells,
+    maxSpellLevel,
+    canCastSpells
+  } = useCharacterSpells({
+    selectedClass: characterData.selectedClass,
+    level: characterData.level,
+    isSpellcaster: characterData.isSpellcaster
+  });
+
+  // ===========================
+  // FILTROS EM MEMÓRIA PARA DADOS CARREGADOS
+  // ===========================
+
+  // Filtrar raças por busca
   const filteredRaces = useMemo(() => {
     if (!searchTerms.debouncedRaceSearch) return racesData;
     return racesData.filter(race =>
@@ -321,6 +221,7 @@ export const useDndData = (
     );
   }, [racesData, searchTerms.debouncedRaceSearch]);
 
+  // Filtrar classes por busca
   const filteredClasses = useMemo(() => {
     if (!searchTerms.debouncedClassSearch) return classesData;
     return classesData.filter(cls =>
@@ -328,6 +229,7 @@ export const useDndData = (
     );
   }, [classesData, searchTerms.debouncedClassSearch]);
 
+  // Filtrar backgrounds por busca
   const filteredBackgrounds = useMemo(() => {
     if (!searchTerms.debouncedBackgroundSearch) return backgroundsData;
     return backgroundsData.filter(bg =>
@@ -335,27 +237,23 @@ export const useDndData = (
     );
   }, [backgroundsData, searchTerms.debouncedBackgroundSearch]);
 
-  // Filtros avançados para magias
+  // Filtro adicional de magias por busca (além do filtro do hook useSpells)
   const filteredSpells = useMemo(() => {
-    let spells = spellsData;
+    if (!searchTerms.debouncedSpellSearch) return spellsData;
+    
+    return spellsData.filter(spell =>
+      spell.name.toLowerCase().includes(searchTerms.debouncedSpellSearch.toLowerCase()) ||
+      spell.desc.some(desc => 
+        desc.toLowerCase().includes(searchTerms.debouncedSpellSearch.toLowerCase())
+      )
+    );
+  }, [spellsData, searchTerms.debouncedSpellSearch]);
 
-    // Filtro por classe e nível do personagem
-    spells = filterSpellsForCharacter(spells, characterData);
+  // ===========================
+  // SUBRACES E SUBCLASSES DISPONÍVEIS
+  // ===========================
 
-    // Filtro por busca
-    if (searchTerms.debouncedSpellSearch) {
-      spells = spells.filter(spell =>
-        spell.name.toLowerCase().includes(searchTerms.debouncedSpellSearch.toLowerCase()) ||
-        spell.desc.some(desc => 
-          desc.toLowerCase().includes(searchTerms.debouncedSpellSearch.toLowerCase())
-        )
-      );
-    }
-
-    return spells;
-  }, [spellsData, searchTerms.debouncedSpellSearch, characterData]);
-
-  // Available subraces based on selected race
+  // Subraças disponíveis baseadas na raça selecionada
   const availableSubraces = useMemo(() => {
     if (!characterData.selectedRace) return [];
     return mockSubraces.filter(
@@ -363,7 +261,7 @@ export const useDndData = (
     );
   }, [characterData.selectedRace]);
 
-  // Available subclasses based on selected class
+  // Subclasses disponíveis baseadas na classe selecionada
   const availableSubclasses = useMemo(() => {
     if (!characterData.selectedClass) return [];
     return subclassesData.filter(
@@ -371,24 +269,33 @@ export const useDndData = (
     );
   }, [characterData.selectedClass, subclassesData]);
 
-  // Spell information for character creation
+  // ===========================
+  // INFORMAÇÕES SOBRE MAGIAS
+  // ===========================
+
+  // Informações sobre magias para criação de personagem
   const spellInfo = useMemo(() => {
     if (!characterData.selectedClass) {
       return { cantrips: 0, spells: 0, maxSpellLevel: 0 };
     }
 
     const startingSpells = getStartingSpellsForClass(characterData.selectedClass.index);
-    const maxSpellLevel = getMaxSpellLevelForCharacter(characterData);
+    const calculatedMaxSpellLevel = getMaxSpellLevelForCharacter(characterData);
 
     return {
       ...startingSpells,
-      maxSpellLevel,
+      maxSpellLevel: calculatedMaxSpellLevel,
       availableCantrips: filteredSpells.filter(spell => spell.level === 0),
-      availableLevelSpells: filteredSpells.filter(spell => spell.level > 0 && spell.level <= maxSpellLevel)
+      availableLevelSpells: filteredSpells.filter(spell => 
+        spell.level > 0 && spell.level <= calculatedMaxSpellLevel
+      )
     };
-  }, [characterData.selectedClass, characterData.level, filteredSpells]);
+  }, [characterData.selectedClass, characterData.level, filteredSpells, characterData]);
 
-  // Helper functions
+  // ===========================
+  // HELPER FUNCTIONS
+  // ===========================
+
   const getAvailableSubraces = () => availableSubraces;
   const getAvailableSubclasses = () => availableSubclasses;
 
@@ -427,45 +334,65 @@ export const useDndData = (
     return characterData.selectedSubrace.ability_bonuses;
   };
 
+  // ===========================
+  // RETURN - INTERFACE COMPLETA
+  // ===========================
+
   return {
-    // Dados principais
+    // ===========================
+    // DADOS PRINCIPAIS
+    // ===========================
     races: filteredRaces,
     classes: filteredClasses,
     backgrounds: filteredBackgrounds,
-    spells: filteredSpells,
+    spells: filteredSpells, // Magias otimizadas
     subraces: availableSubraces,
     subclasses: availableSubclasses,
 
-    // Estados de loading
+    // ===========================
+    // ESTADOS DE LOADING
+    // ===========================
     isLoadingRaces: racesLoading,
     isLoadingClasses: classesLoading,
     isLoadingBackgrounds: backgroundsLoading,
-    isLoadingSpells: spellsLoading,
-    isLoadingSubraces: false,
+    isLoadingSpells: spellsLoading, // Novo loading otimizado
+    isLoadingSubraces: false, // Sempre false pois usa dados locais
     isLoadingSubclasses: subclassesLoading,
 
-    // Erros
+    // ===========================
+    // ERROS
+    // ===========================
     racesError,
     classesError,
-    spellsError,
+    spellsError, // Novo tratamento de erro
 
-    // Funções helper
+    // ===========================
+    // FUNÇÕES HELPER ORIGINAIS
+    // ===========================
     getAvailableSubraces,
     getAvailableSubclasses,
     getSubclassFeatures,
     getCombinedAbilityBonuses,
     getSubraceAbilityBonuses,
 
-    // Informações sobre magias
-    spellInfo,
-    maxSpellLevel: spellInfo.maxSpellLevel,
-    startingCantrips: spellInfo.cantrips,
-    startingSpells: spellInfo.spells,
+    // ===========================
+    // NOVAS FUNÇÕES PARA MAGIAS OTIMIZADAS
+    // ===========================
+    fetchSpells, // Função para carregar magias sob demanda
+    maxSpellLevel, // Nível máximo de magia calculado
+    canCastSpells, // Se o personagem pode conjurar magias
+
+    // ===========================
+    // INFORMAÇÕES SOBRE MAGIAS (COMPATIBILIDADE)
+    // ===========================
+    spellInfo, // Objeto completo com informações de magias
+    startingCantrips: spellInfo.cantrips, // Truques iniciais
+    startingSpells: spellInfo.spells, // Magias iniciais
   };
 };
 
 // ===========================
-// DEFAULT EXPORT FOR BACKWARD COMPATIBILITY
+// DEFAULT EXPORT PARA COMPATIBILIDADE
 // ===========================
 
 export default useDndData;

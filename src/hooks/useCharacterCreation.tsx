@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - COMPLETE VERSION WITH FIXED API IMPORT
+// OPTIMIZED CHARACTER CREATION HOOK - COMPLETE VERSION WITH ALL FIXES APPLIED
 // ===========================
 "use client";
 
@@ -16,7 +16,7 @@ import {
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
-import { CharacterCreationContextType } from "@/types/characterCreation";
+import { CharacterCreationContextType, AbilityScores } from "@/types/characterCreation";
 
 // Import refactored hooks
 import { useCharacterData } from "@/hooks/reutilizaveis/useCharacterData";
@@ -36,6 +36,7 @@ const queryClient = new QueryClient({
       gcTime: 10 * 60 * 1000, // 10 minutes
       refetchOnWindowFocus: false,
       retry: 2,
+      timeout: 10000, // 10 segundos timeout
     },
   },
 });
@@ -47,7 +48,7 @@ const queryClient = new QueryClient({
 const CharacterCreationContext = createContext<CharacterCreationContextType | null>(null);
 
 // ===========================
-// MAIN HOOK IMPLEMENTATION - COMPLETE VERSION
+// MAIN HOOK IMPLEMENTATION - COMPLETE VERSION WITH ALL FIXES
 // ===========================
 
 export const useCharacterCreation = (): CharacterCreationContextType => {
@@ -109,7 +110,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     debouncedBackgroundSearch,
   ]);
 
-  // COMPLETE DND DATA - ALL ORIGINAL FUNCTIONALITY
+  // COMPLETE DND DATA - WITH OPTIMIZED SPELLS
   const {
     races,
     classes,
@@ -135,23 +136,98 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     maxSpellLevel,
     startingCantrips,
     startingSpells,
+    fetchSpells, // Nova função para carregar magias sob demanda
+    canCastSpells, // Nova verificação de conjurador
   } = useDndData(characterData, searchTerms);
 
-  // COMPLETE CALCULATIONS - ALL ORIGINAL FUNCTIONALITY
+  // COMPLETE CALCULATIONS WITH RENAMED IMPORTS
   const {
     getAbilityModifier,
     calculateAbilityScorePoints,
     generateRandomAbilityScores,
     getProficiencyBonus,
-    getSkillModifier,
-    getSavingThrowModifier,
-    calculateHitPoints,
+    getSkillModifier: baseGetSkillModifier,
+    getSavingThrowModifier: baseGetSavingThrowModifier,
+    calculateHitPoints: baseCalculateHitPoints,
     calculateArmorClass,
     getSpellAttackBonus,
     getSpellSaveDC,
     getCarryingCapacity,
     getInitiativeModifier,
   } = useCharacterCalculations();
+
+  // ===========================
+  // WRAPPER FUNCTIONS PARA COMPATIBILIDADE DE TIPOS
+  // ===========================
+
+  // Wrapper para getSkillModifier
+  const getSkillModifier = useCallback((skill: string, scores: AbilityScores): number => {
+    const skillToAbility: Record<string, keyof AbilityScores> = {
+      'acrobatics': 'dexterity',
+      'animal-handling': 'wisdom',
+      'arcana': 'intelligence',
+      'athletics': 'strength',
+      'deception': 'charisma',
+      'history': 'intelligence',
+      'insight': 'wisdom',
+      'intimidation': 'charisma',
+      'investigation': 'intelligence',
+      'medicine': 'wisdom',
+      'nature': 'intelligence',
+      'perception': 'wisdom',
+      'performance': 'charisma',
+      'persuasion': 'charisma',
+      'religion': 'intelligence',
+      'sleight-of-hand': 'dexterity',
+      'stealth': 'dexterity',
+      'survival': 'wisdom',
+    };
+
+    const ability = skillToAbility[skill] || 'strength';
+    const abilityScore = scores[ability];
+    const isProficient = characterData.selectedSkills.includes(skill);
+    
+    return baseGetSkillModifier(abilityScore, isProficient, characterData.level);
+  }, [baseGetSkillModifier, characterData.selectedSkills, characterData.level]);
+
+  // Wrapper para getSavingThrowModifier
+  const getSavingThrowModifier = useCallback((ability: string, scores: AbilityScores): number => {
+    const abilityMap: Record<string, keyof AbilityScores> = {
+      'str': 'strength',
+      'dex': 'dexterity', 
+      'con': 'constitution',
+      'int': 'intelligence',
+      'wis': 'wisdom',
+      'cha': 'charisma',
+      'strength': 'strength',
+      'dexterity': 'dexterity',
+      'constitution': 'constitution',
+      'intelligence': 'intelligence',
+      'wisdom': 'wisdom',
+      'charisma': 'charisma',
+    };
+
+    const abilityKey = abilityMap[ability] || 'strength';
+    const abilityScore = scores[abilityKey];
+    
+    // Verificar se é proficiente em saving throws
+    const classSavingThrows = characterData.selectedClass?.saving_throws || [];
+    const isProficient = classSavingThrows.some(st => st.index === ability);
+    
+    return baseGetSavingThrowModifier(abilityScore, isProficient, characterData.level);
+  }, [baseGetSavingThrowModifier, characterData.selectedClass, characterData.level]);
+
+  // Wrapper para calculateHitPoints 
+  const calculateHitPoints = useCallback((
+    characterClass: any, // DndClass type
+    level: number, 
+    conModifier: number
+  ): number => {
+    const hitDie = characterClass?.hit_die || 8;
+    const constitutionScore = characterData.abilityScores.constitution;
+    
+    return baseCalculateHitPoints(hitDie, level, constitutionScore, true);
+  }, [baseCalculateHitPoints, characterData.abilityScores]);
 
   // ===========================
   // HELPER FUNCTIONS - ORIGINAL FUNCTIONALITY MAINTAINED
@@ -374,6 +450,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     characterData.selectedSubclass,
     characterData.isSpellcaster,
     characterData.spellcastingAbility,
+    characterData.selectedSpells, // FIXED: Adicionada dependência faltante
     getSpellcastingAbility,
     safeUpdateCharacterData
   ]);
@@ -410,13 +487,12 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   useEffect(() => {
     if (!characterData.selectedClass || !characterData.abilityScores) return;
 
-    const conModifier = getAbilityModifier(characterData.abilityScores.constitution);
-    const dexModifier = getAbilityModifier(characterData.abilityScores.dexterity);
+    // FIXED: Removidas variáveis não utilizadas conModifier e dexModifier
     
     const hitPoints = calculateHitPoints(
-      characterData.selectedClass.hit_die || 8,
+      characterData.selectedClass,
       characterData.level,
-      characterData.abilityScores.constitution
+      getAbilityModifier(characterData.abilityScores.constitution)
     );
     
     const armorClass = calculateArmorClass(
@@ -514,14 +590,14 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     // Finalization - ALL ORIGINAL
     createCharacter,
 
-    // Utilities - ALL ORIGINAL
+    // Utilities - WRAPPER FUNCTIONS PARA COMPATIBILIDADE
     getAbilityModifier,
     calculateAbilityScorePoints,
     generateRandomAbilityScores,
     getProficiencyBonus,
-    getSkillModifier,
-    getSavingThrowModifier,
-    calculateHitPoints,
+    getSkillModifier, // ← Função wrapper
+    getSavingThrowModifier, // ← Função wrapper  
+    calculateHitPoints, // ← Função wrapper
     calculateArmorClass,
     getSpellAttackBonus,
     getSpellSaveDC,
@@ -537,11 +613,13 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     getAvailableSubclasses,
     getSubclassFeatures,
 
-    // Spell information - ALL ORIGINAL
+    // Spell information - ALL ORIGINAL + NEW OPTIMIZED FUNCTIONS
     spellInfo,
     maxSpellLevel,
     startingCantrips,
     startingSpells,
+    fetchSpells, // ← Nova função para carregar magias sob demanda
+    canCastSpells, // ← Nova verificação de conjurador
   };
 };
 
