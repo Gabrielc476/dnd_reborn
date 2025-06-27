@@ -1,28 +1,127 @@
+// ===========================
+// BASIC INFO STEP - VERSÃO CORRIGIDA
+// src/components/character-creation/steps/BasicInfoStep.tsx
+// ===========================
+
 "use client";
 
-import { useState } from "react";
+import { User, Users, Briefcase, Search, Loader2, Sparkles, Crown } from "lucide-react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  User,
-  Users,
-  Sword,
-  Scroll,
-  Dice6,
-  Crown,
-  Info,
-  Plus,
-  Minus,
-  Zap,
-  Shield,
-} from "lucide-react";
+import { useState } from "react";
+import { DndRace, DndClass, DndBackground, DndSubrace } from "@/types/characterCreation";
 
-import SelectionCard from "../ui/SelectionCard";
-import SearchableList from "../ui/SearchableList";
-import { canHaveSubclass, getSubclassLevel } from "@/types/characterCreation";
+interface SelectionCardProps {
+  title: string;
+  description: string;
+  details?: string;
+  selected: boolean;
+  onClick: () => void;
+  className?: string;
+  isRequired?: boolean;
+}
+
+function SelectionCard({ 
+  title, 
+  description, 
+  details, 
+  selected, 
+  onClick, 
+  className = "",
+  isRequired = false 
+}: SelectionCardProps) {
+  return (
+    <div
+      onClick={onClick}
+      className={`
+        p-4 rounded-lg border cursor-pointer transition-all hover:scale-105 relative
+        ${selected 
+          ? 'bg-purple-600/20 border-purple-400 ring-2 ring-purple-400/50' 
+          : 'bg-white/5 border-white/20 hover:bg-white/10 hover:border-white/30'
+        }
+        ${className}
+      `}
+    >
+      {isRequired && (
+        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+          Obrigatório
+        </div>
+      )}
+      
+      <h3 className="font-semibold text-white mb-1">{title}</h3>
+      <p className="text-white/70 text-sm mb-2">{description}</p>
+      {details && (
+        <p className="text-white/50 text-xs">{details}</p>
+      )}
+    </div>
+  );
+}
+
+interface SearchableListProps<T> {
+  items: T[];
+  searchTerm: string;
+  onSearchChange: (search: string) => void;
+  selectedItem: T | null;
+  onItemSelect: (item: T) => void;
+  renderItem: (item: T) => React.ReactNode;
+  placeholder: string;
+  emptyMessage: string;
+  isLoading?: boolean;
+}
+
+function SearchableList<T>({
+  items,
+  searchTerm,
+  onSearchChange,
+  selectedItem,
+  onItemSelect,
+  renderItem,
+  placeholder,
+  emptyMessage,
+  isLoading = false
+}: SearchableListProps<T>) {
+  return (
+    <div className="space-y-4">
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-4 h-4" />
+        <input
+          type="text"
+          placeholder={placeholder}
+          value={searchTerm}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+        />
+      </div>
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-2" />
+            <p className="text-white/70">Carregando...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Items List */}
+      {!isLoading && (
+        <div className="space-y-3 max-h-80 overflow-y-auto">
+          {items.length > 0 ? (
+            items.map((item, index) => (
+              <div key={index}>
+                {renderItem(item)}
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-white/50">
+              <p>{emptyMessage}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function BasicInfoStep() {
   const {
@@ -33,500 +132,406 @@ export default function BasicInfoStep() {
     backgrounds,
     isLoadingRaces,
     isLoadingClasses,
+    isLoadingBackgrounds,
     isLoadingSubraces,
-    isLoadingSubclasses,
     raceSearch,
     setRaceSearch,
     classSearch,
     setClassSearch,
-    getAvailableSubraces,
-    getAvailableSubclasses,
-    getCombinedAbilityBonuses,
-    getSubclassFeatures,
+    
+    // ===========================
+    // FUNÇÕES CORRIGIDAS
+    // ===========================
+    getAvailableSubraces, // ✅ Agora existe
+    getAvailableSubclasses, // ✅ Agora existe
+    needsSubrace, // ✅ Agora existe
+    needsSubclass, // ✅ Agora existe
+    getCombinedAbilityBonuses, // ✅ Para preview
   } = useCharacterCreationContext();
 
-  const generateRandomName = () => {
-    const names = [
-      "Aerdrie", "Baelynn", "Caelynn", "Darathra", "Enna", "Faenor",
-      "Galinndan", "Halimath", "Immeral", "Jalynfein", "Kelvhan", "Lamlis",
-      "Mindartis", "Nutae", "Otaehryn", "Peren", "Quarion", "Riardon",
-      "Silvyr", "Thamior", "Uszala", "Vanuath", "Varis", "Wistari",
-    ];
-    const randomName = names[Math.floor(Math.random() * names.length)];
-    updateCharacterData({ name: randomName });
-  };
+  const [backgroundSearch, setBackgroundSearch] = useState("");
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    updateCharacterData({ name: e.target.value });
-  };
+  // Filtrar dados baseado na busca
+  const filteredRaces = races.filter(race =>
+    race.name.toLowerCase().includes(raceSearch.toLowerCase())
+  );
 
-  const handleLevelChange = (increment: boolean) => {
-    const newLevel = increment
-      ? Math.min(characterData.level + 1, 20)
-      : Math.max(characterData.level - 1, 1);
-    
-    // Reset subclass if new level doesn't support it
-    let updatedData: any = { level: newLevel };
-    
-    if (characterData.selectedClass && 
-        characterData.selectedSubclass && 
-        !canHaveSubclass(characterData.selectedClass.index, newLevel)) {
-      updatedData.selectedSubclass = null;
-    }
-    
-    updateCharacterData(updatedData);
-  };
+  const filteredClasses = classes.filter(cls =>
+    cls.name.toLowerCase().includes(classSearch.toLowerCase())
+  );
 
+  const filteredBackgrounds = backgrounds.filter(bg =>
+    bg.name.toLowerCase().includes(backgroundSearch.toLowerCase())
+  );
+
+  // ===========================
+  // USAR AS FUNÇÕES CORRETAS DO CONTEXTO
+  // ===========================
+  
   // Get available subraces for the selected race
-  const availableSubraces = getAvailableSubraces();
+  const availableSubraces = getAvailableSubraces(); // ✅ Agora funciona
   const hasSubraces = availableSubraces.length > 0;
+  const raceNeedsSubrace = needsSubrace(); // ✅ Verifica se é obrigatório
 
   // Get available subclasses for the selected class
-  const availableSubclasses = getAvailableSubclasses();
+  const availableSubclasses = getAvailableSubclasses(); // ✅ Agora funciona
   const hasSubclasses = availableSubclasses.length > 0;
-  const canSelectSubclass = characterData.selectedClass && 
-    canHaveSubclass(characterData.selectedClass.index, characterData.level);
-  const requiredLevel = characterData.selectedClass ? 
-    getSubclassLevel(characterData.selectedClass.index) : 3;
+  const classNeedsSubclass = needsSubclass(); // ✅ Verifica se é obrigatório
 
-  // Get combined ability bonuses from race and subrace
+  // Get combined bonuses for preview
   const combinedBonuses = getCombinedAbilityBonuses();
 
-  // Get subclass features for current level
-  const subclassFeatures = getSubclassFeatures();
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center pb-4">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-4">
-          <User className="w-8 h-8 text-white" />
+    <div className="max-w-6xl mx-auto space-y-8">
+      
+      {/* Character Name */}
+      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+        <div className="flex items-center space-x-3 mb-4">
+          <User className="w-6 h-6 text-purple-400" />
+          <h2 className="text-2xl font-bold text-white">Nome do Personagem</h2>
+          <span className="text-red-400 text-sm">*</span>
         </div>
-        <h2 className="text-3xl font-bold text-white mb-2">Informações Básicas</h2>
-        <p className="text-purple-200">
-          Defina o nome e as características fundamentais do seu personagem
-        </p>
-      </div>
-
-      {/* Top Row: Name and Level */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        {/* Character Name */}
-        <div className="lg:col-span-2">
-          <Card className="bg-white/5 border-white/20 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <User className="w-5 h-5 text-blue-400" />
-                <span>Nome do Personagem</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center space-x-2">
-              <Input
-                value={characterData.name}
-                onChange={handleNameChange}
-                placeholder="Digite o nome do seu herói..."
-                className="flex-1 bg-white/10 border-white/20 text-white placeholder-purple-300/70 text-lg"
-              />
-              <Button
-                onClick={generateRandomName}
-                variant="outline"
-                className="bg-white/5 border-white/20 text-white hover:bg-white/10 px-3"
-              >
-                <Dice6 className="w-4 h-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Level Selection */}
-        <div className="lg:col-span-1">
-          <Card className="bg-white/5 border-white/20 h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <Zap className="w-5 h-5 text-amber-400" />
-                <span>Nível</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-center space-x-4">
-              <Button
-                onClick={() => handleLevelChange(false)}
-                variant="outline"
-                className="bg-white/5 border-white/20 text-white hover:bg-white/10 w-10 h-10 p-0"
-                disabled={characterData.level <= 1}
-              >
-                <Minus className="w-4 h-4" />
-              </Button>
-              <span className="text-white text-2xl font-bold min-w-[2rem] text-center">
-                {characterData.level}
-              </span>
-              <Button
-                onClick={() => handleLevelChange(true)}
-                variant="outline"
-                className="bg-white/5 border-white/20 text-white hover:bg-white/10 w-10 h-10 p-0"
-                disabled={characterData.level >= 20}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        
+        <input
+          type="text"
+          placeholder="Digite o nome do seu personagem..."
+          value={characterData.name}
+          onChange={(e) => updateCharacterData({ name: e.target.value })}
+          className="w-full p-4 bg-white/10 border border-white/20 rounded-lg text-white text-xl placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+        />
+        
+        {!characterData.name.trim() && (
+          <p className="text-red-400 text-sm mt-2">Nome é obrigatório</p>
+        )}
       </div>
 
       {/* Main Selection Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Race Selection */}
-        <div className={`xl:col-span-1 ${hasSubraces && characterData.selectedRace ? '' : ''}`}>
-          <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
-            <CardHeader className="pb-3 flex-shrink-0">
-              <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <Users className="w-5 h-5 text-green-400" />
-                <span>Raça</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-              {isLoadingRaces ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="w-6 h-6 border-2 border-green-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-green-200 text-sm">Carregando...</p>
-                  </div>
-                </div>
-              ) : (
-                <SearchableList
-                  items={races}
-                  searchTerm={raceSearch}
-                  onSearchChange={setRaceSearch}
-                  selectedItem={characterData.selectedRace}
-                  onItemSelect={(race) => {
-                    updateCharacterData({ 
-                      selectedRace: race,
-                      selectedSubrace: null // Reset subrace when changing race
-                    });
-                  }}
-                  renderItem={(race) => (
-                    <SelectionCard
-                      key={race.index}
-                      title={race.name}
-                      description={`Velocidade: ${race.speed} pés`}
-                      details={race.ability_bonuses
-                        .map(
-                          (bonus) =>
-                            `+${bonus.bonus} ${bonus.ability_score.name}`
-                        )
-                        .join(", ")}
-                      selected={
-                        characterData.selectedRace?.index === race.index
-                      }
-                      onClick={() => {
-                        updateCharacterData({ 
-                          selectedRace: race,
-                          selectedSubrace: null
-                        });
-                      }}
-                      className="text-sm"
-                    />
-                  )}
-                  placeholder="Buscar raças..."
-                  emptyMessage="Nenhuma raça encontrada"
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Subrace Selection - Only show if race has subraces */}
-        {hasSubraces && characterData.selectedRace ? (
-          <div className="xl:col-span-1">
-            <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
-              <CardHeader className="pb-3 flex-shrink-0">
-                <CardTitle className="text-white text-lg flex items-center space-x-2">
-                  <Crown className="w-5 h-5 text-amber-400" />
-                  <span>Subraça</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden">
-                {isLoadingSubraces ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-6 h-6 border-2 border-amber-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
-                      <p className="text-amber-200 text-sm">Carregando...</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 h-full overflow-y-auto">
-                    {availableSubraces.map((subrace) => (
-                      <SelectionCard
-                        key={subrace.index}
-                        title={subrace.name}
-                        description={subrace.desc.substring(0, 60) + "..."}
-                        details={subrace.ability_bonuses
-                          .map(
-                            (bonus) =>
-                              `+${bonus.bonus} ${bonus.ability_score.name}`
-                          )
-                          .join(", ")}
-                        selected={
-                          characterData.selectedSubrace?.index === subrace.index
-                        }
-                        onClick={() =>
-                          updateCharacterData({ selectedSubrace: subrace })
-                        }
-                        className="text-xs"
-                      />
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Users className="w-6 h-6 text-blue-400" />
+              <h2 className="text-xl font-bold text-white">Raça</h2>
+              <span className="text-red-400 text-sm">*</span>
+            </div>
+            
+            {/* Race Count */}
+            <span className="text-white/50 text-sm">
+              {filteredRaces.length} raças
+            </span>
           </div>
-        ) : null}
+
+          <SearchableList
+            items={filteredRaces}
+            searchTerm={raceSearch}
+            onSearchChange={setRaceSearch}
+            selectedItem={characterData.selectedRace}
+            onItemSelect={(race) => {
+              updateCharacterData({ 
+                selectedRace: race,
+                selectedSubrace: null // Reset subrace when changing race
+              });
+            }}
+            renderItem={(race: DndRace) => (
+              <SelectionCard
+                title={race.name}
+                description={`Velocidade: ${race.speed} pés`}
+                details={race.ability_bonuses
+                  .map(bonus => `+${bonus.bonus} ${bonus.ability_score.name}`)
+                  .join(", ")}
+                selected={characterData.selectedRace?.index === race.index}
+                onClick={() => {
+                  updateCharacterData({ 
+                    selectedRace: race,
+                    selectedSubrace: null
+                  });
+                }}
+                isRequired={true}
+              />
+            )}
+            placeholder="Buscar raças..."
+            emptyMessage="Nenhuma raça encontrada"
+            isLoading={isLoadingRaces}
+          />
+        </div>
 
         {/* Class Selection */}
-        <div className={`xl:col-span-1 ${hasSubraces && characterData.selectedRace ? '' : ''}`}>
-          <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
-            <CardHeader className="pb-3 flex-shrink-0">
-              <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <Sword className="w-5 h-5 text-red-400" />
-                <span>Classe</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-              {isLoadingClasses ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="w-6 h-6 border-2 border-red-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-red-200 text-sm">Carregando...</p>
-                  </div>
-                </div>
-              ) : (
-                <SearchableList
-                  items={classes}
-                  searchTerm={classSearch}
-                  onSearchChange={setClassSearch}
-                  selectedItem={characterData.selectedClass}
-                  onItemSelect={(selectedClass) => {
-                    updateCharacterData({ 
-                      selectedClass,
-                      selectedSubclass: null // Reset subclass when changing class
-                    });
-                  }}
-                  renderItem={(classItem) => (
-                    <SelectionCard
-                      key={classItem.index}
-                      title={classItem.name}
-                      description={`Dado de Vida: d${classItem.hit_die}`}
-                      details={classItem.saving_throws
-                        .map((save) => save.name)
-                        .join(", ")}
-                      selected={
-                        characterData.selectedClass?.index === classItem.index
-                      }
-                      onClick={() => {
-                        updateCharacterData({ 
-                          selectedClass: classItem,
-                          selectedSubclass: null
-                        });
-                      }}
-                      className="text-sm"
-                    />
-                  )}
-                  placeholder="Buscar classes..."
-                  emptyMessage="Nenhuma classe encontrada"
-                />
-              )}
-            </CardContent>
-          </Card>
+        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Briefcase className="w-6 h-6 text-green-400" />
+              <h2 className="text-xl font-bold text-white">Classe</h2>
+              <span className="text-red-400 text-sm">*</span>
+            </div>
+            
+            {/* Class Count */}
+            <span className="text-white/50 text-sm">
+              {filteredClasses.length} classes
+            </span>
+          </div>
+
+          <SearchableList
+            items={filteredClasses}
+            searchTerm={classSearch}
+            onSearchChange={setClassSearch}
+            selectedItem={characterData.selectedClass}
+            onItemSelect={(cls) => {
+              updateCharacterData({ 
+                selectedClass: cls,
+                selectedSubclass: null // Reset subclass when changing class
+              });
+            }}
+            renderItem={(cls: DndClass) => (
+              <SelectionCard
+                title={cls.name}
+                description={`Dado de Vida: d${cls.hit_die}`}
+                details={cls.saving_throws
+                  ?.map(save => save.name)
+                  .join(", ") || ""}
+                selected={characterData.selectedClass?.index === cls.index}
+                onClick={() => {
+                  updateCharacterData({ 
+                    selectedClass: cls,
+                    selectedSubclass: null
+                  });
+                }}
+                isRequired={true}
+              />
+            )}
+            placeholder="Buscar classes..."
+            emptyMessage="Nenhuma classe encontrada"
+            isLoading={isLoadingClasses}
+          />
         </div>
 
-        {/* Subclass Selection - Only show if class is selected and level allows */}
-        {characterData.selectedClass && (
-          <div className="xl:col-span-1">
-            <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
-              <CardHeader className="pb-3 flex-shrink-0">
-                <CardTitle className="text-white text-lg flex items-center space-x-2">
-                  <Shield className="w-5 h-5 text-purple-400" />
-                  <span>Subclasse</span>
-                  {!canSelectSubclass && (
-                    <span className="text-xs text-purple-300 ml-2">
-                      (Nível {requiredLevel}+)
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-hidden">
-                {!canSelectSubclass ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <Info className="w-8 h-8 text-purple-300 mx-auto mb-3" />
-                      <p className="text-purple-200 text-sm text-center">
-                        Subclasses estão disponíveis a partir do nível {requiredLevel}
-                      </p>
-                      <p className="text-purple-300 text-xs mt-1">
-                        Nível atual: {characterData.level}
-                      </p>
-                    </div>
-                  </div>
-                ) : isLoadingSubclasses ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <div className="w-6 h-6 border-2 border-purple-300 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
-                      <p className="text-purple-200 text-sm">Carregando...</p>
-                    </div>
-                  </div>
-                ) : hasSubclasses ? (
-                  <div className="space-y-2 h-full overflow-y-auto">
-                    {availableSubclasses.map((subclass) => (
-                      <SelectionCard
-                        key={subclass.index}
-                        title={subclass.name}
-                        description={subclass.subclass_flavor}
-                        details={subclass.desc[0]?.substring(0, 80) + "..."}
-                        selected={
-                          characterData.selectedSubclass?.index === subclass.index
-                        }
-                        onClick={() =>
-                          updateCharacterData({ selectedSubclass: subclass })
-                        }
-                        className="text-xs"
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <Info className="w-8 h-8 text-purple-300 mx-auto mb-3" />
-                      <p className="text-purple-200 text-sm">
-                        Nenhuma subclasse disponível para esta classe
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
         {/* Background Selection */}
-        <div className={`xl:col-span-1 ${
-          !characterData.selectedClass ? 'xl:col-start-4' : ''
-        }`}>
-          <Card className="bg-white/5 border-white/20 h-[600px] flex flex-col">
-            <CardHeader className="pb-3 flex-shrink-0">
-              <CardTitle className="text-white text-lg flex items-center space-x-2">
-                <Scroll className="w-5 h-5 text-blue-400" />
-                <span>Antecedente</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-hidden">
-              <div className="space-y-2 h-full overflow-y-auto">
-                {backgrounds.map((background) => (
-                  <SelectionCard
-                    key={background.index}
-                    title={background.name}
-                    description={background.feature?.name || ""}
-                    details={background.feature?.desc?.[0]?.substring(0, 60) + "..."}
-                    selected={
-                      characterData.selectedBackground?.index === background.index
-                    }
-                    onClick={() =>
-                      updateCharacterData({ selectedBackground: background })
-                    }
-                    className="text-xs"
-                  />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Briefcase className="w-6 h-6 text-yellow-400" />
+              <h2 className="text-xl font-bold text-white">Background</h2>
+              <span className="text-red-400 text-sm">*</span>
+            </div>
+            
+            {/* Background Count */}
+            <span className="text-white/50 text-sm">
+              {filteredBackgrounds.length} backgrounds
+            </span>
+          </div>
+
+          <SearchableList
+            items={filteredBackgrounds}
+            searchTerm={backgroundSearch}
+            onSearchChange={setBackgroundSearch}
+            selectedItem={characterData.selectedBackground}
+            onItemSelect={(background) => {
+              updateCharacterData({ selectedBackground: background });
+            }}
+            renderItem={(background: DndBackground) => (
+              <SelectionCard
+                title={background.name}
+                description={background.feature?.name || "Background especial"}
+                details={background.starting_proficiencies
+                  ?.map(prof => prof.name)
+                  .slice(0, 2)
+                  .join(", ") || ""}
+                selected={characterData.selectedBackground?.index === background.index}
+                onClick={() => {
+                  updateCharacterData({ selectedBackground: background });
+                }}
+                isRequired={true}
+              />
+            )}
+            placeholder="Buscar backgrounds..."
+            emptyMessage="Nenhum background encontrado"
+            isLoading={isLoadingBackgrounds}
+          />
         </div>
       </div>
 
-      {/* Selection Summary */}
-      {(characterData.selectedRace ||
-        characterData.selectedClass ||
-        characterData.selectedBackground) && (
-        <Card className="bg-gradient-to-r from-purple-900/40 to-blue-900/40 border-purple-500/30">
-          <CardHeader>
-            <CardTitle className="text-white text-lg flex items-center space-x-2">
-              <Info className="w-5 h-5 text-blue-400" />
-              <span>Resumo da Seleção</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-              {/* Character Info */}
-              <div>
-                <h4 className="text-purple-200 font-semibold mb-2">Personagem</h4>
-                <p className="text-white">
-                  <strong>Nome:</strong> {characterData.name || "Não definido"}
-                </p>
-                <p className="text-white">
-                  <strong>Nível:</strong> {characterData.level}
-                </p>
+      {/* Subrace Selection - Only show if race has subraces */}
+      {hasSubraces && characterData.selectedRace && (
+        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <Crown className="w-6 h-6 text-cyan-400" />
+              <h2 className="text-xl font-bold text-white">Sub-raça</h2>
+              <span className="text-sm text-white/50">
+                ({characterData.selectedRace.name})
+              </span>
+              {raceNeedsSubrace && <span className="text-red-400 text-sm">*</span>}
+            </div>
+            
+            <span className="text-white/50 text-sm">
+              {availableSubraces.length} sub-raças
+            </span>
+          </div>
+
+          {isLoadingSubraces ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mx-auto mb-2" />
+                <p className="text-white/70">Carregando sub-raças...</p>
               </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {availableSubraces.map((subrace: DndSubrace) => (
+                <SelectionCard
+                  key={subrace.index}
+                  title={subrace.name}
+                  description={subrace.desc.length > 100 ? subrace.desc.substring(0, 100) + "..." : subrace.desc}
+                  details={subrace.ability_bonuses
+                    ?.map(bonus => `+${bonus.bonus} ${bonus.ability_score.name}`)
+                    .join(", ") || ""}
+                  selected={characterData.selectedSubrace?.index === subrace.index}
+                  onClick={() => {
+                    updateCharacterData({ selectedSubrace: subrace });
+                  }}
+                  isRequired={raceNeedsSubrace}
+                />
+              ))}
+            </div>
+          )}
+          
+          {raceNeedsSubrace && !characterData.selectedSubrace && (
+            <p className="text-red-400 text-sm mt-2">
+              Esta raça requer a escolha de uma sub-raça
+            </p>
+          )}
+        </div>
+      )}
 
-              {/* Race Info */}
+      {/* Subclass Info - Show if class will need subclass later */}
+      {hasSubclasses && characterData.selectedClass && classNeedsSubclass && (
+        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl p-6 border border-blue-400/30">
+          <div className="flex items-center space-x-3 mb-3">
+            <Sparkles className="w-5 h-5 text-blue-400" />
+            <h3 className="text-lg font-bold text-white">Subclasse</h3>
+          </div>
+          
+          <p className="text-white/80 mb-3">
+            Sua classe <strong>{characterData.selectedClass.name}</strong> poderá escolher uma subclasse nos próximos passos.
+            Há <strong>{availableSubclasses.length}</strong> subclasses disponíveis para esta classe.
+          </p>
+          
+          <div className="flex flex-wrap gap-2">
+            {availableSubclasses.slice(0, 3).map((subclass) => (
+              <span key={subclass.index} className="text-xs bg-blue-600/30 text-blue-200 px-3 py-1 rounded-full">
+                {subclass.name}
+              </span>
+            ))}
+            {availableSubclasses.length > 3 && (
+              <span className="text-xs bg-blue-600/30 text-blue-200 px-3 py-1 rounded-full">
+                +{availableSubclasses.length - 3} mais
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Character Preview */}
+      {(characterData.selectedRace || characterData.selectedClass || characterData.selectedBackground) && (
+        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-6 border border-purple-400/30">
+          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+            <User className="w-5 h-5 mr-2" />
+            Prévia do Personagem
+          </h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Basic Info */}
+            <div className="space-y-3">
+              <div className="text-white">
+                <span className="text-white/70">Nome: </span>
+                <strong>{characterData.name || "Sem nome"}</strong>
+              </div>
+              
               {characterData.selectedRace && (
-                <div>
-                  <h4 className="text-green-200 font-semibold mb-2">Raça</h4>
-                  <p className="text-white">
-                    <strong>Raça:</strong> {characterData.selectedRace.name}
-                  </p>
+                <div className="text-white">
+                  <span className="text-white/70">Raça: </span>
+                  <strong>{characterData.selectedRace.name}</strong>
                   {characterData.selectedSubrace && (
-                    <p className="text-white">
-                      <strong>Subraça:</strong> {characterData.selectedSubrace.name}
-                    </p>
-                  )}
-                  {combinedBonuses.length > 0 && (
-                    <p className="text-green-300 text-xs">
-                      <strong>Bônus:</strong>{" "}
-                      {combinedBonuses
-                        .map(
-                          (bonus) =>
-                            `+${bonus.bonus} ${bonus.ability_score.name}`
-                        )
-                        .join(", ")}
-                    </p>
+                    <span> ({characterData.selectedSubrace.name})</span>
                   )}
                 </div>
               )}
-
-              {/* Class Info */}
+              
               {characterData.selectedClass && (
-                <div>
-                  <h4 className="text-red-200 font-semibold mb-2">Classe</h4>
-                  <p className="text-white">
-                    <strong>Classe:</strong> {characterData.selectedClass.name}
-                  </p>
-                  {characterData.selectedSubclass && (
-                    <p className="text-white">
-                      <strong>Subclasse:</strong> {characterData.selectedSubclass.name}
-                    </p>
-                  )}
-                  {subclassFeatures.length > 0 && (
-                    <p className="text-purple-300 text-xs">
-                      <strong>Features:</strong> {subclassFeatures.length} habilidades
-                    </p>
-                  )}
-                  <p className="text-red-300 text-xs">
-                    <strong>Dado de Vida:</strong> d{characterData.selectedClass.hit_die}
-                  </p>
+                <div className="text-white">
+                  <span className="text-white/70">Classe: </span>
+                  <strong>{characterData.selectedClass.name}</strong>
                 </div>
               )}
-
-              {/* Background Info */}
+              
               {characterData.selectedBackground && (
-                <div>
-                  <h4 className="text-blue-200 font-semibold mb-2">Antecedente</h4>
-                  <p className="text-white">
-                    <strong>Antecedente:</strong> {characterData.selectedBackground.name}
-                  </p>
-                  <p className="text-blue-300 text-xs">
-                    <strong>Feature:</strong> {characterData.selectedBackground.feature?.name}
-                  </p>
+                <div className="text-white">
+                  <span className="text-white/70">Background: </span>
+                  <strong>{characterData.selectedBackground.name}</strong>
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+
+            {/* Stats Preview */}
+            <div className="space-y-3">
+              <div className="text-white">
+                <span className="text-white/70">Nível: </span>
+                <strong>{characterData.level}</strong>
+              </div>
+              
+              {characterData.selectedRace && (
+                <div className="text-white">
+                  <span className="text-white/70">Velocidade: </span>
+                  <strong>{characterData.selectedRace.speed} pés</strong>
+                </div>
+              )}
+              
+              {characterData.selectedClass && (
+                <div className="text-white">
+                  <span className="text-white/70">Dado de Vida: </span>
+                  <strong>d{characterData.selectedClass.hit_die}</strong>
+                </div>
+              )}
+
+              {/* Racial Bonuses Preview */}
+              {Object.values(combinedBonuses).some(bonus => bonus > 0) && (
+                <div className="text-white">
+                  <span className="text-white/70">Bônus Raciais: </span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {Object.entries(combinedBonuses).map(([ability, bonus]) => (
+                      bonus > 0 && (
+                        <span key={ability} className="text-xs bg-green-600/30 text-green-200 px-2 py-1 rounded">
+                          {ability.toUpperCase()}: +{bonus}
+                        </span>
+                      )
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Validation Status */}
+          <div className="mt-4 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <span className="text-white/70">Status das informações básicas:</span>
+              
+              {characterData.name && characterData.selectedRace && characterData.selectedClass && characterData.selectedBackground && 
+               (!raceNeedsSubrace || characterData.selectedSubrace) ? (
+                <div className="flex items-center space-x-2 text-green-400">
+                  <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                  <span className="text-sm font-medium">Completo</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-yellow-400">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Incompleto</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
