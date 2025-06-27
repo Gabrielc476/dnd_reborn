@@ -3418,41 +3418,7 @@ export const mockSubclasses: DndSubclass[] = [
   // ===========================
   // FEITICEIRO SUBCLASSES
   // ===========================
-  {
-    index: "draconic-bloodline",
-    name: "Linhagem Dracônica",
-    class: { index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" },
-    desc: ["Sua magia inata vem do poder dracônico que foi misturado ao seu sangue ou ao de seus ancestrais."],
-    subclass_flavor: "Mais frequentemente, feiticeiros com essa origem traçam sua descendência de volta para um poderoso feiticeiro dos tempos antigos que fez um acordo com um dragão ou que pode até mesmo ter tido um pai dragão.",
-    subclass_levels: [
-      {
-        level: 1,
-        features: [
-          { index: "dragon-ancestor", name: "Ancestral Dracônico", url: "/api/features/dragon-ancestor" },
-          { index: "draconic-resilience", name: "Resistência Dracônica", url: "/api/features/draconic-resilience" }
-        ]
-      },
-      {
-        level: 6,
-        features: [
-          { index: "elemental-affinity", name: "Afinidade Elemental", url: "/api/features/elemental-affinity" }
-        ]
-      },
-      {
-        level: 14,
-        features: [
-          { index: "dragon-wings", name: "Asas de Dragão", url: "/api/features/dragon-wings" }
-        ]
-      },
-      {
-        level: 18,
-        features: [
-          { index: "draconic-presence", name: "Presença Dracônica", url: "/api/features/draconic-presence" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/draconic-bloodline",
-  },
+  
 
   {
     index: "wild-magic",
@@ -3490,153 +3456,1006 @@ export const mockSubclasses: DndSubclass[] = [
     url: "/api/subclasses/wild-magic",
   },
 
+  {
+  index: "divine-soul",
+  name: "Alma Divina",
+  class: { index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" },
+  desc: [
+    "Às vezes a centelha de magia que alimenta um feiticeiro vem de uma fonte divina que brilha dentro da alma.",
+    "Tendo uma alma divina, sua magia inata pode vir dos planos superiores dos Nove Céus ou dos planos inferiores dos Nove Infernos."
+  ],
+  subclass_flavor: "Você é um favorito dos deuses, um filho de um ser celestial ou demoníaco, ou um indivíduo exposto a forças divinas.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "divine-magic", name: "Magia Divina", url: "/api/features/divine-magic" },
+        { index: "favored-by-the-gods", name: "Favorecido pelos Deuses", url: "/api/features/favored-by-the-gods" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "empowered-healing", name: "Cura Fortalecida", url: "/api/features/empowered-healing" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "otherworldly-wings", name: "Asas Sobrenaturais", url: "/api/features/otherworldly-wings" }
+      ]
+    },
+    {
+      level: 18,
+      features: [
+        { index: "unearthly-recovery", name: "Recuperação Sobrenatural", url: "/api/features/unearthly-recovery" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/divine-soul",
+},
+
+{
+  index: "storm-sorcery",
+  name: "Feitiçaria da Tempestade",
+  class: { index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" },
+  desc: [
+    "Sua magia inata vem do poder dos elementos. Muitos com esse poder podem rastrear sua magia de volta a uma exposição próxima aos Planos Elementais.",
+    "A influência de tais exposições pode resultar em marcas de nascimento que se assemelham a padrões naturais e seres podem sentir sua magia como uma brisa fresca ou o cheiro de chuva."
+  ],
+  subclass_flavor: "A família de um feiticeiro da tempestade pode ter origem de algum evento dramático envolvendo os elementais do ar ou água.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "wind-speaker", name: "Orador do Vento", url: "/api/features/wind-speaker" },
+        { index: "tempestuous-magic", name: "Magia Tempestuosa", url: "/api/features/tempestuous-magic" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "heart-of-the-storm", name: "Coração da Tempestade", url: "/api/features/heart-of-the-storm" },
+        { index: "storm-guide", name: "Guia da Tempestade", url: "/api/features/storm-guide" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "storms-fury", name: "Fúria da Tempestade", url: "/api/features/storms-fury" }
+      ]
+    },
+    {
+      level: 18,
+      features: [
+        { index: "wind-soul", name: "Alma do Vento", url: "/api/features/wind-soul" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/storm-sorcery",
+},
+
+{
+  index: "shadow-magic",
+  name: "Magia Sombria",
+  class: { index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" },
+  desc: [
+    "Você é uma criatura da sombra, pois sua magia inata vem do próprio Shadowfell.",
+    "Você pode ter traçado essa influência sombria até uma entidade do Shadowfell, ou você pode ter sido exposto à energia sombria e transformado por ela."
+  ],
+  subclass_flavor: "O poder da magia sombria lança uma pálida sinistra sobre sua aparência física. Centelhas de escuridão dançam em seus olhos quando você está irritado ou excitado.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "eyes-of-the-dark", name: "Olhos da Escuridão", url: "/api/features/eyes-of-the-dark" },
+        { index: "strength-of-the-grave", name: "Força do Túmulo", url: "/api/features/strength-of-the-grave" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "hound-of-ill-omen", name: "Cão de Mau Agouro", url: "/api/features/hound-of-ill-omen" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "shadow-walk", name: "Caminhada Sombria", url: "/api/features/shadow-walk" }
+      ]
+    },
+    {
+      level: 18,
+      features: [
+        { index: "umbral-form", name: "Forma Umbral", url: "/api/features/umbral-form" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/shadow-magic",
+},
+
+{
+  index: "clockwork-soul",
+  name: "Alma Mecânica",
+  class: { index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" },
+  desc: [
+    "A centelha cósmica de ordem que move os planos de Mechanus se enraizou em sua alma.",
+    "Que essa influência viesse através de exposição ancestral a modrons, uma infusão de energia axiomatic, ou alguma outra fonte, você pode canalizar a força da ordem absoluta."
+  ],
+  subclass_flavor: "Isso se manifesta como a capacidade de diminuir a aleatoriedade da magia, tornando as magias mais confiáveis ​​mesmo quando elas se recusam a cooperar.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "clockwork-magic", name: "Magia Mecânica", url: "/api/features/clockwork-magic" },
+        { index: "restore-balance", name: "Restaurar Equilíbrio", url: "/api/features/restore-balance" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "bastion-of-law", name: "Bastião da Lei", url: "/api/features/bastion-of-law" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "trance-of-order", name: "Transe da Ordem", url: "/api/features/trance-of-order" }
+      ]
+    },
+    {
+      level: 18,
+      features: [
+        { index: "clockwork-cavalcade", name: "Cavalgada Mecânica", url: "/api/features/clockwork-cavalcade" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "alarm", name: "Alarme", url: "/api/spells/alarm" },
+        { index: "protection-from-evil-and-good", name: "Proteção contra Bem e Mal", url: "/api/spells/protection-from-evil-and-good" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "aid", name: "Ajuda", url: "/api/spells/aid" },
+        { index: "lesser-restoration", name: "Restauração Menor", url: "/api/spells/lesser-restoration" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "dispel-magic", name: "Dissipar Magia", url: "/api/spells/dispel-magic" },
+        { index: "protection-from-energy", name: "Proteção contra Energia", url: "/api/spells/protection-from-energy" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "freedom-of-movement", name: "Liberdade de Movimento", url: "/api/spells/freedom-of-movement" },
+        { index: "summon-construct", name: "Invocar Constructo", url: "/api/spells/summon-construct" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "greater-restoration", name: "Restauração Maior", url: "/api/spells/greater-restoration" },
+        { index: "wall-of-force", name: "Muralha de Força", url: "/api/spells/wall-of-force" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/clockwork-soul",
+},
+
+{
+  index: "aberrant-mind",
+  name: "Mente Aberrante",
+  class: { index: "sorcerer", name: "Feiticeiro", url: "/api/classes/sorcerer" },
+  desc: [
+    "Uma força alienígena tocou sua mente e moldou sua magia. Essa força pode vir de algum horror Far Realm ou pode ser o vestígio de invasão por flayer mental.",
+    "Você não pode confiar completamente em sua própria mente, mas ganhou capacidades psíquicas bizarras e potentes."
+  ],
+  subclass_flavor: "Como um feiticeiro da Mente Aberrante, você decidiu aceitar essa influência corrupta ou lutar contra ela, canalizando sua magia psíquica de formas úteis.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "aberrant-mind-spells", name: "Magias da Mente Aberrante", url: "/api/features/aberrant-mind-spells" },
+        { index: "telepathic-speech", name: "Fala Telepática", url: "/api/features/telepathic-speech" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "psionic-spells", name: "Magias Psíquicas", url: "/api/features/psionic-spells" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "psychic-defenses", name: "Defesas Psíquicas", url: "/api/features/psychic-defenses" }
+      ]
+    },
+    {
+      level: 18,
+      features: [
+        { index: "warping-implosion", name: "Implosão Distorcida", url: "/api/features/warping-implosion" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "mind-spike", name: "Espinho Mental", url: "/api/spells/mind-spike" },
+        { index: "silvery-barbs", name: "Farpas Prateadas", url: "/api/spells/silvery-barbs" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "calm-emotions", name: "Acalmar Emoções", url: "/api/spells/calm-emotions" },
+        { index: "detect-thoughts", name: "Detectar Pensamentos", url: "/api/spells/detect-thoughts" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "enemies-abound", name: "Inimigos por Toda Parte", url: "/api/spells/enemies-abound" },
+        { index: "sending", name: "Enviar Mensagem", url: "/api/spells/sending" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "summon-aberration", name: "Invocar Aberração", url: "/api/spells/summon-aberration" },
+        { index: "evards-black-tentacles", name: "Tentáculos Negros de Evard", url: "/api/spells/evards-black-tentacles" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "modify-memory", name: "Modificar Memória", url: "/api/spells/modify-memory" },
+        { index: "telekinesis", name: "Telecinesia", url: "/api/spells/telekinesis" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/aberrant-mind",
+},
+
   // ===========================
   // BRUXO SUBCLASSES
   // ===========================
   {
-    index: "the-fiend",
-    name: "O Corruptor",
-    class: { index: "warlock", name: "Bruxo", url: "/api/classes/warlock" },
-    desc: ["Você fez um pacto com um corruptor dos planos inferiores de existência, um ser cujos objetivos são o mal, mesmo se você lutar contra esses objetivos."],
-    subclass_flavor: "Tais seres desejam a corrupção ou destruição de todas as coisas, em última análise incluindo você.",
-    subclass_levels: [
-      {
-        level: 1,
-        features: [
-          { index: "dark-ones-blessing", name: "Bênção do Sombrio", url: "/api/features/dark-ones-blessing" }
-        ]
-      },
-      {
-        level: 6,
-        features: [
-          { index: "dark-ones-own-luck", name: "Sorte do Sombrio", url: "/api/features/dark-ones-own-luck" }
-        ]
-      },
-      {
-        level: 10,
-        features: [
-          { index: "fiendish-resilience", name: "Resistência Demoníaca", url: "/api/features/fiendish-resilience" }
-        ]
-      },
-      {
-        level: 14,
-        features: [
-          { index: "hurl-through-hell", name: "Arremessar através do Inferno", url: "/api/features/hurl-through-hell" }
-        ]
-      }
-    ],
-    spells: [
-      {
-        level: 1,
-        spells: [
-          { index: "burning-hands", name: "Mãos Flamejantes", url: "/api/spells/burning-hands" },
-          { index: "command", name: "Comando", url: "/api/spells/command" }
-        ]
-      },
-      {
-        level: 3,
-        spells: [
-          { index: "blindness-deafness", name: "Cegueira/Surdez", url: "/api/spells/blindness-deafness" },
-          { index: "scorching-ray", name: "Raio Ardente", url: "/api/spells/scorching-ray" }
-        ]
-      },
-      {
-        level: 5,
-        spells: [
-          { index: "fireball", name: "Bola de Fogo", url: "/api/spells/fireball" },
-          { index: "stinking-cloud", name: "Nuvem Fedorenta", url: "/api/spells/stinking-cloud" }
-        ]
-      },
-      {
-        level: 7,
-        spells: [
-          { index: "fire-shield", name: "Escudo de Fogo", url: "/api/spells/fire-shield" },
-          { index: "wall-of-fire", name: "Muralha de Fogo", url: "/api/spells/wall-of-fire" }
-        ]
-      },
-      {
-        level: 9,
-        spells: [
-          { index: "flame-strike", name: "Coluna de Chamas", url: "/api/spells/flame-strike" },
-          { index: "hallow", name: "Consagrar", url: "/api/spells/hallow" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/the-fiend",
-  },
+  index: "the-archfey",
+  name: "O Arquifada",
+  class: { index: "warlock", name: "Bruxo", url: "/api/classes/warlock" },
+  desc: [
+    "Seu patrono é um senhor ou senhora das fadas, uma criatura de lenda que detém segredos que foram esquecidos antes das raças mortais nascerem.",
+    "As motivações desses seres são muitas vezes inescrutáveis, e às vezes caprichosas, e podem envolver esforços para adquirir objetos mágicos maiores ou estabelecer pactos místicos."
+  ],
+  subclass_flavor: "Seres desse tipo incluem o Príncipe do Gelo; a Rainha do Ar e Escuridão, governante da Corte Sombria; Titania da Corte de Verão; seu consorte Oberon, o Senhor Verde; Hyrsam, o Príncipe dos Tolos; e antigas hag como Baba Yaga.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "fey-presence", name: "Presença Feérica", url: "/api/features/fey-presence" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "misty-escape", name: "Fuga Nebulosa", url: "/api/features/misty-escape" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "beguiling-defenses", name: "Defesas Sedutoras", url: "/api/features/beguiling-defenses" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "dark-delirium", name: "Delírio Sombrio", url: "/api/features/dark-delirium" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "faerie-fire", name: "Fogo das Fadas", url: "/api/spells/faerie-fire" },
+        { index: "sleep", name: "Sono", url: "/api/spells/sleep" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "calm-emotions", name: "Acalmar Emoções", url: "/api/spells/calm-emotions" },
+        { index: "phantasmal-force", name: "Força Fantasmal", url: "/api/spells/phantasmal-force" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "blink", name: "Piscar", url: "/api/spells/blink" },
+        { index: "plant-growth", name: "Crescimento Vegetal", url: "/api/spells/plant-growth" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "dominate-beast", name: "Dominar Besta", url: "/api/spells/dominate-beast" },
+        { index: "greater-invisibility", name: "Invisibilidade Maior", url: "/api/spells/greater-invisibility" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "dominate-person", name: "Dominar Pessoa", url: "/api/spells/dominate-person" },
+        { index: "seeming", name: "Aparentar", url: "/api/spells/seeming" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/the-archfey",
+},
+
+{
+  index: "the-great-old-one",
+  name: "O Grande Antigo",
+  class: { index: "warlock", name: "Bruxo", url: "/api/classes/warlock" },
+  desc: [
+    "Seu patrono é uma entidade misteriosa cuja natureza é completamente estranha à estrutura da realidade.",
+    "Talvez venha do Far Realm, o espaço além da realidade, ou talvez seja um dos deuses antigos apenas conhecidos em lendas."
+  ],
+  subclass_flavor: "Suas motivações são incompreensíveis para os mortais, e seu conhecimento é tão imenso e antigo que mesmo as maiores bibliotecas palidecem em comparação com os vastos segredos que detém.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "awakened-mind", name: "Mente Desperta", url: "/api/features/awakened-mind" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "entropic-ward", name: "Proteção Entrópica", url: "/api/features/entropic-ward" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "thought-shield", name: "Escudo Mental", url: "/api/features/thought-shield" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "create-thrall", name: "Criar Servo", url: "/api/features/create-thrall" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "dissonant-whispers", name: "Sussurros Dissonantes", url: "/api/spells/dissonant-whispers" },
+        { index: "tashas-hideous-laughter", name: "Riso Horrendo de Tasha", url: "/api/spells/tashas-hideous-laughter" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "calm-emotions", name: "Acalmar Emoções", url: "/api/spells/calm-emotions" },
+        { index: "detect-thoughts", name: "Detectar Pensamentos", url: "/api/spells/detect-thoughts" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "clairvoyance", name: "Clarividência", url: "/api/spells/clairvoyance" },
+        { index: "sending", name: "Enviar Mensagem", url: "/api/spells/sending" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "dominate-beast", name: "Dominar Besta", url: "/api/spells/dominate-beast" },
+        { index: "evards-black-tentacles", name: "Tentáculos Negros de Evard", url: "/api/spells/evards-black-tentacles" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "dominate-person", name: "Dominar Pessoa", url: "/api/spells/dominate-person" },
+        { index: "telekinesis", name: "Telecinesia", url: "/api/spells/telekinesis" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/the-great-old-one",
+},
+
+{
+  index: "the-celestial",
+  name: "O Celestial",
+  class: { index: "warlock", name: "Bruxo", url: "/api/classes/warlock" },
+  desc: [
+    "Seu patrono é um ser poderoso dos planos superiores. Você fez um pacto com um empíreo, solar, ki-rin, unicórnio ou outro ser que reside nos planos de bem eterno.",
+    "Seu pacto com esse ser permite que você experimente o toque mais fraco da luz sagrada que ilumina o multiverso."
+  ],
+  subclass_flavor: "Ser conectado a tal poder pode causar mudanças em seu comportamento e crenças. Você pode se encontrar levado a aniquilar mortos-vivos, derrotar demônios e proteger os inocentes.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "bonus-cantrips", name: "Truques Bônus", url: "/api/features/bonus-cantrips" },
+        { index: "healing-light", name: "Luz Curativa", url: "/api/features/healing-light" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "radiant-soul", name: "Alma Radiante", url: "/api/features/radiant-soul" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "celestial-resilience", name: "Resistência Celestial", url: "/api/features/celestial-resilience" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "searing-vengeance", name: "Vingança Ardente", url: "/api/features/searing-vengeance" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "cure-wounds", name: "Curar Ferimentos", url: "/api/spells/cure-wounds" },
+        { index: "guiding-bolt", name: "Seta Guiadora", url: "/api/spells/guiding-bolt" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "flaming-sphere", name: "Esfera Flamejante", url: "/api/spells/flaming-sphere" },
+        { index: "lesser-restoration", name: "Restauração Menor", url: "/api/spells/lesser-restoration" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "daylight", name: "Luz do Dia", url: "/api/spells/daylight" },
+        { index: "revivify", name: "Revivificar", url: "/api/spells/revivify" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "guardian-of-faith", name: "Guardião da Fé", url: "/api/spells/guardian-of-faith" },
+        { index: "wall-of-fire", name: "Muralha de Fogo", url: "/api/spells/wall-of-fire" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "flame-strike", name: "Coluna de Chamas", url: "/api/spells/flame-strike" },
+        { index: "greater-restoration", name: "Restauração Maior", url: "/api/spells/greater-restoration" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/the-celestial",
+},
+
+{
+  index: "the-hexblade",
+  name: "A Lâmina Maldita",
+  class: { index: "warlock", name: "Bruxo", url: "/api/classes/warlock" },
+  desc: [
+    "Você fez seu pacto com uma entidade misteriosa do Shadowfell - uma força que se manifesta em armas sencientes nutridas pela mais escura emoção.",
+    "A poderosa lâmina Blackrazor é a mais notável dessas armas, que foram todas forjadas no Shadowfell no alvorecer dos tempos por uma entidade desconhecida."
+  ],
+  subclass_flavor: "Essas entidades de lâminas amaldiçoadas e a sombriamente poderosa força por trás delas são seu patrono. Esses patronos querem que você use essas armas para a derrota final da morte - levando o mundo a um estado de desolação similar ao Shadowfell.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "hexblades-curse", name: "Maldição da Lâmina Maldita", url: "/api/features/hexblades-curse" },
+        { index: "hex-warrior", name: "Guerreiro Amaldiçoado", url: "/api/features/hex-warrior" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "accursed-specter", name: "Espectro Amaldiçoado", url: "/api/features/accursed-specter" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "armor-of-hexes", name: "Armadura de Maldições", url: "/api/features/armor-of-hexes" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "master-of-hexes", name: "Mestre das Maldições", url: "/api/features/master-of-hexes" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "shield", name: "Escudo", url: "/api/spells/shield" },
+        { index: "wrathful-smite", name: "Golpe Colérico", url: "/api/spells/wrathful-smite" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "blur", name: "Desfoque", url: "/api/spells/blur" },
+        { index: "branding-smite", name: "Golpe Marcador", url: "/api/spells/branding-smite" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "blink", name: "Piscar", url: "/api/spells/blink" },
+        { index: "elemental-weapon", name: "Arma Elemental", url: "/api/spells/elemental-weapon" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "phantasmal-killer", name: "Assassino Fantasmal", url: "/api/spells/phantasmal-killer" },
+        { index: "hallucinatory-terrain", name: "Terreno Ilusório", url: "/api/spells/hallucinatory-terrain" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "banishing-smite", name: "Golpe Banidor", url: "/api/spells/banishing-smite" },
+        { index: "cone-of-cold", name: "Cone de Frio", url: "/api/spells/cone-of-cold" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/the-hexblade",
+},
+
+{
+  index: "the-fathomless",
+  name: "O Insondável",
+  class: { index: "warlock", name: "Bruxo", url: "/api/classes/warlock" },
+  desc: [
+    "Você fez um pacto com uma entidade deific das profundezas do mar ou dos Planos Elementais da Água.",
+    "Kraken, elementais primordiais da água, deidades do mar como Olhydra ou Dagon e outras entidades misteriosas das profundezas oceânicas ou do Plano Elemental da Água podem servir como patronos para aqueles que fazem tais pactos."
+  ],
+  subclass_flavor: "Uma vez que você tenha feito um pacto com o mar, o oceano se torna um lugar de respiro e renovação para você.",
+  subclass_levels: [
+    {
+      level: 1,
+      features: [
+        { index: "tentacle-of-the-deeps", name: "Tentáculo das Profundezas", url: "/api/features/tentacle-of-the-deeps" },
+        { index: "gift-of-the-sea", name: "Dádiva do Mar", url: "/api/features/gift-of-the-sea" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "oceanic-soul", name: "Alma Oceânica", url: "/api/features/oceanic-soul" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "guardian-coil", name: "Bobina Guardiã", url: "/api/features/guardian-coil" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "grasping-tentacles", name: "Tentáculos Agarradores", url: "/api/features/grasping-tentacles" }
+      ]
+    }
+  ],
+  spells: [
+    {
+      level: 1,
+      spells: [
+        { index: "create-or-destroy-water", name: "Criar ou Destruir Água", url: "/api/spells/create-or-destroy-water" },
+        { index: "thunderwave", name: "Onda Trovejante", url: "/api/spells/thunderwave" }
+      ]
+    },
+    {
+      level: 3,
+      spells: [
+        { index: "gust-of-wind", name: "Rajada de Vento", url: "/api/spells/gust-of-wind" },
+        { index: "silence", name: "Silêncio", url: "/api/spells/silence" }
+      ]
+    },
+    {
+      level: 5,
+      spells: [
+        { index: "lightning-bolt", name: "Raio", url: "/api/spells/lightning-bolt" },
+        { index: "sleet-storm", name: "Tempestade de Granizo", url: "/api/spells/sleet-storm" }
+      ]
+    },
+    {
+      level: 7,
+      spells: [
+        { index: "control-water", name: "Controlar Água", url: "/api/spells/control-water" },
+        { index: "summon-elemental", name: "Invocar Elemental", url: "/api/spells/summon-elemental" }
+      ]
+    },
+    {
+      level: 9,
+      spells: [
+        { index: "bigbys-hand", name: "Mão de Bigby", url: "/api/spells/bigbys-hand" },
+        { index: "cone-of-cold", name: "Cone de Frio", url: "/api/spells/cone-of-cold" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/the-fathomless",
+},
 
   // ===========================
   // MAGO SUBCLASSES
   // ===========================
   {
-    index: "school-of-abjuration",
-    name: "Escola de Abjuração",
-    class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
-    desc: ["A Escola de Abjuração enfatiza magias que bloqueiam, banem ou protegem."],
-    subclass_flavor: "Detratores dessa escola dizem que sua tradição é sobre negação, negação ao invés de afirmação positiva. Você entende, no entanto, que terminar efeitos prejudiciais, proteger os fracos e banir influências malignas é tudo menos uma vocação filosófica vazia.",
-    subclass_levels: [
-      {
-        level: 2,
-        features: [
-          { index: "abjuration-savant", name: "Especialista em Abjuração", url: "/api/features/abjuration-savant" },
-          { index: "arcane-ward", name: "Proteção Arcana", url: "/api/features/arcane-ward" }
-        ]
-      },
-      {
-        level: 6,
-        features: [
-          { index: "projected-ward", name: "Proteção Projetada", url: "/api/features/projected-ward" }
-        ]
-      },
-      {
-        level: 10,
-        features: [
-          { index: "improved-abjuration", name: "Abjuração Aprimorada", url: "/api/features/improved-abjuration" }
-        ]
-      },
-      {
-        level: 14,
-        features: [
-          { index: "spell-resistance", name: "Resistência a Magias", url: "/api/features/spell-resistance" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/school-of-abjuration",
-  },
+  index: "school-of-conjuration",
+  name: "Escola de Conjuração",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Como um conjurador, você favorece magias que produzem objetos e criaturas do nada.",
+    "Você pode conjurar nuvens de névoa mortal ou invocar criaturas de outros lugares para lutar em seu nome."
+  ],
+  subclass_flavor: "Como sua maestria cresce, você aprende magias de teletransporte e pode se teletransportar através de vastas distâncias, até mesmo para outros planos de existência, em um instante.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "conjuration-savant", name: "Especialista em Conjuração", url: "/api/features/conjuration-savant" },
+        { index: "minor-conjuration", name: "Conjuração Menor", url: "/api/features/minor-conjuration" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "benign-transposition", name: "Transposição Benigna", url: "/api/features/benign-transposition" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "focused-conjuration", name: "Conjuração Focada", url: "/api/features/focused-conjuration" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "durable-summons", name: "Invocações Duráveis", url: "/api/features/durable-summons" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/school-of-conjuration",
+},
 
-  {
-    index: "school-of-evocation",
-    name: "Escola de Evocação",
-    class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
-    desc: ["Você foca seu estudo em magia que cria efeitos elementais poderosos como frio cortante, chama abrasadora, trovão estrondoso, relâmpago crepitante e ácido ardente."],
-    subclass_flavor: "Alguns evocadores encontram emprego em forças militares, servindo como artilharia para explodir fileiras inimigas de longe. Outros usam seu poder espetacular para proteger os fracos, enquanto alguns buscam seu próprio ganho como bandidos, aventureiros ou aspirantes a tiranos.",
-    subclass_levels: [
-      {
-        level: 2,
-        features: [
-          { index: "evocation-savant", name: "Especialista em Evocação", url: "/api/features/evocation-savant" },
-          { index: "sculpt-spells", name: "Esculpir Magias", url: "/api/features/sculpt-spells" }
-        ]
-      },
-      {
-        level: 6,
-        features: [
-          { index: "potent-cantrip", name: "Truque Potente", url: "/api/features/potent-cantrip" }
-        ]
-      },
-      {
-        level: 10,
-        features: [
-          { index: "empowered-evocation", name: "Evocação Fortalecida", url: "/api/features/empowered-evocation" }
-        ]
-      },
-      {
-        level: 14,
-        features: [
-          { index: "overchannel", name: "Sobrecanalizar", url: "/api/features/overchannel" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/school-of-evocation",
-  },
-];
+{
+  index: "school-of-divination",
+  name: "Escola de Divinação",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Os conselhos de um divinador são procurados tanto por realeza quanto por plebeus comuns, pois todos buscam uma compreensão mais clara do passado, presente e futuro.",
+    "Como um divinador, você se esforça para separar os véus do espaço, tempo e consciência para que possa ver claramente."
+  ],
+  subclass_flavor: "Você trabalha para dominar magias de discernimento, visualização remota, conhecimento sobrenatural e previsão.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "divination-savant", name: "Especialista em Divinação", url: "/api/features/divination-savant" },
+        { index: "portent", name: "Presságio", url: "/api/features/portent" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "expert-divination", name: "Divinação Especializada", url: "/api/features/expert-divination" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "the-third-eye", name: "O Terceiro Olho", url: "/api/features/the-third-eye" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "greater-portent", name: "Presságio Maior", url: "/api/features/greater-portent" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/school-of-divination",
+},
+
+{
+  index: "school-of-enchantment",
+  name: "Escola de Encantamento",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Como um membro da Escola de Encantamento, você aguçou sua capacidade de interferir magicamente na mente de outros, influenciando ou controlando seu comportamento.",
+    "Alguns encantadores são pacifistas que fascinam os violentos para que larguem suas armas e enfeitiçam os cruéis para mostrar misericórdia."
+  ],
+  subclass_flavor: "Outros são tiranos que dominam magicamente os relutantes para servi-los. A maioria dos encantadores está em algum lugar entre estes dois extremos.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "enchantment-savant", name: "Especialista em Encantamento", url: "/api/features/enchantment-savant" },
+        { index: "hypnotic-gaze", name: "Olhar Hipnótico", url: "/api/features/hypnotic-gaze" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "split-enchantment", name: "Encantamento Dividido", url: "/api/features/split-enchantment" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "instinctive-charm", name: "Charme Instintivo", url: "/api/features/instinctive-charm" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "alter-memories", name: "Alterar Memórias", url: "/api/features/alter-memories" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/school-of-enchantment",
+},
+
+{
+  index: "school-of-illusion",
+  name: "Escola de Ilusão",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Você foca seus estudos em magias que deslumbram os sentidos, confundem a mente e enganam até mesmo os mais sábios.",
+    "Sua magia é sutil, mas as ilusões criadas por uma mente disciplinada podem tornar o impossível parecer real."
+  ],
+  subclass_flavor: "As ilusões podem distrair, confundir e fascinar um multidão de pessoas. Outros ilusionistas são mais sinistros mestres da decepção, usando suas habilidades para enganar outros para propósitos malignos.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "illusion-savant", name: "Especialista em Ilusão", url: "/api/features/illusion-savant" },
+        { index: "improved-minor-illusion", name: "Ilusão Menor Aprimorada", url: "/api/features/improved-minor-illusion" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "malleable-illusions", name: "Ilusões Maleáveis", url: "/api/features/malleable-illusions" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "illusory-step", name: "Passo Ilusório", url: "/api/features/illusory-step" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "illusory-reality", name: "Realidade Ilusória", url: "/api/features/illusory-reality" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/school-of-illusion",
+},
+
+{
+  index: "school-of-necromancy",
+  name: "Escola de Necromancia",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "A Escola de Necromancia explora as forças cósmicas da vida, morte e morte-viva.",
+    "À medida que você foca seus estudos nesta tradição, você aprende a manipular a energia que anima todas as coisas vivas."
+  ],
+  subclass_flavor: "Como você avança, você aprende a arrancar a força vital dos outros para curar suas próprias feridas, a animar mortos e até mesmo alcançar a imortalidade.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "necromancy-savant", name: "Especialista em Necromancia", url: "/api/features/necromancy-savant" },
+        { index: "grim-harvest", name: "Colheita Sombria", url: "/api/features/grim-harvest" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "undead-thralls", name: "Servos Mortos-Vivos", url: "/api/features/undead-thralls" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "inured-to-undeath", name: "Habituado à Morte-Viva", url: "/api/features/inured-to-undeath" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "command-undead", name: "Comandar Mortos-Vivos", url: "/api/features/command-undead" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/school-of-necromancy",
+},
+
+{
+  index: "school-of-transmutation",
+  name: "Escola de Transmutação",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Você é um estudante de magias que modificam energia e matéria.",
+    "Para você, o mundo não é uma coisa fixa, mas eminentemente mutável, e você se deleita em ser um agente de mudança."
+  ],
+  subclass_flavor: "Você empunha a matéria-prima da criação e aprende a alterar tanto formas físicas quanto qualidades mentais. Sua magia lhe dá as ferramentas para se tornar um ferreiro na forja da realidade.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "transmutation-savant", name: "Especialista em Transmutação", url: "/api/features/transmutation-savant" },
+        { index: "minor-alchemy", name: "Alquimia Menor", url: "/api/features/minor-alchemy" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "transmuters-stone", name: "Pedra do Transmutador", url: "/api/features/transmuters-stone" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "shapechanger", name: "Metamorfo", url: "/api/features/shapechanger" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "master-transmuter", name: "Transmutador Mestre", url: "/api/features/master-transmuter" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/school-of-transmutation",
+},
+
+{
+  index: "war-magic",
+  name: "Magia de Guerra",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Uma variedade de tradições arcanas se especializaram na formação de magos para a guerra.",
+    "A tradição da Magia de Guerra combina princípios de evocação e abjuração, em vez de se especializar em qualquer uma delas."
+  ],
+  subclass_flavor: "Ela ensina técnicas que potencializam as magias de um conjurador, enquanto também fornece métodos para que magos fortifiquem a si mesmos contra ataques.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "arcane-deflection", name: "Deflexão Arcana", url: "/api/features/arcane-deflection" },
+        { index: "tactical-wit", name: "Sagacidade Tática", url: "/api/features/tactical-wit" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "power-surge", name: "Surto de Poder", url: "/api/features/power-surge" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "durable-magic", name: "Magia Durável", url: "/api/features/durable-magic" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "deflecting-shroud", name: "Manto Defletor", url: "/api/features/deflecting-shroud" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/war-magic",
+},
+
+{
+  index: "chronurgy-magic",
+  name: "Magia de Cronurgia",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Concentrando-se na manipulação do tempo, aqueles que seguem a tradição da Cronurgia aprendem a alterar o fluxo da batalha em seu favor.",
+    "Usando a dunamância fundamental do tempo, estes magos podem acelerar aliados, retardar inimigos e alterar o destino através de pequenos ajustes no tempo."
+  ],
+  subclass_flavor: "Cronurgistas da Academia de Rexxentrum foram os pioneiros desta tradição mágica, e ela continua centrada na cidade de Rexxentrum.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "chronal-shift", name: "Mudança Temporal", url: "/api/features/chronal-shift" },
+        { index: "temporal-awareness", name: "Consciência Temporal", url: "/api/features/temporal-awareness" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "momentary-stasis", name: "Estase Momentânea", url: "/api/features/momentary-stasis" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "arcane-abeyance", name: "Suspensão Arcana", url: "/api/features/arcane-abeyance" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "convergent-future", name: "Futuro Convergente", url: "/api/features/convergent-future" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/chronurgy-magic",
+},
+
+{
+  index: "graviturgy-magic",
+  name: "Magia de Graviturgia",
+  class: { index: "wizard", name: "Mago", url: "/api/classes/wizard" },
+  desc: [
+    "Compreendendo e dominando as forças que impulsionam o cosmos, os Graviturgistas fazem uso da gravidade, massa e peso como ferramentas para controlar o campo de batalha.",
+    "Estudando no Colégio de Geodesia, eles aprendem que a gravidade é uma força fundamental que sustenta tanto a criação quanto a destruição através do multiverso."
+  ],
+  subclass_flavor: "Os segredos da dunamância gravitacional são conhecidos apenas por um punhado de arcanos de Wildemount, principalmente aqueles que estudaram na Academia de Rexxentrum.",
+  subclass_levels: [
+    {
+      level: 2,
+      features: [
+        { index: "adjust-density", name: "Ajustar Densidade", url: "/api/features/adjust-density" }
+      ]
+    },
+    {
+      level: 6,
+      features: [
+        { index: "gravity-well", name: "Poço Gravitacional", url: "/api/features/gravity-well" }
+      ]
+    },
+    {
+      level: 10,
+      features: [
+        { index: "violent-attraction", name: "Atração Violenta", url: "/api/features/violent-attraction" }
+      ]
+    },
+    {
+      level: 14,
+      features: [
+        { index: "event-horizon", name: "Horizonte de Eventos", url: "/api/features/event-horizon" }
+      ]
+    }
+  ],
+  url: "/api/subclasses/graviturgy-magic",
+}]
