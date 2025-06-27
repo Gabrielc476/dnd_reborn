@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COM API REAL D&D
+// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA CORRIGIDA
 // ===========================
 "use client";
 
@@ -35,9 +35,6 @@ import {
 
 // Importar API do D&D
 import { dndAPI } from "@/api/dndAPI";
-
-// Importar dados mock como fallback apenas se necessário (agora só para casos específicos)
-// Os imports automáticos dentro das queries carregam os mocks quando necessário
 
 // ===========================
 // QUERY CLIENT SETUP
@@ -155,61 +152,47 @@ const characterCreationSteps: CharacterCreationStep[] = [
 ];
 
 // ===========================
-// REACT QUERY HOOKS - COM API REAL
+// REACT QUERY HOOKS
 // ===========================
 
-/**
- * Hook para buscar raças da API oficial do D&D
- */
 function useRacesQuery() {
   return useQuery({
     queryKey: ["dnd", "races"],
     queryFn: async () => {
       try {
-        // Tentar buscar da API oficial
         const races = await dndAPI.getRaces();
         console.log("✅ Raças carregadas da API oficial:", races.length);
         return races;
       } catch (error) {
         console.error("❌ Erro ao carregar raças da API:", error);
-        
-        // Em caso de erro, usar dados mock como fallback
         console.log("🔄 Usando dados mock como fallback...");
         const { mockRaces } = await import("@/data/mockRaces");
         return mockRaces;
       }
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes (dados das raças não mudam frequentemente)
+    staleTime: 30 * 60 * 1000, // 30 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
   });
 }
 
-/**
- * Hook para buscar sub-raças da API oficial do D&D
- */
 function useSubracesQuery(enabled: boolean = true, raceIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "subraces", raceIndex],
     queryFn: async () => {
       try {
         if (raceIndex) {
-          // Buscar sub-raças de uma raça específica
           const subraces = await dndAPI.getSubracesByRace(raceIndex);
           console.log(`✅ Sub-raças da raça ${raceIndex} carregadas:`, subraces.length);
           return subraces;
         } else {
-          // Buscar todas as sub-raças
           const subraces = await dndAPI.getSubraces();
           console.log("✅ Todas as sub-raças carregadas:", subraces.length);
           return subraces;
         }
       } catch (error) {
         console.error("❌ Erro ao carregar sub-raças da API:", error);
-        
-        // Em caso de erro, usar dados mock como fallback
         console.log("🔄 Usando dados mock de sub-raças como fallback...");
-        const { mockSubraces } = await import("@/data/mockSubRaces");
-        
+        const { mockSubraces } = await import("@/data/mockSubraces");
         if (raceIndex) {
           return mockSubraces.filter(subrace => subrace.race.index === raceIndex);
         }
@@ -221,58 +204,44 @@ function useSubracesQuery(enabled: boolean = true, raceIndex?: string) {
   });
 }
 
-/**
- * Hook para buscar classes da API oficial do D&D
- */
 function useClassesQuery() {
   return useQuery({
     queryKey: ["dnd", "classes"],
     queryFn: async () => {
       try {
-        // Tentar buscar da API oficial
         const classes = await dndAPI.getClasses();
         console.log("✅ Classes carregadas da API oficial:", classes.length);
         return classes;
       } catch (error) {
         console.error("❌ Erro ao carregar classes da API:", error);
-        
-        // Em caso de erro, usar dados mock como fallback
         console.log("🔄 Usando dados mock de classes como fallback...");
         const { mockClasses } = await import("@/data/mockClasses");
         return mockClasses;
       }
     },
-    staleTime: 30 * 60 * 1000, // 30 minutes (dados das classes não mudam frequentemente)
+    staleTime: 30 * 60 * 1000, // 30 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
   });
 }
 
-/**
- * Hook para buscar subclasses da API oficial do D&D
- */
 function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "subclasses", classIndex],
     queryFn: async () => {
       try {
         if (classIndex) {
-          // Buscar subclasses de uma classe específica
           const subclasses = await dndAPI.getSubclassesByClass(classIndex);
           console.log(`✅ Subclasses da classe ${classIndex} carregadas:`, subclasses.length);
           return subclasses;
         } else {
-          // Buscar todas as subclasses
           const subclasses = await dndAPI.getSubclasses();
           console.log("✅ Todas as subclasses carregadas:", subclasses.length);
           return subclasses;
         }
       } catch (error) {
         console.error("❌ Erro ao carregar subclasses da API:", error);
-        
-        // Em caso de erro, usar dados mock como fallback
         console.log("🔄 Usando dados mock de subclasses como fallback...");
         const { mockSubclasses } = await import("@/data/mockSubClasses");
-        
         if (classIndex) {
           return mockSubclasses.filter(subclass => subclass.class.index === classIndex);
         }
@@ -284,22 +253,16 @@ function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
   });
 }
 
-/**
- * Hook para buscar backgrounds da API oficial do D&D
- */
 function useBackgroundsQuery() {
   return useQuery({
     queryKey: ["dnd", "backgrounds"],
     queryFn: async () => {
       try {
-        // Tentar buscar da API oficial
         const backgrounds = await dndAPI.getBackgrounds();
         console.log("✅ Backgrounds carregados da API oficial:", backgrounds.length);
         return backgrounds;
       } catch (error) {
         console.error("❌ Erro ao carregar backgrounds da API:", error);
-        
-        // Em caso de erro, usar dados mock como fallback
         console.log("🔄 Usando dados mock de backgrounds como fallback...");
         const { mockBackgrounds } = await import("@/data/mockBackgrounds");
         return mockBackgrounds;
@@ -310,60 +273,45 @@ function useBackgroundsQuery() {
   });
 }
 
-/**
- * Hook para buscar magias da API oficial do D&D
- */
 function useSpellsQuery(enabled: boolean = true, level?: number, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "spells", level, classIndex],
     queryFn: async () => {
       try {
         if (classIndex) {
-          // Buscar magias de uma classe específica
           const spells = await dndAPI.getSpellsByClass(classIndex);
           console.log(`✅ Magias da classe ${classIndex} carregadas:`, spells.length);
-          
-          // Filtrar por nível se especificado
           if (level !== undefined) {
             return spells.filter(spell => spell.level === level);
           }
           return spells;
         } else if (level !== undefined) {
-          // Buscar magias de um nível específico
           const spells = await dndAPI.getSpellsByLevel(level);
           console.log(`✅ Magias de nível ${level} carregadas:`, spells.length);
           return spells;
         } else {
-          // Buscar todas as magias (cuidado: pode ser muitas!)
-          const spells = await dndAPI.getSpells();
+          const spells = await dndAPI.getAllSpells();
           console.log("✅ Todas as magias carregadas:", spells.length);
           return spells;
         }
       } catch (error) {
         console.error("❌ Erro ao carregar magias da API:", error);
-        
-        // Em caso de erro, usar dados mock como fallback
         console.log("🔄 Usando dados mock de magias como fallback...");
         const { mockSpells } = await import("@/data/mockSpells");
-        
         let spells = mockSpells;
-        
         if (level !== undefined) {
           spells = spells.filter(spell => spell.level === level);
         }
-        
         if (classIndex) {
           spells = spells.filter(spell => 
             spell.classes.some((cls: any) => cls.index === classIndex)
           );
         }
-        
         return spells;
       }
     },
     enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes
-    // Para spells, usar cache mais longo pois são muitos dados
     gcTime: 2 * 60 * 60 * 1000, // 2 hours
   });
 }
@@ -394,95 +342,60 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   const debouncedClassSearch = useDebounce(classSearchTerm, 300);
   const debouncedSpellSearch = useDebounce(spellSearchTerm, 300);
 
-  // Data queries with React Query - AGORA COM API REAL PARA RAÇAS, CLASSES, BACKGROUNDS E MAGIAS
+  // ===========================
+  // REACT QUERY HOOKS USAGE
+  // ===========================
+
   const {
     data: racesData = [],
-    isLoading: racesLoading,
+    isLoading: isLoadingRaces,
     error: racesError,
   } = useRacesQuery();
 
   const {
+    data: subracesData = [],
+    isLoading: isLoadingSubraces,
+    error: subracesError,
+  } = useSubracesQuery();
+
+  const {
     data: classesData = [],
-    isLoading: classesLoading,
+    isLoading: isLoadingClasses,
     error: classesError,
   } = useClassesQuery();
 
   const {
+    data: subclassesData = [],
+    isLoading: isLoadingSubclasses,
+    error: subclassesError,
+  } = useSubclassesQuery();
+
+  const {
     data: backgroundsData = [],
-    isLoading: backgroundsLoading,
+    isLoading: isLoadingBackgrounds,
     error: backgroundsError,
   } = useBackgroundsQuery();
 
   const {
     data: spellsData = [],
-    isLoading: spellsLoading,
+    isLoading: isLoadingSpells,
     error: spellsError,
-  } = useSpellsQuery(
-    characterData.isSpellcaster,
-    undefined,
-    characterData.selectedClass?.index
-  );
-
-  const {
-    data: subclassesData = [],
-    isLoading: subclassesLoading,
-    error: subclassesError,
-  } = useSubclassesQuery(
-    true,
-    characterData.selectedClass?.index
-  );
-
-  // BUSCAR SUB-RAÇAS DA API REAL
-  const { data: subracesData = [], isLoading: subracesLoading } = useSubracesQuery(
-    !!characterData.selectedRace,
-    characterData.selectedRace?.index
-  );
+  } = useSpellsQuery();
 
   // ===========================
-  // FILTERED DATA WITH SEARCH
+  // CHARACTER DATA MANAGEMENT
   // ===========================
 
-  const filteredRaces = useMemo(() => {
-    if (!debouncedRaceSearch) return racesData;
-    return racesData.filter(race =>
-      race.name.toLowerCase().includes(debouncedRaceSearch.toLowerCase())
-    );
-  }, [racesData, debouncedRaceSearch]);
-
-  const filteredClasses = useMemo(() => {
-    if (!debouncedClassSearch) return classesData;
-    return classesData.filter(cls =>
-      cls.name.toLowerCase().includes(debouncedClassSearch.toLowerCase())
-    );
-  }, [classesData, debouncedClassSearch]);
-
-  const filteredSpells = useMemo(() => {
-    if (!debouncedSpellSearch) return spellsData;
-    return spellsData.filter(spell =>
-      spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase())
-    );
-  }, [spellsData, debouncedSpellSearch]);
+  const updateCharacterData = useCallback((updates: Partial<CharacterCreationData>) => {
+    setCharacterData(prev => ({ ...prev, ...updates }));
+  }, []);
 
   // ===========================
-  // CHARACTER DATA UPDATES
+  // CORE UTILITY FUNCTIONS
   // ===========================
 
-  const updateCharacterData = useCallback(
-    (updates: Partial<CharacterCreationData>) => {
-      setCharacterData(prev => ({ ...prev, ...updates }));
-    },
-    []
-  );
-
-  // ===========================
-  // UTILITY FUNCTIONS
-  // ===========================
-
-  /**
-   * Calcula bônus combinados de habilidade (raça + sub-raça)
-   */
   const getCombinedAbilityBonuses = useCallback(() => {
-    const bonuses: Record<string, number> = {
+    const bonuses: Record<keyof AbilityScores, number> = {
       strength: 0,
       dexterity: 0,
       constitution: 0,
@@ -491,137 +404,58 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       charisma: 0,
     };
 
-    // Adicionar bônus da raça
+    // Bônus da raça principal
     if (characterData.selectedRace?.ability_bonuses) {
       characterData.selectedRace.ability_bonuses.forEach(bonus => {
-        const abilityKey = bonus.ability_score.index;
-        const mappedKey = mapAbilityIndex(abilityKey);
-        if (mappedKey && bonuses.hasOwnProperty(mappedKey)) {
-          bonuses[mappedKey] += bonus.bonus;
-        }
+        const abilityKey = bonus.ability_score.index.toLowerCase() as keyof AbilityScores;
+        if (abilityKey === 'str') bonuses.strength += bonus.bonus;
+        else if (abilityKey === 'dex') bonuses.dexterity += bonus.bonus;
+        else if (abilityKey === 'con') bonuses.constitution += bonus.bonus;
+        else if (abilityKey === 'int') bonuses.intelligence += bonus.bonus;
+        else if (abilityKey === 'wis') bonuses.wisdom += bonus.bonus;
+        else if (abilityKey === 'cha') bonuses.charisma += bonus.bonus;
       });
     }
 
-    // Adicionar bônus da sub-raça
+    // Bônus da sub-raça
     if (characterData.selectedSubrace?.ability_bonuses) {
       characterData.selectedSubrace.ability_bonuses.forEach(bonus => {
-        const abilityKey = bonus.ability_score.index;
-        const mappedKey = mapAbilityIndex(abilityKey);
-        if (mappedKey && bonuses.hasOwnProperty(mappedKey)) {
-          bonuses[mappedKey] += bonus.bonus;
-        }
+        const abilityKey = bonus.ability_score.index.toLowerCase() as keyof AbilityScores;
+        if (abilityKey === 'str') bonuses.strength += bonus.bonus;
+        else if (abilityKey === 'dex') bonuses.dexterity += bonus.bonus;
+        else if (abilityKey === 'con') bonuses.constitution += bonus.bonus;
+        else if (abilityKey === 'int') bonuses.intelligence += bonus.bonus;
+        else if (abilityKey === 'wis') bonuses.wisdom += bonus.bonus;
+        else if (abilityKey === 'cha') bonuses.charisma += bonus.bonus;
       });
     }
 
     return bonuses;
   }, [characterData.selectedRace, characterData.selectedSubrace]);
 
-  /**
-   * Mapeia índices de habilidade da API para as chaves usadas internamente
-   */
-  const mapAbilityIndex = (apiIndex: string): keyof AbilityScores | null => {
-    const mapping: Record<string, keyof AbilityScores> = {
-      'str': 'strength',
-      'dex': 'dexterity', 
-      'con': 'constitution',
-      'int': 'intelligence',
-      'wis': 'wisdom',
-      'cha': 'charisma',
-    };
-    return mapping[apiIndex] || null;
-  };
-
-  /**
-   * Calcula modificador de habilidade
-   */
   const getAbilityModifier = useCallback((score: number): number => {
     return Math.floor((score - 10) / 2);
   }, []);
 
-  /**
-   * Calcula pontos de vida baseados na classe e constituição
-   */
-  const calculateHitPoints = useCallback(() => {
-    if (!characterData.selectedClass) return 0;
-    
-    const baseHP = characterData.selectedClass.hit_die;
-    const conModifier = getAbilityModifier(characterData.abilityScores.constitution);
-    const combinedBonuses = getCombinedAbilityBonuses();
-    const totalCon = characterData.abilityScores.constitution + (combinedBonuses.constitution || 0);
-    const finalConModifier = getAbilityModifier(totalCon);
-    
-    return Math.max(1, baseHP + finalConModifier);
-  }, [characterData.selectedClass, characterData.abilityScores.constitution, getCombinedAbilityBonuses, getAbilityModifier]);
+  const calculateHitPoints = useCallback((): number => {
+    if (!characterData.selectedClass) return 1;
 
-  /**
-   * Calcula classe de armadura baseada na destreza
-   */
-  const calculateArmorClass = useCallback(() => {
-    const combinedBonuses = getCombinedAbilityBonuses();
-    const totalDex = characterData.abilityScores.dexterity + (combinedBonuses.dexterity || 0);
-    const dexModifier = getAbilityModifier(totalDex);
+    const hitDie = characterData.selectedClass.hit_die;
+    const constitutionMod = getAbilityModifier(characterData.abilityScores.constitution);
     
-    return 10 + dexModifier;
-  }, [characterData.abilityScores.dexterity, getCombinedAbilityBonuses, getAbilityModifier]);
-
-  /**
-   * Atualiza HP e CA automaticamente quando relevante
-   */
-  useEffect(() => {
-    const newHitPoints = calculateHitPoints();
-    const newArmorClass = calculateArmorClass();
+    const baseHP = hitDie + constitutionMod;
+    const additionalLevels = characterData.level - 1;
+    const avgPerLevel = Math.floor(hitDie / 2) + 1 + constitutionMod;
     
-    if (newHitPoints !== characterData.hitPoints || newArmorClass !== characterData.armorClass) {
-      updateCharacterData({
-        hitPoints: newHitPoints,
-        armorClass: newArmorClass,
-      });
-    }
-  }, [
-    characterData.selectedClass,
-    characterData.abilityScores,
-    characterData.selectedRace,
-    characterData.selectedSubrace,
-    calculateHitPoints,
-    calculateArmorClass,
-  ]);
+    return Math.max(1, baseHP + (additionalLevels * avgPerLevel));
+  }, [characterData.selectedClass, characterData.level, characterData.abilityScores.constitution, getAbilityModifier]);
 
-  /**
-   * Reseta sub-raça quando raça muda
-   */
-  useEffect(() => {
-    if (characterData.selectedRace && characterData.selectedSubrace) {
-      // Verificar se a sub-raça ainda é válida para a raça selecionada
-      const isSubraceValid = subracesData.some(
-        subrace => subrace.index === characterData.selectedSubrace?.index
-      );
-      
-      if (!isSubraceValid) {
-        updateCharacterData({ selectedSubrace: null });
-      }
-    }
-  }, [characterData.selectedRace, characterData.selectedSubrace, subracesData, updateCharacterData]);
+  const calculateArmorClass = useCallback((): number => {
+    const dexterityMod = getAbilityModifier(characterData.abilityScores.dexterity);
+    return 10 + dexterityMod;
+  }, [characterData.abilityScores.dexterity, getAbilityModifier]);
 
-  /**
-   * Atualiza se é conjurador baseado na classe selecionada
-   */
-  useEffect(() => {
-    const spellcastingClasses = ['wizard', 'sorcerer', 'cleric', 'bard', 'druid', 'warlock', 'paladin', 'ranger'];
-    const isSpellcaster = characterData.selectedClass ? 
-      spellcastingClasses.includes(characterData.selectedClass.index) : false;
-    
-    if (isSpellcaster !== characterData.isSpellcaster) {
-      updateCharacterData({ 
-        isSpellcaster,
-        spellcastingAbility: isSpellcaster ? getSpellcastingAbility(characterData.selectedClass?.index) : null
-      });
-    }
-  }, [characterData.selectedClass, characterData.isSpellcaster, updateCharacterData]);
-
-  /**
-   * Determina a habilidade de conjuração baseada na classe
-   */
-  const getSpellcastingAbility = (classIndex?: string): keyof AbilityScores | null => {
+  const getSpellcastingAbility = useCallback((classIndex?: string): keyof AbilityScores | null => {
     const spellcastingAbilities: Record<string, keyof AbilityScores> = {
       'wizard': 'intelligence',
       'sorcerer': 'charisma',
@@ -634,48 +468,34 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     };
     
     return classIndex ? spellcastingAbilities[classIndex] || null : null;
-  };
+  }, []);
 
   // ===========================
-  // ADDITIONAL UTILITY FUNCTIONS
+  // SUBRACE/SUBCLASS FUNCTIONS
   // ===========================
 
-  /**
-   * Retorna sub-raças disponíveis para a raça selecionada
-   */
   const getAvailableSubraces = useCallback((): DndSubrace[] => {
     if (!characterData.selectedRace) {
       return [];
     }
-    
     return subracesData.filter(subrace => 
       subrace.race.index === characterData.selectedRace?.index
     );
   }, [characterData.selectedRace, subracesData]);
 
-  /**
-   * Retorna subclasses disponíveis para a classe selecionada
-   */
   const getAvailableSubclasses = useCallback((): DndSubclass[] => {
     if (!characterData.selectedClass) {
       return [];
     }
-    
     return subclassesData.filter(subclass => 
       subclass.class.index === characterData.selectedClass?.index
     );
   }, [characterData.selectedClass, subclassesData]);
 
-  /**
-   * Retorna bônus de habilidade da sub-raça selecionada
-   */
   const getSubraceAbilityBonuses = useCallback(() => {
     return characterData.selectedSubrace?.ability_bonuses || [];
   }, [characterData.selectedSubrace]);
 
-  /**
-   * Retorna features de subclasse para um nível específico
-   */
   const getSubclassFeatures = useCallback((level?: number) => {
     if (!characterData.selectedSubclass) {
       return [];
@@ -701,9 +521,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return features;
   }, [characterData.selectedSubclass, characterData.level]);
 
-  /**
-   * Verifica se uma classe precisa escolher subclasse no nível atual
-   */
   const needsSubclass = useCallback((): boolean => {
     if (!characterData.selectedClass) return false;
     
@@ -726,35 +543,20 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return characterData.level >= requiredLevel;
   }, [characterData.selectedClass, characterData.level]);
 
-  /**
-   * Verifica se uma raça precisa escolher sub-raça
-   */
   const needsSubrace = useCallback((): boolean => {
     if (!characterData.selectedRace) return false;
-    
-    // Raças que sempre precisam de sub-raça
     const alwaysNeedSubrace = ['elf', 'dwarf', 'halfling', 'gnome'];
     return alwaysNeedSubrace.includes(characterData.selectedRace.index);
   }, [characterData.selectedRace]);
 
-  /**
-   * Retorna skills disponíveis baseado na classe selecionada
-   */
   const getAvailableSkills = useCallback(() => {
     if (!characterData.selectedClass) return SKILLS;
-    
-    // Por enquanto retorna todas as skills
-    // TODO: Filtrar baseado nas proficiency_choices da classe
     return SKILLS;
   }, [characterData.selectedClass]);
 
-  /**
-   * Calcula número de skills que podem ser escolhidas
-   */
   const getSkillChoices = useCallback((): number => {
     if (!characterData.selectedClass) return 0;
     
-    // Número padrão baseado na classe (pode ser refinado com dados da API)
     const skillChoicesByClass: Record<string, number> = {
       'barbarian': 2,
       'bard': 3,
@@ -773,15 +575,12 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return skillChoicesByClass[characterData.selectedClass.index] || 2;
   }, [characterData.selectedClass]);
 
-  /**
-   * Atualiza automaticamente o número de skill choices quando classe muda
-   */
   useEffect(() => {
     const availableChoices = getSkillChoices();
     if (availableChoices !== characterData.availableSkillChoices) {
       updateCharacterData({ 
         availableSkillChoices: availableChoices,
-        selectedSkills: [] // Reset skills quando classe muda
+        selectedSkills: []
       });
     }
   }, [characterData.selectedClass, getSkillChoices, characterData.availableSkillChoices, updateCharacterData]);
@@ -794,26 +593,70 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     (stepId: string): boolean => {
       switch (stepId) {
         case "basic-info":
-          return !!(
+          const hasBasicInfo = !!(
             characterData.name.trim() &&
             characterData.selectedRace &&
             characterData.selectedClass &&
             characterData.selectedBackground
           );
+
+          if (!hasBasicInfo) return false;
+
+          const hasValidLevel = characterData.level >= 1 && characterData.level <= 20;
+          if (!hasValidLevel) return false;
+
+          const raceNeedsSubrace = characterData.selectedRace && 
+            ['elf', 'dwarf', 'halfling', 'gnome'].includes(characterData.selectedRace.index);
+          
+          if (raceNeedsSubrace && !characterData.selectedSubrace) {
+            return false;
+          }
+
+          if (characterData.selectedClass) {
+            const subclassLevels: Record<string, number> = {
+              'cleric': 1,
+              'sorcerer': 1,
+              'warlock': 1,
+              'wizard': 2,
+              'druid': 2,
+              'fighter': 3,
+              'monk': 3,
+              'paladin': 3,
+              'ranger': 3,
+              'rogue': 3,
+              'barbarian': 3,
+              'bard': 3,
+            };
+            
+            const requiredSubclassLevel = subclassLevels[characterData.selectedClass.index] || 1;
+            const needsSubclass = characterData.level >= requiredSubclassLevel;
+            
+            if (needsSubclass && !characterData.selectedSubclass) {
+              return false;
+            }
+          }
+
+          return true;
+          
         case "ability-scores":
           const scores = Object.values(characterData.abilityScores);
           return scores.every(score => score >= 8 && score <= 15);
+          
         case "skills":
           return characterData.selectedSkills.length >= characterData.availableSkillChoices;
+          
         case "equipment":
           return characterData.hitPoints > 0;
+          
         case "spells":
           return !characterData.isSpellcaster || characterData.selectedSpells.length > 0;
+          
         case "personality":
           return (
             characterData.personalityTraits.length > 0 &&
             characterData.ideals.length > 0
           );
+          
         default:
           return false;
       }
@@ -821,44 +664,27 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     [characterData]
   );
 
-  /**
-   * Valida o step atual
-   */
   const validateCurrentStep = useCallback((): boolean => {
     const currentStepData = steps[currentStep];
     return currentStepData ? validateStep(currentStepData.id) : false;
   }, [currentStep, steps, validateStep]);
 
-  /**
-   * Verifica se pode prosseguir para o próximo step
-   */
   const canProceed = useCallback((): boolean => {
     return validateCurrentStep();
   }, [validateCurrentStep]);
 
-  /**
-   * Reseta o personagem para valores iniciais
-   */
   const resetCharacter = useCallback(() => {
     setCharacterData(initialCharacterData);
     setCurrentStep(0);
   }, []);
 
-  /**
-   * Cria o personagem (placeholder para integração com API)
-   */
   const createCharacter = useCallback(async (): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
       
-      // TODO: Implementar criação via API
       console.log("Criando personagem:", characterData);
-      
-      // Simular delay da API
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Por enquanto, apenas log do sucesso
       console.log("✅ Personagem criado com sucesso!");
       
     } catch (error) {
@@ -931,125 +757,135 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       console.warn("Aviso: Erro ao carregar magias da API, usando fallback:", spellsError);
       errors.push("magias");
     }
-    
+
+    if (subracesError) {
+      console.warn("Aviso: Erro ao carregar sub-raças da API, usando fallback:", subracesError);
+      errors.push("sub-raças");
+    }
+
     if (subclassesError) {
       console.warn("Aviso: Erro ao carregar subclasses da API, usando fallback:", subclassesError);
       errors.push("subclasses");
     }
     
     if (errors.length > 0) {
-      setError(`Algumas funcionalidades podem estar limitadas devido a problemas de conectividade (${errors.join(", ")}).`);
+      setError(`Alguns dados foram carregados do cache: ${errors.join(", ")}`);
     } else {
       setError(null);
     }
-  }, [racesError, classesError, backgroundsError, spellsError, subclassesError]);
+  }, [racesError, classesError, backgroundsError, spellsError, subracesError, subclassesError]);
 
   // ===========================
-  // RETURN CONTEXT VALUE
+  // SPELL INFO CALCULATIONS
+  // ===========================
+
+  const spellInfo = useMemo(() => {
+    if (!characterData.selectedClass || !characterData.isSpellcaster) {
+      return {
+        maxSpellLevel: 0,
+        startingCantrips: 0,
+        startingSpells: 0,
+        availableCantrips: [],
+        availableLevelSpells: [],
+      };
+    }
+
+    const spellcastingClasses: Record<string, { cantrips: number; spells: number; maxLevel: number }> = {
+      'wizard': { cantrips: 3, spells: 6, maxLevel: 1 },
+      'sorcerer': { cantrips: 4, spells: 2, maxLevel: 1 },
+      'cleric': { cantrips: 3, spells: 2, maxLevel: 1 },
+      'bard': { cantrips: 2, spells: 4, maxLevel: 1 },
+      'druid': { cantrips: 2, spells: 2, maxLevel: 1 },
+      'warlock': { cantrips: 2, spells: 2, maxLevel: 1 },
+    };
+
+    const classInfo = spellcastingClasses[characterData.selectedClass.index];
+    if (!classInfo) {
+      return {
+        maxSpellLevel: 0,
+        startingCantrips: 0,
+        startingSpells: 0,
+        availableCantrips: [],
+        availableLevelSpells: [],
+      };
+    }
+
+    const availableCantrips = spellsData.filter(spell => 
+      spell.level === 0 && 
+      spell.classes.some(cls => cls.index === characterData.selectedClass?.index)
+    );
+
+    const availableLevelSpells = spellsData.filter(spell => 
+      spell.level > 0 && 
+      spell.level <= classInfo.maxLevel &&
+      spell.classes.some(cls => cls.index === characterData.selectedClass?.index)
+    );
+
+    return {
+      maxSpellLevel: classInfo.maxLevel,
+      startingCantrips: classInfo.cantrips,
+      startingSpells: classInfo.spells,
+      availableCantrips,
+      availableLevelSpells,
+    };
+  }, [characterData.selectedClass, characterData.isSpellcaster, spellsData]);
+
+  // ===========================
+  // CONTEXT VALUE - COMPLETO
   // ===========================
 
   return {
-    // Step management
+    // Step Management
     currentStep,
     steps,
     nextStep,
     prevStep,
     goToStep,
 
-    // Character data
+    // Character Data
     characterData,
     updateCharacterData,
 
-    // Loading states
-    loading: loading || racesLoading || classesLoading || backgroundsLoading || spellsLoading,
+    // Loading States
+    loading,
     error,
 
-    // Data
-    races: filteredRaces,
-    classes: filteredClasses,
+    // D&D Data
+    races: racesData,
+    classes: classesData,
     backgrounds: backgroundsData,
-    spells: filteredSpells,
+    spells: spellsData,
     subclasses: subclassesData,
-    subraces: subracesData, // VEM DA API REAL
+    subraces: subracesData,
 
-    // Loading states for individual data types
-    isLoadingRaces: racesLoading,
-    isLoadingClasses: classesLoading,
-    isLoadingBackgrounds: backgroundsLoading,
-    isLoadingSpells: spellsLoading,
-    isLoadingSubclasses: subclassesLoading,
-    isLoadingSubraces: subracesLoading,
+    // Individual Loading States
+    isLoadingRaces,
+    isLoadingClasses,
+    isLoadingBackgrounds,
+    isLoadingSpells,
+    isLoadingSubclasses,
+    isLoadingSubraces,
 
-    // Search functionality
-    raceSearch: raceSearchTerm,
+    // Search Functionality
+    raceSearch: debouncedRaceSearch,
     setRaceSearch: setRaceSearchTerm,
-    classSearch: classSearchTerm,
+    classSearch: debouncedClassSearch,
     setClassSearch: setClassSearchTerm,
-    spellSearch: spellSearchTerm,
+    spellSearch: debouncedSpellSearch,
     setSpellSearch: setSpellSearchTerm,
 
     // Validation
     validateStep,
-    isStepValid: (stepId: string) => validateStep(stepId),
-    validateCurrentStep, // FUNÇÃO QUE ESTAVA FALTANDO
-    canProceed, // FUNÇÃO QUE ESTAVA FALTANDO
+    isStepValid: validateStep,
+    validateCurrentStep,
+    canProceed,
 
-    // Actions
-    resetCharacter, // NOVA FUNÇÃO
-    createCharacter, // NOVA FUNÇÃO
-
-    // Utility functions
+    // Utility Functions
     getCombinedAbilityBonuses,
     getAbilityModifier,
     calculateHitPoints,
     calculateArmorClass,
     getSpellcastingAbility,
-
-    // ===========================
-    // NOVAS FUNÇÕES PARA SUBRACES E SUBCLASSES
-    // ===========================
-    
-    /**
-     * Retorna sub-raças disponíveis para a raça selecionada
-     */
-    getAvailableSubraces, // ✅ FUNÇÃO QUE ESTAVA FALTANDO
-
-    /**
-     * Retorna subclasses disponíveis para a classe selecionada
-     */
-    getAvailableSubclasses, // ✅ FUNÇÃO QUE ESTAVA FALTANDO
-
-    /**
-     * Retorna bônus de habilidade da sub-raça selecionada
-     */
-    getSubraceAbilityBonuses, // ✅ NOVA FUNÇÃO
-
-    /**
-     * Retorna features de subclasse para um nível específico
-     */
-    getSubclassFeatures, // ✅ NOVA FUNÇÃO
-
-    /**
-     * Verifica se precisa escolher subclasse
-     */
-    needsSubclass, // ✅ NOVA FUNÇÃO
-
-    /**
-     * Verifica se precisa escolher sub-raça
-     */
-    needsSubrace, // ✅ NOVA FUNÇÃO
-
-    /**
-     * Retorna skills disponíveis
-     */
-    getAvailableSkills, // ✅ NOVA FUNÇÃO
-
-    /**
-     * Calcula número de skill choices
-     */
-    getSkillChoices, // ✅ NOVA FUNÇÃO
-
-    // Additional utility functions
     getProficiencyBonus: (level: number) => Math.ceil(level / 4) + 1,
     getSkillModifier: (skill: string, scores: AbilityScores, isProficient = false) => {
       const skillInfo = SKILLS.find(s => s.key === skill);
@@ -1061,6 +897,22 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       
       return abilityMod + profBonus;
     },
+
+    // Subrace/Subclass Functions
+    getAvailableSubraces,
+    getAvailableSubclasses,
+    getSubraceAbilityBonuses,
+    getSubclassFeatures,
+    needsSubclass,
+    needsSubrace,
+    getAvailableSkills,
+    getSkillChoices,
+
+    // Actions
+    resetCharacter,
+    createCharacter,
+
+    // Additional Utility Functions
     getSpellSaveDC: (spellcastingMod: number, proficiencyBonus: number) => 8 + spellcastingMod + proficiencyBonus,
     getSpellAttackBonus: (spellcastingMod: number, proficiencyBonus: number) => spellcastingMod + proficiencyBonus,
     getCarryingCapacity: (strength: number) => strength * 15,
@@ -1090,6 +942,13 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         return total + (pointCosts[score] || 0);
       }, 0);
     },
+
+    // Spell Info
+    spellInfo,
+    maxSpellLevel: spellInfo.maxSpellLevel,
+    startingCantrips: spellInfo.startingCantrips,
+    startingSpells: spellInfo.startingSpells,
+    spellsError,
   };
 };
 
@@ -1097,7 +956,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 // PROVIDER COMPONENT
 // ===========================
 
-// Componente interno que usa React Query
 const CharacterCreationInternalProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -1110,7 +968,6 @@ const CharacterCreationInternalProvider: React.FC<{ children: React.ReactNode }>
   );
 };
 
-// Componente principal que configura React Query primeiro
 export const CharacterCreationProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {

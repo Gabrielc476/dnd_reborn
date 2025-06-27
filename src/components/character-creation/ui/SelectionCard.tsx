@@ -12,6 +12,7 @@ interface SelectionCardProps {
   badge?: string;
   disabled?: boolean;
   className?: string;
+  isRequired?: boolean; // Adicionado para indicar se é obrigatório
 }
 
 export default function SelectionCard({
@@ -23,6 +24,7 @@ export default function SelectionCard({
   badge,
   disabled = false,
   className = "",
+  isRequired = false,
 }: SelectionCardProps) {
   const getCardStyle = () => {
     if (disabled) {
@@ -38,9 +40,16 @@ export default function SelectionCard({
 
   return (
     <Card
-      className={`${getCardStyle()} transition-all duration-200 ${className}`}
+      className={`${getCardStyle()} transition-all duration-200 relative ${className}`}
       onClick={disabled ? undefined : onClick}
     >
+      {/* Required Badge */}
+      {isRequired && !selected && (
+        <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full z-10">
+          Obrigatório
+        </div>
+      )}
+
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -55,10 +64,14 @@ export default function SelectionCard({
               )}
             </div>
 
-            <p className="text-purple-200 text-xs mb-2">{description}</p>
+            <p className="text-purple-200 text-xs mb-2 leading-relaxed">
+              {description}
+            </p>
 
             {details && (
-              <p className="text-gray-300 text-xs line-clamp-2">{details}</p>
+              <p className="text-gray-300 text-xs line-clamp-2 leading-relaxed">
+                {details}
+              </p>
             )}
           </div>
 
