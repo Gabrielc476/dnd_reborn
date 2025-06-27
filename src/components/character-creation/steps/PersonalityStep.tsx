@@ -1,589 +1,514 @@
+// ===========================
+// PERSONALITY STEP - COMPONENTE REFATORADO
+// src/components/character-creation/steps/PersonalityStep.tsx
+// ===========================
+
 "use client";
 
 import { useState } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Heart,
-  Star,
+import { 
+  Heart, 
+  User,
+  Target,
   Link,
   AlertTriangle,
   Plus,
   X,
-  Dices,
-  Info,
-  User,
+  Dice6,
+  Scroll,
+  Crown,
+  Star,
+  BookOpen,
+  Feather,
+  Sparkles
 } from "lucide-react";
-import { ALIGNMENTS } from "@/types/characterCreation";
 
-const SAMPLE_TRAITS = [
-  "Sou sempre educado e respeitoso",
-  "Não consigo resistir a um rosto bonito",
-  "Tenho um senso de humor peculiar",
-  "Sou extremamente corajoso",
-  "Falo sem pensar nas consequências",
-  "Coleciono histórias, rumores e lendas",
-  "Tenho dificuldade para confiar nas pessoas",
-  "Sempre ajudo aqueles em necessidade",
-];
+interface PersonalityOption {
+  id: string;
+  text: string;
+  category: 'trait' | 'ideal' | 'bond' | 'flaw';
+}
 
-const SAMPLE_IDEALS = [
-  "Tradição: As tradições antigas devem ser preservadas",
-  "Caridade: Sempre ajudo aqueles em necessidade",
-  "Mudança: A vida é como as estações, em constante mudança",
-  "Poder: Se posso me tornar mais poderoso, por que não deveria?",
-  "Fé: Confio que minha divindade me guiará",
-  "Aspiração: Devo me provar digno dos meus ancestrais",
-  "Independência: Sou um espírito livre, ninguém me diz o que fazer",
-  "Justiça: Nunca deixo um crime passar impune",
-];
+// Mock personality options - em produção virá do background selecionado
+const mockPersonalityOptions = {
+  traits: [
+    "Eu julgo as pessoas pelas suas ações, não pelas suas palavras.",
+    "Se alguém está em apuros, eu sempre estou pronto para dar assistência.",
+    "Quando fixo minha mente em alguma coisa, sigo esse caminho, independente do que surja no meu caminho.",
+    "Eu tenho um forte senso de fair play e sempre tento encontrar a solução mais equitativa para discussões.",
+    "Eu sou confiante em minhas próprias habilidades e faço o que posso para incutir confiança nos outros.",
+    "Pensar é para outras pessoas. Eu prefiro agir.",
+    "Eu uso polissílabos para transmitir a impressão de grande erudição.",
+    "Eu me acanho em situações sociais."
+  ],
+  ideals: [
+    "Respeito. Todas as pessoas, independente da posição, merecem ser tratadas com dignidade.",
+    "Equidade. Ninguém deve receber tratamento preferencial perante a lei, e ninguém está acima da lei.",
+    "Liberdade. Correntes são feitas para serem quebradas, bem como aqueles que as forjariam.",
+    "Poder. Se eu puder me tornar mais forte, poderei comandar qualquer situação.",
+    "Fé. Eu confio que minha divindade guiará minhas ações.",
+    "Aspiração. Eu busco me provar digno do favor da minha divindade ao adequar minhas ações aos seus ensinamentos.",
+    "Tradição. As antigas tradições de adoração e sacrifício devem ser preservadas e defendidas.",
+    "Conhecimento. O caminho para o poder e auto-aperfeiçoamento é através do conhecimento."
+  ],
+  bonds: [
+    "Eu tenho uma família, mas não tenho ideia de onde eles estão. Espero vê-los novamente um dia.",
+    "Eu trabalho a terra, amo a terra, e protegerei a terra.",
+    "Um nobre orgulhoso me deu uma surra memorável, e eu buscarei minha vingança quando puder.",
+    "Minhas ferramentas são símbolos da minha vida passada, e carrego elas para que eu nunca me esqueça das minhas raízes.",
+    "Eu protegerei minha comunidade com minha vida.",
+    "Eu devo minha vida ao sacerdote que me acolheu quando meus pais morreram.",
+    "Tudo que eu faço é para o povo comum.",
+    "Eu farei qualquer coisa para provar que sou superior ao meu rival odiado."
+  ],
+  flaws: [
+    "O tirano que governa minha terra não parará por nada até me ver morto.",
+    "Eu sou inflexível em meu pensamento.",
+    "Eu falo sem realmente pensar nas minhas palavras, invariavelmente insultando outros.",
+    "Eu não posso resistir a aceitar uma aposta ou desafio.",
+    "Eu tenho uma fraqueza pelos vícios da cidade, especialmente a bebida forte.",
+    "Eu não consigo manter um segredo para salvar minha vida, ou a vida de qualquer outra pessoa.",
+    "Eu julgo os outros severamente, e a mim mesmo ainda mais severamente.",
+    "Uma vez que alguém questiona minha coragem, eu nunca recuo, não importa quão perigosa seja a situação."
+  ]
+};
 
-const SAMPLE_BONDS = [
-  "Minha família, clã ou tribo é a coisa mais importante da minha vida",
-  "Uma obra de arte criada por alguém especial para mim",
-  "Devo minha vida à pessoa que me acolheu quando era órfão",
-  "Meu honor é minha vida",
-  "A oficina onde aprendi meu ofício é sagrada para mim",
-  "Busco vingança contra o mal que arruinou minha terra natal",
-  "Tenho uma dívida que não posso quitar",
-  "Alguém que amo desapareceu. Devo encontrá-lo",
-];
+function PersonalitySection({ 
+  title, 
+  icon: Icon, 
+  color, 
+  description, 
+  options, 
+  selected, 
+  onAdd, 
+  onRemove, 
+  maxSelections = 2 
+}: {
+  title: string;
+  icon: any;
+  color: string;
+  description: string;
+  options: string[];
+  selected: string[];
+  onAdd: (option: string) => void;
+  onRemove: (option: string) => void;
+  maxSelections?: number;
+}) {
+  const [customText, setCustomText] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
 
-const SAMPLE_FLAWS = [
-  "Eu julgo outros duramente, e a mim mesmo ainda mais",
-  "Coloco muita confiança em quem possui poder",
-  "Tenho um vício terrível por comida, bebida ou jogos",
-  "Não consigo guardar segredos",
-  "Sou muito teimoso em meus caminhos",
-  "Uma vez alguém questione minha coragem, nunca recuo",
-  "Tenho uma 'dívida' que precisa ser paga",
-  "Meu orgulho provavelmente causará minha ruína",
-];
+  const addCustom = () => {
+    if (customText.trim() && selected.length < maxSelections) {
+      onAdd(customText.trim());
+      setCustomText('');
+      setShowCustom(false);
+    }
+  };
+
+  const getRandomOption = () => {
+    const availableOptions = options.filter(opt => !selected.includes(opt));
+    if (availableOptions.length > 0 && selected.length < maxSelections) {
+      const randomOption = availableOptions[Math.floor(Math.random() * availableOptions.length)];
+      onAdd(randomOption);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className={`w-10 h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center shadow-lg`}>
+            <Icon className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h4 className="text-white font-semibold text-lg">{title}</h4>
+            <p className="text-gray-400 text-sm">{description}</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <span className="text-gray-400 text-sm">
+            {selected.length} / {maxSelections}
+          </span>
+          <button
+            onClick={getRandomOption}
+            disabled={selected.length >= maxSelections}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+              selected.length >= maxSelections
+                ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                : 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/50'
+            }`}
+          >
+            <Dice6 className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Selected Items */}
+      {selected.length > 0 && (
+        <div className="space-y-3">
+          <h5 className="text-gray-300 font-medium text-sm uppercase tracking-wide">Selecionados</h5>
+          {selected.map((item, index) => (
+            <div 
+              key={index}
+              className={`p-4 bg-gradient-to-r ${color.replace('to-', 'to-')}/10 border border-current/20 rounded-xl flex items-start justify-between`}
+            >
+              <p className="text-gray-200 text-sm flex-1 pr-3">{item}</p>
+              <button
+                onClick={() => onRemove(item)}
+                className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Options */}
+      {selected.length < maxSelections && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h5 className="text-gray-300 font-medium text-sm uppercase tracking-wide">
+              Opções Disponíveis
+            </h5>
+            <button
+              onClick={() => setShowCustom(!showCustom)}
+              className="text-sm px-3 py-1 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-all border border-gray-600/50 flex items-center space-x-2"
+            >
+              <Plus className="w-3 h-3" />
+              <span>Personalizar</span>
+            </button>
+          </div>
+
+          {/* Custom Input */}
+          {showCustom && (
+            <div className="space-y-3">
+              <textarea
+                value={customText}
+                onChange={(e) => setCustomText(e.target.value)}
+                placeholder={`Escreva seu próprio ${title.toLowerCase()}...`}
+                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
+                rows={3}
+              />
+              <div className="flex space-x-2">
+                <button
+                  onClick={addCustom}
+                  disabled={!customText.trim()}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2 ${
+                    customText.trim()
+                      ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50'
+                      : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Adicionar</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCustom(false);
+                    setCustomText('');
+                  }}
+                  className="px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-all border border-gray-600/50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Predefined Options */}
+          <div className="grid gap-3 max-h-60 overflow-y-auto custom-scrollbar">
+            {options
+              .filter(option => !selected.includes(option))
+              .map((option, index) => (
+                <div
+                  key={index}
+                  onClick={() => onAdd(option)}
+                  className="p-3 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500/50 rounded-lg cursor-pointer transition-all text-gray-300 text-sm hover:scale-[1.01]"
+                >
+                  {option}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PersonalityStep() {
   const { characterData, updateCharacterData } = useCharacterCreationContext();
 
-  const [newTrait, setNewTrait] = useState("");
-  const [newIdeal, setNewIdeal] = useState("");
-  const [newBond, setNewBond] = useState("");
-  const [newFlaw, setNewFlaw] = useState("");
+  const [personalityTraits, setPersonalityTraits] = useState<string[]>(
+    characterData.personalityTraits || []
+  );
+  const [ideals, setIdeals] = useState<string[]>(
+    characterData.ideals || []
+  );
+  const [bonds, setBonds] = useState<string[]>(
+    characterData.bonds || []
+  );
+  const [flaws, setFlaws] = useState<string[]>(
+    characterData.flaws || []
+  );
 
-  const addPersonalityTrait = () => {
-    if (newTrait.trim() && characterData.personalityTraits.length < 4) {
-      updateCharacterData({
-        personalityTraits: [
-          ...characterData.personalityTraits,
-          newTrait.trim(),
-        ],
-      });
-      setNewTrait("");
+  // Update character data when personality changes
+  const updatePersonality = (type: string, values: string[]) => {
+    const updates = {
+      personalityTraits: type === 'traits' ? values : personalityTraits,
+      ideals: type === 'ideals' ? values : ideals,
+      bonds: type === 'bonds' ? values : bonds,
+      flaws: type === 'flaws' ? values : flaws
+    };
+    
+    updateCharacterData(updates);
+    
+    switch (type) {
+      case 'traits':
+        setPersonalityTraits(values);
+        break;
+      case 'ideals':
+        setIdeals(values);
+        break;
+      case 'bonds':
+        setBonds(values);
+        break;
+      case 'flaws':
+        setFlaws(values);
+        break;
     }
   };
 
-  const removePersonalityTrait = (index: number) => {
-    updateCharacterData({
-      personalityTraits: characterData.personalityTraits.filter(
-        (_, i) => i !== index
-      ),
-    });
-  };
-
-  const addIdeal = () => {
-    if (newIdeal.trim() && characterData.ideals.length < 2) {
-      updateCharacterData({
-        ideals: [...characterData.ideals, newIdeal.trim()],
-      });
-      setNewIdeal("");
+  const addToCategory = (type: string, value: string) => {
+    switch (type) {
+      case 'traits':
+        if (personalityTraits.length < 2) {
+          updatePersonality('traits', [...personalityTraits, value]);
+        }
+        break;
+      case 'ideals':
+        if (ideals.length < 1) {
+          updatePersonality('ideals', [...ideals, value]);
+        }
+        break;
+      case 'bonds':
+        if (bonds.length < 1) {
+          updatePersonality('bonds', [...bonds, value]);
+        }
+        break;
+      case 'flaws':
+        if (flaws.length < 1) {
+          updatePersonality('flaws', [...flaws, value]);
+        }
+        break;
     }
   };
 
-  const removeIdeal = (index: number) => {
-    updateCharacterData({
-      ideals: characterData.ideals.filter((_, i) => i !== index),
-    });
-  };
-
-  const addBond = () => {
-    if (newBond.trim() && characterData.bonds.length < 2) {
-      updateCharacterData({
-        bonds: [...characterData.bonds, newBond.trim()],
-      });
-      setNewBond("");
+  const removeFromCategory = (type: string, value: string) => {
+    switch (type) {
+      case 'traits':
+        updatePersonality('traits', personalityTraits.filter(t => t !== value));
+        break;
+      case 'ideals':
+        updatePersonality('ideals', ideals.filter(i => i !== value));
+        break;
+      case 'bonds':
+        updatePersonality('bonds', bonds.filter(b => b !== value));
+        break;
+      case 'flaws':
+        updatePersonality('flaws', flaws.filter(f => f !== value));
+        break;
     }
   };
 
-  const removeBond = (index: number) => {
-    updateCharacterData({
-      bonds: characterData.bonds.filter((_, i) => i !== index),
-    });
-  };
-
-  const addFlaw = () => {
-    if (newFlaw.trim() && characterData.flaws.length < 2) {
-      updateCharacterData({
-        flaws: [...characterData.flaws, newFlaw.trim()],
-      });
-      setNewFlaw("");
+  const randomizeAll = () => {
+    // Add random selections to empty categories
+    if (personalityTraits.length === 0) {
+      const randomTraits = mockPersonalityOptions.traits
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 2);
+      updatePersonality('traits', randomTraits);
+    }
+    
+    if (ideals.length === 0) {
+      const randomIdeal = [mockPersonalityOptions.ideals[Math.floor(Math.random() * mockPersonalityOptions.ideals.length)]];
+      updatePersonality('ideals', randomIdeal);
+    }
+    
+    if (bonds.length === 0) {
+      const randomBond = [mockPersonalityOptions.bonds[Math.floor(Math.random() * mockPersonalityOptions.bonds.length)]];
+      updatePersonality('bonds', randomBond);
+    }
+    
+    if (flaws.length === 0) {
+      const randomFlaw = [mockPersonalityOptions.flaws[Math.floor(Math.random() * mockPersonalityOptions.flaws.length)]];
+      updatePersonality('flaws', randomFlaw);
     }
   };
 
-  const removeFlaw = (index: number) => {
-    updateCharacterData({
-      flaws: characterData.flaws.filter((_, i) => i !== index),
-    });
-  };
-
-  const getRandomSample = (
-    samples: string[],
-    current: string[],
-    setter: (value: string) => void
-  ) => {
-    const available = samples.filter((sample) => !current.includes(sample));
-    if (available.length > 0) {
-      const random = available[Math.floor(Math.random() * available.length)];
-      setter(random);
-    }
-  };
-
-  const handleAlignmentChange = (alignment: string) => {
-    updateCharacterData({ alignment });
-  };
+  const totalSelected = personalityTraits.length + ideals.length + bonds.length + flaws.length;
+  const totalRequired = 5; // 2 traits + 1 ideal + 1 bond + 1 flaw
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-pink-500 to-rose-600 rounded-2xl mb-4">
-          <Heart className="w-8 h-8 text-white" />
-        </div>
-        <h2 className="text-3xl font-bold text-white">Personalização</h2>
-        <p className="text-purple-200">
-          Dê vida ao seu personagem com traços, ideais, vínculos e defeitos
-        </p>
-      </div>
-
-      {/* Alignment Selection */}
-      <Card className="bg-white/5 border-white/20">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <User className="w-5 h-5 text-blue-400" />
-              <Label className="text-white text-lg font-semibold">
-                Tendência
-              </Label>
+      <div className="bg-pink-500/10 border border-pink-500/30 rounded-xl p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
+              <Heart className="w-6 h-6 text-white" />
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {ALIGNMENTS.map((alignment) => (
-                <Button
-                  key={alignment.value}
-                  variant={
-                    characterData.alignment === alignment.value
-                      ? "default"
-                      : "outline"
-                  }
-                  onClick={() => handleAlignmentChange(alignment.value)}
-                  className="h-auto p-4 text-left flex flex-col items-start space-y-2"
-                >
-                  <span className="font-semibold text-sm">
-                    {alignment.label}
-                  </span>
-                  <p className="text-xs opacity-80 text-left">
-                    {alignment.description}
-                  </p>
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Personality Traits */}
-      <Card className="bg-white/5 border-white/20">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-yellow-400" />
-                <Label className="text-white text-lg font-semibold">
-                  Traços de Personalidade
-                </Label>
-              </div>
-              <span className="text-purple-200 text-sm">
-                {characterData.personalityTraits.length}/4
-              </span>
-            </div>
-
-            {/* Current Traits */}
-            {characterData.personalityTraits.length > 0 && (
-              <div className="space-y-2">
-                {characterData.personalityTraits.map((trait, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-yellow-500/10 border border-yellow-400/20 rounded-lg p-3"
-                  >
-                    <span className="text-yellow-200 text-sm">{trait}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removePersonalityTrait(index)}
-                      className="text-yellow-400 hover:text-yellow-300 h-6 w-6 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add New Trait */}
-            {characterData.personalityTraits.length < 4 && (
-              <div className="space-y-3">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newTrait}
-                    onChange={(e) => setNewTrait(e.target.value)}
-                    placeholder="Digite um traço de personalidade..."
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder-purple-300/70"
-                    onKeyPress={(e) =>
-                      e.key === "Enter" && addPersonalityTrait()
-                    }
-                  />
-                  <Button
-                    onClick={addPersonalityTrait}
-                    disabled={!newTrait.trim()}
-                    className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-400/30"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      getRandomSample(
-                        SAMPLE_TRAITS,
-                        characterData.personalityTraits,
-                        setNewTrait
-                      )
-                    }
-                    variant="outline"
-                    className="bg-white/5 border-white/20"
-                  >
-                    <Dices className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Ideals */}
-      <Card className="bg-white/5 border-white/20">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Star className="w-5 h-5 text-blue-400" />
-                <Label className="text-white text-lg font-semibold">
-                  Ideais
-                </Label>
-              </div>
-              <span className="text-purple-200 text-sm">
-                {characterData.ideals.length}/2
-              </span>
-            </div>
-
-            {/* Current Ideals */}
-            {characterData.ideals.length > 0 && (
-              <div className="space-y-2">
-                {characterData.ideals.map((ideal, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-blue-500/10 border border-blue-400/20 rounded-lg p-3"
-                  >
-                    <span className="text-blue-200 text-sm">{ideal}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeIdeal(index)}
-                      className="text-blue-400 hover:text-blue-300 h-6 w-6 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add New Ideal */}
-            {characterData.ideals.length < 2 && (
-              <div className="space-y-3">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newIdeal}
-                    onChange={(e) => setNewIdeal(e.target.value)}
-                    placeholder="Digite um ideal..."
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder-purple-300/70"
-                    onKeyPress={(e) => e.key === "Enter" && addIdeal()}
-                  />
-                  <Button
-                    onClick={addIdeal}
-                    disabled={!newIdeal.trim()}
-                    className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-400/30"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      getRandomSample(
-                        SAMPLE_IDEALS,
-                        characterData.ideals,
-                        setNewIdeal
-                      )
-                    }
-                    variant="outline"
-                    className="bg-white/5 border-white/20"
-                  >
-                    <Dices className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bonds */}
-      <Card className="bg-white/5 border-white/20">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Link className="w-5 h-5 text-green-400" />
-                <Label className="text-white text-lg font-semibold">
-                  Vínculos
-                </Label>
-              </div>
-              <span className="text-purple-200 text-sm">
-                {characterData.bonds.length}/2
-              </span>
-            </div>
-
-            {/* Current Bonds */}
-            {characterData.bonds.length > 0 && (
-              <div className="space-y-2">
-                {characterData.bonds.map((bond, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-green-500/10 border border-green-400/20 rounded-lg p-3"
-                  >
-                    <span className="text-green-200 text-sm">{bond}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeBond(index)}
-                      className="text-green-400 hover:text-green-300 h-6 w-6 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add New Bond */}
-            {characterData.bonds.length < 2 && (
-              <div className="space-y-3">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newBond}
-                    onChange={(e) => setNewBond(e.target.value)}
-                    placeholder="Digite um vínculo..."
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder-purple-300/70"
-                    onKeyPress={(e) => e.key === "Enter" && addBond()}
-                  />
-                  <Button
-                    onClick={addBond}
-                    disabled={!newBond.trim()}
-                    className="bg-green-500/20 hover:bg-green-500/30 border border-green-400/30"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      getRandomSample(
-                        SAMPLE_BONDS,
-                        characterData.bonds,
-                        setNewBond
-                      )
-                    }
-                    variant="outline"
-                    className="bg-white/5 border-white/20"
-                  >
-                    <Dices className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Flaws */}
-      <Card className="bg-white/5 border-white/20">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <AlertTriangle className="w-5 h-5 text-red-400" />
-                <Label className="text-white text-lg font-semibold">
-                  Defeitos
-                </Label>
-              </div>
-              <span className="text-purple-200 text-sm">
-                {characterData.flaws.length}/2
-              </span>
-            </div>
-
-            {/* Current Flaws */}
-            {characterData.flaws.length > 0 && (
-              <div className="space-y-2">
-                {characterData.flaws.map((flaw, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-red-500/10 border border-red-400/20 rounded-lg p-3"
-                  >
-                    <span className="text-red-200 text-sm">{flaw}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => removeFlaw(index)}
-                      className="text-red-400 hover:text-red-300 h-6 w-6 p-0"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Add New Flaw */}
-            {characterData.flaws.length < 2 && (
-              <div className="space-y-3">
-                <div className="flex space-x-2">
-                  <Input
-                    value={newFlaw}
-                    onChange={(e) => setNewFlaw(e.target.value)}
-                    placeholder="Digite um defeito..."
-                    className="flex-1 bg-white/10 border-white/20 text-white placeholder-purple-300/70"
-                    onKeyPress={(e) => e.key === "Enter" && addFlaw()}
-                  />
-                  <Button
-                    onClick={addFlaw}
-                    disabled={!newFlaw.trim()}
-                    className="bg-red-500/20 hover:bg-red-500/30 border border-red-400/30"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={() =>
-                      getRandomSample(
-                        SAMPLE_FLAWS,
-                        characterData.flaws,
-                        setNewFlaw
-                      )
-                    }
-                    variant="outline"
-                    className="bg-white/5 border-white/20"
-                  >
-                    <Dices className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Character Summary */}
-      <Card className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-400/20">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <Label className="text-white text-lg font-semibold">
-              Resumo do Personagem
-            </Label>
-
-            <div className="bg-black/20 rounded-lg p-4 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-purple-200">Nome:</span>
-                  <span className="text-white ml-2">
-                    {characterData.name || "Sem nome"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-purple-200">Nível:</span>
-                  <span className="text-white ml-2">{characterData.level}</span>
-                </div>
-                <div>
-                  <span className="text-purple-200">Raça:</span>
-                  <span className="text-white ml-2">
-                    {characterData.selectedRace?.name || "Não selecionada"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-purple-200">Classe:</span>
-                  <span className="text-white ml-2">
-                    {characterData.selectedClass?.name || "Não selecionada"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-purple-200">Background:</span>
-                  <span className="text-white ml-2">
-                    {characterData.selectedBackground?.name ||
-                      "Não selecionado"}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-purple-200">Tendência:</span>
-                  <span className="text-white ml-2">
-                    {characterData.alignment
-                      ? ALIGNMENTS.find(
-                          (a) => a.value === characterData.alignment
-                        )?.label
-                      : "Não selecionada"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tips */}
-      <Card className="bg-blue-500/10 border-blue-400/20">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-2">
-            <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
             <div>
-              <h4 className="text-blue-200 font-semibold text-sm">
-                Dicas de Personalização
-              </h4>
-              <p className="text-blue-100 text-sm mt-1">
-                <strong>Traços</strong> são características marcantes da
-                personalidade.
-                <strong>Ideais</strong> são princípios que motivam o personagem.
-                <strong>Vínculos</strong> conectam o personagem ao mundo.
-                <strong>Defeitos</strong> são fraquezas que humanizam o
-                personagem e criam oportunidades para interpretação.
+              <h3 className="text-white font-bold text-lg">Personalidade & Background</h3>
+              <p className="text-pink-200 text-sm mt-1">
+                Defina quem é seu personagem além das estatísticas
               </p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          
+          <div className="text-right">
+            <div className="text-2xl font-bold text-white">{totalSelected}</div>
+            <div className="text-pink-400 text-sm">de {totalRequired}</div>
+          </div>
+        </div>
+        
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-sm text-pink-200">
+            <strong>Background:</strong> {characterData.selectedBackground?.name || 'Não selecionado'}
+          </div>
+          <button
+            onClick={randomizeAll}
+            className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-medium rounded-xl transition-all duration-200 flex items-center space-x-2 border border-yellow-500/50"
+          >
+            <Dice6 className="w-4 h-4" />
+            <span>Aleatorizar Tudo</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Personality Sections */}
+      <div className="grid gap-8">
+        {/* Personality Traits */}
+        <PersonalitySection
+          title="Traços de Personalidade"
+          icon={User}
+          color="from-blue-500 to-blue-600"
+          description="Como seu personagem se comporta e reage em diferentes situações"
+          options={mockPersonalityOptions.traits}
+          selected={personalityTraits}
+          onAdd={(trait) => addToCategory('traits', trait)}
+          onRemove={(trait) => removeFromCategory('traits', trait)}
+          maxSelections={2}
+        />
+
+        {/* Ideals */}
+        <PersonalitySection
+          title="Ideais"
+          icon={Target}
+          color="from-green-500 to-green-600"
+          description="Os princípios que movem e motivam seu personagem"
+          options={mockPersonalityOptions.ideals}
+          selected={ideals}
+          onAdd={(ideal) => addToCategory('ideals', ideal)}
+          onRemove={(ideal) => removeFromCategory('ideals', ideal)}
+          maxSelections={1}
+        />
+
+        {/* Bonds */}
+        <PersonalitySection
+          title="Vínculos"
+          icon={Link}
+          color="from-purple-500 to-purple-600"
+          description="Conexões importantes com pessoas, lugares ou eventos"
+          options={mockPersonalityOptions.bonds}
+          selected={bonds}
+          onAdd={(bond) => addToCategory('bonds', bond)}
+          onRemove={(bond) => removeFromCategory('bonds', bond)}
+          maxSelections={1}
+        />
+
+        {/* Flaws */}
+        <PersonalitySection
+          title="Defeitos"
+          icon={AlertTriangle}
+          color="from-red-500 to-red-600"
+          description="Fraquezas ou vícios que podem causar problemas"
+          options={mockPersonalityOptions.flaws}
+          selected={flaws}
+          onAdd={(flaw) => addToCategory('flaws', flaw)}
+          onRemove={(flaw) => removeFromCategory('flaws', flaw)}
+          maxSelections={1}
+        />
+      </div>
+
+      {/* Summary */}
+      {totalSelected > 0 && (
+        <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+          <div className="flex items-center space-x-3 mb-4">
+            <div className="w-8 h-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-white" />
+            </div>
+            <h4 className="text-white font-semibold">Resumo da Personalidade</h4>
+          </div>
+          
+          <div className="prose prose-sm prose-invert max-w-none">
+            <p className="text-gray-300 leading-relaxed">
+              <strong>{characterData.name || 'Seu personagem'}</strong> é caracterizado por{' '}
+              {personalityTraits.length > 0 && (
+                <span>
+                  ser alguém que{' '}
+                  {personalityTraits.map((trait, index) => (
+                    <span key={index}>
+                      {trait.toLowerCase()}
+                      {index < personalityTraits.length - 1 ? ' e ' : ''}
+                    </span>
+                  ))}
+                </span>
+              )}
+              {ideals.length > 0 && (
+                <span>
+                  . {personalityTraits.length > 0 ? 'Seus' : 'Seus'} ideais incluem:{' '}
+                  {ideals[0].toLowerCase()}
+                </span>
+              )}
+              {bonds.length > 0 && (
+                <span>
+                  . {ideals.length > 0 || personalityTraits.length > 0 ? 'Além disso,' : 'Este personagem'}{' '}
+                  possui vínculos importantes: {bonds[0].toLowerCase()}
+                </span>
+              )}
+              {flaws.length > 0 && (
+                <span>
+                  . No entanto, possui a fraqueza de {flaws[0].toLowerCase()}
+                </span>
+              )}
+              .
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Progress Indicator */}
+      <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-gray-400 text-sm">Progresso da Personalidade</span>
+          <span className="text-white font-medium">{totalSelected}/{totalRequired}</span>
+        </div>
+        <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-500"
+            style={{ width: `${(totalSelected / totalRequired) * 100}%` }}
+          />
+        </div>
+        {totalSelected < totalRequired && (
+          <p className="text-gray-400 text-xs mt-2">
+            Complete todos os aspectos da personalidade para prosseguir
+          </p>
+        )}
+      </div>
     </div>
   );
 }

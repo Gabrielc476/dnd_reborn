@@ -1,76 +1,106 @@
+// ===========================
+// BASIC INFO STEP - COMPONENTE REFATORADO
+// src/components/character-creation/steps/BasicInfoStep.tsx
+// ===========================
+
 "use client";
 
 import { useState } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { 
   User, 
-  Users, 
-  Briefcase, 
-  Sparkles, 
+  Search, 
+  Crown, 
+  Sword, 
+  Scroll,
+  ChevronDown,
   CheckCircle,
-  Crown,
-  TrendingUp,
-  Plus,
-  Minus
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 
-import SearchableList from "../ui/SearchableList";
-import SelectionCard from "../ui/SelectionCard";
-import { DndRace, DndClass, DndBackground, DndSubrace, DndSubclass } from "@/types/characterCreation";
-
-// Interface para o componente SearchableList
-interface SearchableListProps<T> {
-  items: T[];
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
-  selectedItem?: T | null;
-  onItemSelect?: (item: T) => void;
-  renderItem: (item: T) => React.ReactNode;
-  placeholder: string;
-  emptyMessage: string;
-  isLoading?: boolean;
-}
-
-function SearchableList<T>({
-  items,
-  searchTerm,
-  onSearchChange,
-  renderItem,
-  placeholder,
+// Componente para seleção com busca
+function SelectionGrid({ 
+  title, 
+  icon: Icon, 
+  items, 
+  selectedItem, 
+  onSelect, 
+  isLoading, 
+  searchValue, 
+  onSearchChange, 
   emptyMessage,
-  isLoading = false,
-}: SearchableListProps<T>) {
+  getDisplayName = (item) => item.name,
+  getDescription = () => ""
+}) {
   return (
     <div className="space-y-4">
+      <div className="flex items-center space-x-3">
+        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+          <Icon className="w-4 h-4 text-white" />
+        </div>
+        <h3 className="text-white font-semibold text-lg">{title}</h3>
+      </div>
+      
       {/* Search Input */}
       <div className="relative">
-        <Input
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <input
           type="text"
-          placeholder={placeholder}
-          value={searchTerm}
+          value={searchValue}
           onChange={(e) => onSearchChange(e.target.value)}
-          className="bg-white/10 border-white/20 text-white placeholder-white/50 focus:ring-2 focus:ring-purple-400"
+          placeholder={`Buscar ${title.toLowerCase()}...`}
+          className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
         />
       </div>
 
-      {/* Results */}
+      {/* Items Grid */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center space-x-3 text-gray-400">
+            <Loader2 className="w-6 h-6 animate-spin" />
+            <span>Carregando {title.toLowerCase()}...</span>
+          </div>
         </div>
       ) : (
-        <div className="space-y-2 max-h-80 overflow-y-auto">
+        <div className="grid gap-3 max-h-80 overflow-y-auto custom-scrollbar">
           {items.length > 0 ? (
-            items.map((item, index) => (
-              <div key={index}>
-                {renderItem(item)}
-              </div>
-            ))
+            items.map((item, index) => {
+              const isSelected = selectedItem?.index === item.index;
+              const displayName = getDisplayName(item);
+              const description = getDescription(item);
+              
+              return (
+                <div
+                  key={item.index || index}
+                  onClick={() => onSelect(item)}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                    isSelected
+                      ? 'bg-blue-500/20 border-blue-500/50 shadow-lg shadow-blue-500/25'
+                      : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50 hover:border-gray-500/50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <h4 className="text-white font-medium">{displayName}</h4>
+                        {isSelected && (
+                          <CheckCircle className="w-4 h-4 text-blue-400" />
+                        )}
+                      </div>
+                      {description && (
+                        <p className="text-gray-400 text-sm mt-1 line-clamp-2">
+                          {description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
           ) : (
-            <div className="text-center py-8 text-white/50">
+            <div className="text-center py-12 text-gray-400">
+              <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p>{emptyMessage}</p>
             </div>
           )}
@@ -98,7 +128,6 @@ export default function BasicInfoStep() {
     setRaceSearch,
     classSearch,
     setClassSearch,
-    getCombinedAbilityBonuses,
   } = useCharacterCreationContext();
 
   const [backgroundSearch, setBackgroundSearch] = useState("");
@@ -151,463 +180,199 @@ export default function BasicInfoStep() {
   const canChooseSubclass = characterData.selectedClass ? 
     characterData.level >= getSubclassLevel(characterData.selectedClass.index) : false;
 
-  const classNeedsSubclass = hasSubclasses && canChooseSubclass;
-
-  // Get combined bonuses for preview
-  const combinedBonuses = getCombinedAbilityBonuses();
-
-  // Level controls
-  const adjustLevel = (delta: number) => {
-    const newLevel = Math.max(1, Math.min(20, characterData.level + delta));
-    updateCharacterData({ 
-      level: newLevel,
-      // Reset subclass if level is too low
-      selectedSubclass: (characterData.selectedClass && newLevel < getSubclassLevel(characterData.selectedClass.index)) 
-        ? null 
-        : characterData.selectedSubclass
-    });
-  };
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      
-      {/* Character Name */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-        <div className="flex items-center space-x-3 mb-4">
-          <User className="w-6 h-6 text-purple-400" />
-          <h2 className="text-2xl font-bold text-white">Nome do Personagem</h2>
-          <span className="text-red-400 text-sm">*</span>
+    <div className="space-y-8">
+      {/* Nome e Nível */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <label className="block text-white font-medium text-sm uppercase tracking-wide">
+            Nome do Personagem
+          </label>
+          <input
+            type="text"
+            value={characterData.name}
+            onChange={(e) => updateCharacterData({ name: e.target.value })}
+            placeholder="Digite o nome do seu herói"
+            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-lg font-medium"
+          />
         </div>
         
-        <input
-          type="text"
-          placeholder="Digite o nome do seu personagem..."
-          value={characterData.name}
-          onChange={(e) => updateCharacterData({ name: e.target.value })}
-          className="w-full p-4 bg-white/10 border border-white/20 rounded-lg text-white text-xl placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+        <div className="space-y-2">
+          <label className="block text-white font-medium text-sm uppercase tracking-wide">
+            Nível Inicial
+          </label>
+          <div className="relative">
+            <select
+              value={characterData.level}
+              onChange={(e) => updateCharacterData({ level: parseInt(e.target.value) })}
+              className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all text-lg font-medium appearance-none cursor-pointer"
+            >
+              {Array.from({ length: 20 }, (_, i) => i + 1).map(level => (
+                <option key={level} value={level}>
+                  Nível {level}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 pointer-events-none" />
+          </div>
+        </div>
+      </div>
+
+      {/* Seleções principais em grid */}
+      <div className="grid lg:grid-cols-2 gap-8">
+        {/* Raças */}
+        <SelectionGrid
+          title="Raças"
+          icon={Crown}
+          items={filteredRaces}
+          selectedItem={characterData.selectedRace}
+          onSelect={(race) => {
+            updateCharacterData({ 
+              selectedRace: race,
+              selectedSubrace: null // Reset subrace when race changes
+            });
+          }}
+          isLoading={isLoadingRaces}
+          searchValue={raceSearch}
+          onSearchChange={setRaceSearch}
+          emptyMessage="Nenhuma raça encontrada"
+          getDescription={(race) => `Velocidade: ${race.speed} pés. ${race.size_description}`}
         />
-        
-        {!characterData.name.trim() && (
-          <p className="text-red-400 text-sm mt-2">Nome é obrigatório</p>
-        )}
+
+        {/* Classes */}
+        <SelectionGrid
+          title="Classes"
+          icon={Sword}
+          items={filteredClasses}
+          selectedItem={characterData.selectedClass}
+          onSelect={(cls) => {
+            updateCharacterData({ 
+              selectedClass: cls,
+              selectedSubclass: null // Reset subclass when class changes
+            });
+          }}
+          isLoading={isLoadingClasses}
+          searchValue={classSearch}
+          onSearchChange={setClassSearch}
+          emptyMessage="Nenhuma classe encontrada"
+          getDescription={(cls) => `Dado de Vida: d${cls.hit_die}. ${cls.spellcasting ? 'Conjurador' : 'Não-conjurador'}`}
+        />
       </div>
 
-      {/* Character Level */}
-      <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-        <div className="flex items-center space-x-3 mb-4">
-          <TrendingUp className="w-6 h-6 text-yellow-400" />
-          <h2 className="text-2xl font-bold text-white">Nível do Personagem</h2>
-          <span className="text-red-400 text-sm">*</span>
-        </div>
-        
-        <div className="flex items-center space-x-4">
-          <Button
-            onClick={() => adjustLevel(-1)}
-            disabled={characterData.level <= 1}
-            variant="outline"
-            size="sm"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-          >
-            <Minus className="w-4 h-4" />
-          </Button>
-          
-          <div className="flex items-center space-x-2">
-            <span className="text-white/70">Nível:</span>
-            <span className="text-3xl font-bold text-yellow-400 min-w-[3rem] text-center">
-              {characterData.level}
-            </span>
-          </div>
-          
-          <Button
-            onClick={() => adjustLevel(1)}
-            disabled={characterData.level >= 20}
-            variant="outline"
-            size="sm"
-            className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-        
-        <div className="mt-3 text-sm text-white/60">
-          {characterData.selectedClass && (
-            <p>
-              Poderá escolher subclasse no nível {getSubclassLevel(characterData.selectedClass.index)}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Main Selection Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* Race Selection */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <Users className="w-6 h-6 text-blue-400" />
-              <h2 className="text-xl font-bold text-white">Raça</h2>
-              <span className="text-red-400 text-sm">*</span>
+      {/* Subraças (se aplicável) */}
+      {hasSubraces && (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+              <Crown className="w-4 h-4 text-white" />
             </div>
-            
-            {/* Race Count */}
-            <span className="text-white/50 text-sm">
-              {filteredRaces.length} raças
-            </span>
-          </div>
-
-          <SearchableList
-            items={filteredRaces}
-            searchTerm={raceSearch}
-            onSearchChange={setRaceSearch}
-            selectedItem={characterData.selectedRace}
-            onItemSelect={(race) => {
-              updateCharacterData({ 
-                selectedRace: race,
-                selectedSubrace: null // Reset subrace when changing race
-              });
-            }}
-            renderItem={(race: DndRace) => (
-              <SelectionCard
-                title={race.name}
-                description={`Velocidade: ${race.speed} pés`}
-                details={race.ability_bonuses
-                  ?.map(bonus => `+${bonus.bonus} ${bonus.ability_score.name}`)
-                  .join(", ") || ""}
-                selected={characterData.selectedRace?.index === race.index}
-                onClick={() => {
-                  updateCharacterData({ 
-                    selectedRace: race,
-                    selectedSubrace: null
-                  });
-                }}
-                isRequired={true}
-              />
+            <h3 className="text-white font-semibold text-lg">
+              Subraças de {characterData.selectedRace?.name}
+            </h3>
+            {raceNeedsSubrace && (
+              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-400 text-xs rounded-lg border border-yellow-500/30">
+                Obrigatório
+              </span>
             )}
-            placeholder="Buscar raças..."
-            emptyMessage="Nenhuma raça encontrada"
-            isLoading={isLoadingRaces}
-          />
-        </div>
-
-        {/* Class Selection */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <Crown className="w-6 h-6 text-green-400" />
-              <h2 className="text-xl font-bold text-white">Classe</h2>
-              <span className="text-red-400 text-sm">*</span>
-            </div>
-            
-            {/* Class Count */}
-            <span className="text-white/50 text-sm">
-              {filteredClasses.length} classes
-            </span>
-          </div>
-
-          <SearchableList
-            items={filteredClasses}
-            searchTerm={classSearch}
-            onSearchChange={setClassSearch}
-            selectedItem={characterData.selectedClass}
-            onItemSelect={(cls) => {
-              updateCharacterData({ 
-                selectedClass: cls,
-                selectedSubclass: null // Reset subclass when changing class
-              });
-            }}
-            renderItem={(cls: DndClass) => (
-              <SelectionCard
-                title={cls.name}
-                description={`Dado de Vida: d${cls.hit_die}`}
-                details={cls.saving_throws
-                  ?.map(save => save.name)
-                  .join(", ") || ""}
-                selected={characterData.selectedClass?.index === cls.index}
-                onClick={() => {
-                  updateCharacterData({ 
-                    selectedClass: cls,
-                    selectedSubclass: null
-                  });
-                }}
-                isRequired={true}
-              />
-            )}
-            placeholder="Buscar classes..."
-            emptyMessage="Nenhuma classe encontrada"
-            isLoading={isLoadingClasses}
-          />
-        </div>
-
-        {/* Background Selection */}
-        <div className="bg-white/5 rounded-xl p-6 border border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <Briefcase className="w-6 h-6 text-yellow-400" />
-              <h2 className="text-xl font-bold text-white">Background</h2>
-              <span className="text-red-400 text-sm">*</span>
-            </div>
-            
-            {/* Background Count */}
-            <span className="text-white/50 text-sm">
-              {filteredBackgrounds.length} backgrounds
-            </span>
-          </div>
-
-          <SearchableList
-            items={filteredBackgrounds}
-            searchTerm={backgroundSearch}
-            onSearchChange={setBackgroundSearch}
-            selectedItem={characterData.selectedBackground}
-            onItemSelect={(bg) => {
-              updateCharacterData({ selectedBackground: bg });
-            }}
-            renderItem={(bg: DndBackground) => (
-              <SelectionCard
-                title={bg.name}
-                description="Background"
-                details={bg.starting_proficiencies
-                  ?.map(prof => prof.name)
-                  .slice(0, 3)
-                  .join(", ") || ""}
-                selected={characterData.selectedBackground?.index === bg.index}
-                onClick={() => {
-                  updateCharacterData({ selectedBackground: bg });
-                }}
-                isRequired={true}
-              />
-            )}
-            placeholder="Buscar backgrounds..."
-            emptyMessage="Nenhum background encontrado"
-            isLoading={isLoadingBackgrounds}
-          />
-        </div>
-      </div>
-
-      {/* Subrace Selection - Show if race has subraces */}
-      {hasSubraces && characterData.selectedRace && (
-        <div className="bg-gradient-to-r from-green-900/20 to-blue-900/20 rounded-xl p-6 border border-green-400/30">
-          <div className="flex items-center space-x-3 mb-4">
-            <Users className="w-5 h-5 text-green-400" />
-            <h3 className="text-lg font-bold text-white">Sub-raça</h3>
-            {raceNeedsSubrace && <span className="text-red-400 text-sm">*</span>}
           </div>
           
-          <p className="text-white/80 mb-4">
-            Escolha uma sub-raça para <strong>{characterData.selectedRace.name}</strong>:
-          </p>
-          
-          {isLoadingSubraces ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {availableSubraces.map((subrace) => (
-                <SelectionCard
+          <div className="grid md:grid-cols-2 gap-3">
+            {availableSubraces.map((subrace) => {
+              const isSelected = characterData.selectedSubrace?.index === subrace.index;
+              
+              return (
+                <div
                   key={subrace.index}
-                  title={subrace.name}
-                  description={subrace.desc.length > 100 ? 
-                    subrace.desc.substring(0, 100) + "..." : subrace.desc}
-                  details={subrace.ability_bonuses
-                    ?.map(bonus => `+${bonus.bonus} ${bonus.ability_score.name}`)
-                    .join(", ") || ""}
-                  selected={characterData.selectedSubrace?.index === subrace.index}
-                  onClick={() => {
-                    updateCharacterData({ selectedSubrace: subrace });
-                  }}
-                  isRequired={raceNeedsSubrace}
-                />
-              ))}
-            </div>
-          )}
-          
-          {raceNeedsSubrace && !characterData.selectedSubrace && (
-            <p className="text-red-400 text-sm mt-2">
-              Esta raça requer a escolha de uma sub-raça
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Subclass Selection - Show if class has subclasses and level is sufficient */}
-      {hasSubclasses && characterData.selectedClass && canChooseSubclass && (
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl p-6 border border-blue-400/30">
-          <div className="flex items-center space-x-3 mb-4">
-            <Sparkles className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-bold text-white">Subclasse</h3>
-            <span className="text-red-400 text-sm">*</span>
-          </div>
-          
-          <p className="text-white/80 mb-4">
-            Escolha uma subclasse para <strong>{characterData.selectedClass.name}</strong> 
-            (disponível no nível {getSubclassLevel(characterData.selectedClass.index)}):
-          </p>
-          
-          {isLoadingSubclasses ? (
-            <div className="flex items-center justify-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {availableSubclasses.map((subclass) => (
-                <SelectionCard
-                  key={subclass.index}
-                  title={subclass.name}
-                  description={subclass.subclass_flavor}
-                  details={subclass.desc?.[0]?.substring(0, 100) + "..." || ""}
-                  selected={characterData.selectedSubclass?.index === subclass.index}
-                  onClick={() => {
-                    updateCharacterData({ selectedSubclass: subclass });
-                  }}
-                  isRequired={true}
-                />
-              ))}
-            </div>
-          )}
-          
-          {!characterData.selectedSubclass && (
-            <p className="text-red-400 text-sm mt-2">
-              Escolha uma subclasse é obrigatória para esta classe
-            </p>
-          )}
-        </div>
-      )}
-
-      {/* Subclass Info - Show if class will need subclass later */}
-      {hasSubclasses && characterData.selectedClass && !canChooseSubclass && (
-        <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-xl p-6 border border-blue-400/30">
-          <div className="flex items-center space-x-3 mb-3">
-            <Sparkles className="w-5 h-5 text-blue-400" />
-            <h3 className="text-lg font-bold text-white">Subclasse</h3>
-          </div>
-          
-          <p className="text-white/80 mb-3">
-            Sua classe <strong>{characterData.selectedClass.name}</strong> poderá escolher uma subclasse no nível {getSubclassLevel(characterData.selectedClass.index)}. 
-            Atualmente você está no nível {characterData.level}.
-            Há <strong>{availableSubclasses.length}</strong> subclasses disponíveis para esta classe.
-          </p>
-          
-          <div className="flex flex-wrap gap-2">
-            {availableSubclasses.slice(0, 3).map((subclass) => (
-              <span key={subclass.index} className="text-xs bg-blue-600/30 text-blue-200 px-3 py-1 rounded-full">
-                {subclass.name}
-              </span>
-            ))}
-            {availableSubclasses.length > 3 && (
-              <span className="text-xs bg-blue-600/30 text-blue-200 px-3 py-1 rounded-full">
-                +{availableSubclasses.length - 3} mais
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Character Preview */}
-      {(characterData.selectedRace || characterData.selectedClass || characterData.selectedBackground) && (
-        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-6 border border-purple-400/30">
-          <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-            <User className="w-5 h-5 mr-2" />
-            Prévia do Personagem
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Basic Info */}
-            <div className="space-y-3">
-              <div className="text-white">
-                <span className="text-white/70">Nome: </span>
-                <strong>{characterData.name || "Sem nome"}</strong>
-              </div>
-              
-              {characterData.selectedRace && (
-                <div className="text-white">
-                  <span className="text-white/70">Raça: </span>
-                  <strong>{characterData.selectedRace.name}</strong>
-                  {characterData.selectedSubrace && (
-                    <span> ({characterData.selectedSubrace.name})</span>
-                  )}
-                </div>
-              )}
-              
-              {characterData.selectedClass && (
-                <div className="text-white">
-                  <span className="text-white/70">Classe: </span>
-                  <strong>{characterData.selectedClass.name}</strong>
-                  {characterData.selectedSubclass && (
-                    <span> ({characterData.selectedSubclass.name})</span>
-                  )}
-                </div>
-              )}
-              
-              {characterData.selectedBackground && (
-                <div className="text-white">
-                  <span className="text-white/70">Background: </span>
-                  <strong>{characterData.selectedBackground.name}</strong>
-                </div>
-              )}
-            </div>
-
-            {/* Stats Preview */}
-            <div className="space-y-3">
-              <div className="text-white">
-                <span className="text-white/70">Nível: </span>
-                <strong>{characterData.level}</strong>
-              </div>
-              
-              {characterData.selectedRace && (
-                <div className="text-white">
-                  <span className="text-white/70">Velocidade: </span>
-                  <strong>{characterData.selectedRace.speed} pés</strong>
-                </div>
-              )}
-              
-              {characterData.selectedClass && (
-                <div className="text-white">
-                  <span className="text-white/70">Dado de Vida: </span>
-                  <strong>d{characterData.selectedClass.hit_die}</strong>
-                </div>
-              )}
-
-              {/* Racial Bonuses Preview */}
-              {Object.values(combinedBonuses).some(bonus => bonus > 0) && (
-                <div className="text-white">
-                  <span className="text-white/70">Bônus Raciais: </span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {Object.entries(combinedBonuses).map(([ability, bonus]) => (
-                      bonus > 0 && (
-                        <span key={ability} className="text-xs bg-green-600/30 text-green-200 px-2 py-1 rounded">
-                          {ability.toUpperCase()}: +{bonus}
-                        </span>
-                      )
-                    ))}
+                  onClick={() => updateCharacterData({ selectedSubrace: subrace })}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                    isSelected
+                      ? 'bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/25'
+                      : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-white font-medium">{subrace.name}</h4>
+                      {subrace.desc && (
+                        <p className="text-gray-400 text-sm mt-1 line-clamp-2">
+                          {subrace.desc}
+                        </p>
+                      )}
+                    </div>
+                    {isSelected && (
+                      <CheckCircle className="w-5 h-5 text-purple-400 flex-shrink-0" />
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Validation Status */}
-          <div className="mt-4 pt-4 border-t border-white/10">
-            <div className="flex items-center justify-between">
-              <span className="text-white/70">Status das informações básicas:</span>
-              
-              {characterData.name && characterData.selectedRace && characterData.selectedClass && characterData.selectedBackground && 
-               (!raceNeedsSubrace || characterData.selectedSubrace) && 
-               (!classNeedsSubclass || characterData.selectedSubclass) ? (
-                <div className="flex items-center text-green-400">
-                  <CheckCircle className="w-4 h-4 mr-1" />
-                  <span className="text-sm">Completo</span>
-                </div>
-              ) : (
-                <div className="flex items-center text-yellow-400">
-                  <User className="w-4 h-4 mr-1" />
-                  <span className="text-sm">Pendente</span>
-                </div>
-              )}
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Subclasses (se aplicável e nível suficiente) */}
+      {hasSubclasses && canChooseSubclass && (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+              <Sword className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-white font-semibold text-lg">
+              Subclasses de {characterData.selectedClass?.name}
+            </h3>
+            <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-lg border border-green-500/30">
+              Nível {getSubclassLevel(characterData.selectedClass?.index || '')}+
+            </span>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-3">
+            {availableSubclasses.map((subclass) => {
+              const isSelected = characterData.selectedSubclass?.index === subclass.index;
+              
+              return (
+                <div
+                  key={subclass.index}
+                  onClick={() => updateCharacterData({ selectedSubclass: subclass })}
+                  className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+                    isSelected
+                      ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/25'
+                      : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-white font-medium">{subclass.name}</h4>
+                      <p className="text-gray-400 text-sm">{subclass.subclass_flavor}</p>
+                      {subclass.desc && subclass.desc.length > 0 && (
+                        <p className="text-gray-400 text-xs mt-1 line-clamp-2">
+                          {subclass.desc[0]}
+                        </p>
+                      )}
+                    </div>
+                    {isSelected && (
+                      <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Background */}
+      <SelectionGrid
+        title="Backgrounds"
+        icon={Scroll}
+        items={filteredBackgrounds}
+        selectedItem={characterData.selectedBackground}
+        onSelect={(background) => updateCharacterData({ selectedBackground: background })}
+        isLoading={isLoadingBackgrounds}
+        searchValue={backgroundSearch}
+        onSearchChange={setBackgroundSearch}
+        emptyMessage="Nenhum background encontrado"
+        getDescription={() => "Determina suas habilidades iniciais e características"}
+      />
     </div>
   );
 }
