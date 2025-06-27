@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA CORRIGIDA
+// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA FINAL
 // ===========================
 "use client";
 
@@ -235,7 +235,6 @@ function useSubracesQuery(enabled: boolean = true, raceIndex?: string) {
       } catch (error) {
         console.error("❌ Erro ao carregar sub-raças da API:", error);
         console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
-        // 🎯 CORREÇÃO AQUI - IMPORTAÇÃO CORRETA:
         const { mockSubraces } = await import("@/data/mockSubRaces");
         if (raceIndex) {
           const raceSubraces = mockSubraces.filter(subrace => subrace.race.index === raceIndex);
@@ -337,7 +336,6 @@ function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
       } catch (error) {
         console.error("❌ Erro ao carregar subclasses da API:", error);
         console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
-        // 🎯 CORREÇÃO AQUI - IMPORTAÇÃO CORRETA:
         const { mockSubclasses } = await import("@/data/mockSubClasses");
         if (classIndex) {
           const classSubclasses = mockSubclasses.filter(subclass => subclass.class.index === classIndex);
@@ -365,9 +363,40 @@ function useBackgroundsQuery() {
     queryFn: async () => {
       try {
         const backgrounds = await dndAPI.getBackgrounds();
-        console.log("🌐 ===== BACKGROUNDS CARREGADOS DA API OFICIAL =====");
+        console.log("🌐 ===== BACKGROUNDS CARREGADOS (API + DADOS LOCAIS) =====");
         console.log(`📊 Total: ${backgrounds.length} backgrounds`);
-        console.log("📋 Lista:", backgrounds.map(b => b.name).join(", "));
+        
+        // Verificar quais vieram da API e quais dos mocks (para debug)
+        const { mockBackgrounds } = await import("@/data/mockBackgrounds");
+        const mockIndices = mockBackgrounds.map(bg => bg.index);
+        
+        const fromAPI = backgrounds.filter(bg => !mockIndices.includes(bg.index));
+        const fromMock = backgrounds.filter(bg => mockIndices.includes(bg.index));
+        
+        console.log("📋 DETALHAMENTO POR FONTE:");
+        if (fromAPI.length > 0) {
+          console.log(`🌐 Da API oficial (${fromAPI.length}):`);
+          fromAPI.forEach((background, index) => {
+            console.log(`   ${index + 1}. ${background.name} (${background.index})`);
+          });
+        } else {
+          console.log("🌐 Da API oficial: Nenhum");
+        }
+        
+        if (fromMock.length > 0) {
+          console.log(`📋 Dos dados locais (${fromMock.length}):`);
+          fromMock.forEach((background, index) => {
+            console.log(`   ${index + 1}. ${background.name} (${background.index})`);
+          });
+        } else {
+          console.log("📋 Dos dados locais: Nenhum");
+        }
+        
+        console.log("✅ LISTA FINAL COMPLETA:");
+        backgrounds.forEach((background, index) => {
+          const source = mockIndices.includes(background.index) ? "📋" : "🌐";
+          console.log(`   ${index + 1}. ${source} ${background.name}`);
+        });
         console.log("===============================================");
         return backgrounds;
       } catch (error) {
@@ -467,7 +496,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     error: racesError,
   } = useRacesQuery();
 
-  // 🎯 BUSCAR SUBRAÇAS BASEADO NA RAÇA SELECIONADA
   const {
     data: subracesData = [],
     isLoading: isLoadingSubraces,
@@ -480,7 +508,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     error: classesError,
   } = useClassesQuery();
 
-  // 🎯 BUSCAR SUBCLASSES BASEADO NA CLASSE SELECIONADA
   const {
     data: subclassesData = [],
     isLoading: isLoadingSubclasses,
@@ -500,30 +527,144 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   } = useSpellsQuery(characterData.isSpellcaster, characterData.selectedClass?.index);
 
   // ===========================
-  // CHARACTER DATA MANAGEMENT
+  // COMPUTED VALUES
+  // ===========================
+
+  const isLoading = useMemo(() => {
+    return isLoadingRaces || isLoadingClasses || isLoadingBackgrounds || 
+           (characterData.selectedRace && isLoadingSubraces) ||
+           (characterData.selectedClass && isLoadingSubclasses) ||
+           (characterData.isSpellcaster && isLoadingSpells);
+  }, [
+    isLoadingRaces, 
+    isLoadingClasses, 
+    isLoadingBackgrounds, 
+    isLoadingSubraces, 
+    isLoadingSubclasses, 
+    isLoadingSpells,
+    characterData.selectedRace,
+    characterData.selectedClass,
+    characterData.isSpellcaster
+  ]);
+
+  // Filtered data based on search
+  const filteredRaces = useMemo(() => {
+    if (!debouncedRaceSearch) return racesData;
+    return racesData.filter(race =>
+      race.name.toLowerCase().includes(debouncedRaceSearch.toLowerCase())
+    );
+  }, [racesData, debouncedRaceSearch]);
+
+  const filteredClasses = useMemo(() => {
+    if (!debouncedClassSearch) return classesData;
+    return classesData.filter(cls =>
+      cls.name.toLowerCase().includes(debouncedClassSearch.toLowerCase())
+    );
+  }, [classesData, debouncedClassSearch]);
+
+  const filteredSpells = useMemo(() => {
+    if (!debouncedSpellSearch) return spellsData;
+    return spellsData.filter(spell =>
+      spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase())
+    );
+  }, [spellsData, debouncedSpellSearch]);
+
+  // Current step data
+  const currentStepData = useMemo(() => {
+    return steps[currentStep];
+  }, [steps, currentStep]);
+
+  // Progress calculation
+  const progress = useMemo(() => {
+    const completedSteps = steps.filter(step => step.isCompleted).length;
+    return Math.round((completedSteps / steps.length) * 100);
+  }, [steps]);
+
+  // Spell information calculation
+  const spellInfo = useMemo(() => {
+    if (!characterData.selectedClass?.spellcasting) {
+      return {
+        isSpellcaster: false,
+        spellcastingAbility: null,
+        maxSpellLevel: 0,
+        startingCantrips: 0,
+        startingSpells: 0,
+      };
+    }
+
+    const spellcasting = characterData.selectedClass.spellcasting;
+    return {
+      isSpellcaster: true,
+      spellcastingAbility: spellcasting.spellcasting_ability,
+      maxSpellLevel: characterData.level >= 17 ? 9 : characterData.level >= 15 ? 8 : characterData.level >= 13 ? 7 : characterData.level >= 11 ? 6 : characterData.level >= 9 ? 5 : characterData.level >= 7 ? 4 : characterData.level >= 5 ? 3 : characterData.level >= 3 ? 2 : 1,
+      startingCantrips: characterData.level >= 10 ? 4 : characterData.level >= 4 ? 3 : 2,
+      startingSpells: characterData.level + 1,
+    };
+  }, [characterData.selectedClass, characterData.level]);
+
+  // ===========================
+  // CHARACTER DATA UPDATES
   // ===========================
 
   const updateCharacterData = useCallback((updates: Partial<CharacterCreationData>) => {
-    console.log("🔄 ===== ATUALIZANDO DADOS DO PERSONAGEM =====");
-    console.log("📝 Atualizações recebidas:", Object.keys(updates));
-    
-    // Log específico para seleção de raça
-    if (updates.selectedRace) {
-      console.log(`🧝 Nova raça selecionada: ${updates.selectedRace.name} (${updates.selectedRace.index})`);
-      console.log("🔍 Isso deve triggerar busca de subraças...");
-    }
-    
-    // Log específico para seleção de classe
-    if (updates.selectedClass) {
-      console.log(`⚔️ Nova classe selecionada: ${updates.selectedClass.name} (${updates.selectedClass.index})`);
-      console.log("🔍 Isso deve triggerar busca de subclasses...");
-    }
-    
+    setCharacterData(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  const updateCharacterField = useCallback(<K extends keyof CharacterCreationData>(
+    field: K,
+    value: CharacterCreationData[K]
+  ) => {
+    setCharacterData(prev => ({ ...prev, [field]: value }));
+  }, []);
+
+  // Ability Scores
+  const updateAbilityScore = useCallback((ability: keyof AbilityScores, value: number) => {
+    setCharacterData(prev => ({
+      ...prev,
+      abilityScores: {
+        ...prev.abilityScores,
+        [ability]: Math.max(1, Math.min(20, value)),
+      },
+    }));
+  }, []);
+
+  // Skills
+  const toggleSkill = useCallback((skillKey: string) => {
     setCharacterData(prev => {
-      const newData = { ...prev, ...updates };
-      console.log("✅ Dados atualizados com sucesso");
-      console.log("===============================================");
-      return newData;
+      const isSelected = prev.selectedSkills.includes(skillKey);
+      
+      if (isSelected) {
+        return {
+          ...prev,
+          selectedSkills: prev.selectedSkills.filter(s => s !== skillKey),
+        };
+      } else if (prev.selectedSkills.length < prev.availableSkillChoices) {
+        return {
+          ...prev,
+          selectedSkills: [...prev.selectedSkills, skillKey],
+        };
+      }
+      
+      return prev;
+    });
+  }, []);
+
+  // Spells
+  const toggleSpell = useCallback((spell: DndSpell) => {
+    setCharacterData(prev => {
+      const isSelected = prev.selectedSpells.some(s => s.index === spell.index);
+      
+      if (isSelected) {
+        return {
+          ...prev,
+          selectedSpells: prev.selectedSpells.filter(s => s.index !== spell.index),
+        };
+      } else {
+        return {
+          ...prev,
+          selectedSpells: [...prev.selectedSpells, spell],
+        };
+      }
     });
   }, []);
 
@@ -536,12 +677,19 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, []);
 
   const getCombinedAbilityBonuses = useMemo(() => {
-    const bonuses: Record<string, number> = {};
+    const bonuses: Record<string, number> = {
+      strength: 0,
+      dexterity: 0,
+      constitution: 0,
+      intelligence: 0,
+      wisdom: 0,
+      charisma: 0,
+    };
 
     // Race bonuses
     if (characterData.selectedRace) {
       characterData.selectedRace.ability_bonuses.forEach(bonus => {
-        const key = bonus.ability_score.index;
+        const key = bonus.ability_score.index as keyof AbilityScores;
         bonuses[key] = (bonuses[key] || 0) + bonus.bonus;
       });
     }
@@ -549,7 +697,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     // Subrace bonuses
     if (characterData.selectedSubrace) {
       characterData.selectedSubrace.ability_bonuses.forEach(bonus => {
-        const key = bonus.ability_score.index;
+        const key = bonus.ability_score.index as keyof AbilityScores;
         bonuses[key] = (bonuses[key] || 0) + bonus.bonus;
       });
     }
@@ -557,84 +705,71 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return bonuses;
   }, [characterData.selectedRace, characterData.selectedSubrace]);
 
-  const calculateHitPoints = useCallback((constitution: number, level: number, hitDie: number): number => {
+  const calculateHitPoints = useCallback((): number => {
+    if (!characterData.selectedClass) return 0;
+    
+    const constitution = characterData.abilityScores.constitution;
+    const level = characterData.level;
+    const hitDie = characterData.selectedClass.hit_die;
+    
     const conModifier = getAbilityModifier(constitution);
-    const baseHP = hitDie + conModifier;
-    const additionalHP = (level - 1) * (Math.floor(hitDie / 2) + 1 + conModifier);
+    const baseHP = hitDie + conModifier; // Max HP at level 1
+    const additionalHP = (level - 1) * (Math.floor(hitDie / 2) + 1 + conModifier); // Average HP per level after 1st
+    
     return Math.max(1, baseHP + additionalHP);
-  }, [getAbilityModifier]);
+  }, [characterData.selectedClass, characterData.abilityScores.constitution, characterData.level, getAbilityModifier]);
 
-  const calculateArmorClass = useCallback((dexterity: number): number => {
+  const calculateArmorClass = useCallback((): number => {
+    const dexterity = characterData.abilityScores.dexterity;
     const dexModifier = getAbilityModifier(dexterity);
-    return 10 + dexModifier;
-  }, [getAbilityModifier]);
+    return 10 + dexModifier; // Base AC without armor
+  }, [characterData.abilityScores.dexterity, getAbilityModifier]);
 
-  const getSpellcastingAbility = useCallback((classIndex: string): string | null => {
-    const spellcastingAbilities: Record<string, string> = {
-      'wizard': 'int',
-      'sorcerer': 'cha',
-      'warlock': 'cha',
-      'bard': 'cha',
-      'cleric': 'wis',
-      'druid': 'wis',
-      'ranger': 'wis',
-      'paladin': 'cha',
+  const getSpellcastingAbility = useCallback((): keyof AbilityScores | null => {
+    if (!characterData.selectedClass?.spellcasting) return null;
+    
+    const spellcastingAbilityMap: Record<string, keyof AbilityScores> = {
+      'int': 'intelligence',
+      'wis': 'wisdom', 
+      'cha': 'charisma',
     };
-    return spellcastingAbilities[classIndex] || null;
-  }, []);
+    
+    const abilityIndex = characterData.selectedClass.spellcasting.spellcasting_ability.index;
+    return spellcastingAbilityMap[abilityIndex] || null;
+  }, [characterData.selectedClass]);
 
   // ===========================
   // SUBRACE & SUBCLASS FUNCTIONS
   // ===========================
 
-  const getAvailableSubraces = useMemo(() => {
+  const getAvailableSubraces = useCallback((): DndSubrace[] => {
     if (!characterData.selectedRace) {
-      console.log("🔍 Nenhuma raça selecionada para buscar subraças");
       return [];
     }
     
-    console.log(`🔍 Buscando subraças para raça: ${characterData.selectedRace.name} (${characterData.selectedRace.index})`);
-    console.log(`📊 Dados de subraças disponíveis: ${subracesData.length} itens`);
-    
-    const availableSubraces = subracesData.filter(subrace => 
+    return subracesData.filter(subrace => 
       subrace.race.index === characterData.selectedRace?.index
     );
-    
-    console.log(`✅ Subraças filtradas para ${characterData.selectedRace.name}: ${availableSubraces.length}`);
-    if (availableSubraces.length > 0) {
-      console.log("📋 Lista:", availableSubraces.map(sr => `${sr.name} (${sr.index})`).join(", "));
-    }
-    
-    return availableSubraces;
   }, [characterData.selectedRace, subracesData]);
 
-  const getAvailableSubclasses = useMemo(() => {
+  const getAvailableSubclasses = useCallback((): DndSubclass[] => {
     if (!characterData.selectedClass) {
-      console.log("🔍 Nenhuma classe selecionada para buscar subclasses");
       return [];
     }
     
-    console.log(`🔍 Buscando subclasses para classe: ${characterData.selectedClass.name} (${characterData.selectedClass.index})`);
-    console.log(`📊 Dados de subclasses disponíveis: ${subclassesData.length} itens`);
-    
-    const availableSubclasses = subclassesData.filter(subclass => 
+    return subclassesData.filter(subclass => 
       subclass.class.index === characterData.selectedClass?.index
     );
-    
-    console.log(`✅ Subclasses filtradas para ${characterData.selectedClass.name}: ${availableSubclasses.length}`);
-    if (availableSubclasses.length > 0) {
-      console.log("📋 Lista:", availableSubclasses.map(sc => `${sc.name} (${sc.index})`).join(", "));
-    }
-    
-    return availableSubclasses;
   }, [characterData.selectedClass, subclassesData]);
 
-  const needsSubrace = useMemo(() => {
-    return characterData.selectedRace && 
-      ['elf', 'dwarf', 'halfling', 'gnome'].includes(characterData.selectedRace.index);
-  }, [characterData.selectedRace]);
+  const needsSubrace = useCallback((): boolean => {
+    if (!characterData.selectedRace) return false;
+    
+    const availableSubraces = getAvailableSubraces();
+    return availableSubraces.length > 0;
+  }, [characterData.selectedRace, getAvailableSubraces]);
 
-  const needsSubclass = useMemo(() => {
+  const needsSubclass = useCallback((): boolean => {
     if (!characterData.selectedClass) return false;
     
     const subclassLevels: Record<string, number> = {
@@ -652,111 +787,82 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       'bard': 3,
     };
     
-    const requiredLevel = subclassLevels[characterData.selectedClass.index] || 1;
+    const requiredLevel = subclassLevels[characterData.selectedClass.index] || 3;
     return characterData.level >= requiredLevel;
   }, [characterData.selectedClass, characterData.level]);
 
-  const getAvailableSkills = useMemo(() => {
-    if (!characterData.selectedClass) return [];
+  const getAvailableSkills = useCallback(() => {
+    if (!characterData.selectedClass) return SKILLS;
     
-    // Get class skill proficiencies
-    const classSkills = characterData.selectedClass.proficiency_choices
-      .find(choice => choice.type === "proficiencies")?.from.options
-      .map(option => option.item.index) || [];
+    // Retorna skills baseadas nas opções de proficiência da classe
+    const skillOptions = characterData.selectedClass.proficiency_choices?.find(
+      choice => choice.type === "proficiencies"
+    );
     
-    return classSkills;
+    if (!skillOptions) return SKILLS;
+    
+    const availableSkillIndices = skillOptions.from.options
+      .filter(option => option.option_type === "reference")
+      .map(option => option.item.index)
+      .filter(index => index.startsWith("skill-"));
+    
+    return SKILLS.filter(skill => 
+      availableSkillIndices.includes(`skill-${skill.key}`)
+    );
   }, [characterData.selectedClass]);
 
-  const getSkillChoices = useMemo(() => {
+  const getSkillChoices = useCallback((): number => {
     if (!characterData.selectedClass) return 0;
     
-    const skillChoice = characterData.selectedClass.proficiency_choices
-      .find(choice => choice.type === "proficiencies");
+    const skillChoice = characterData.selectedClass.proficiency_choices?.find(
+      choice => choice.type === "proficiencies"
+    );
     
-    return skillChoice?.choose || 0;
+    return skillChoice?.choose || 2;
   }, [characterData.selectedClass]);
 
   // ===========================
-  // VALIDATION
+  // STEP VALIDATION
   // ===========================
 
-  const validateStep = useCallback(
-    (stepId: string): boolean => {
-      switch (stepId) {
-        case "basic-info":
-          const hasBasicInfo = !!(
-            characterData.name.trim() &&
-            characterData.selectedRace &&
-            characterData.selectedClass &&
-            characterData.selectedBackground
-          );
+  const validateStep = useCallback((stepId: string): boolean => {
+    switch (stepId) {
+      case "basic-info":
+        return !!(
+          characterData.name.trim() &&
+          characterData.selectedRace &&
+          characterData.selectedClass &&
+          characterData.selectedBackground
+        );
 
-          if (!hasBasicInfo) return false;
+      case "ability-scores":
+        const totalPoints = Object.values(characterData.abilityScores).reduce((sum, score) => sum + score, 0);
+        return characterData.abilityMethod === "standard" ? totalPoints === 75 : totalPoints >= 60;
 
-          const hasValidLevel = characterData.level >= 1 && characterData.level <= 20;
-          if (!hasValidLevel) return false;
+      case "skills":
+        return characterData.selectedSkills.length === characterData.availableSkillChoices;
 
-          const raceNeedsSubrace = characterData.selectedRace && 
-            ['elf', 'dwarf', 'halfling', 'gnome'].includes(characterData.selectedRace.index);
-          
-          if (raceNeedsSubrace && !characterData.selectedSubrace) {
-            return false;
-          }
+      case "equipment":
+        return characterData.hitPoints > 0;
 
-          if (characterData.selectedClass) {
-            const subclassLevels: Record<string, number> = {
-              'cleric': 1,
-              'sorcerer': 1,
-              'warlock': 1,
-              'wizard': 2,
-              'druid': 2,
-              'fighter': 3,
-              'monk': 3,
-              'paladin': 3,
-              'ranger': 3,
-              'rogue': 3,
-              'barbarian': 3,
-              'bard': 3,
-            };
-            
-            const requiredSubclassLevel = subclassLevels[characterData.selectedClass.index] || 1;
-            const needsSubclass = characterData.level >= requiredSubclassLevel;
-            
-            if (needsSubclass && !characterData.selectedSubclass) {
-              return false;
-            }
-          }
+      case "spells":
+        if (!characterData.isSpellcaster) return true;
+        return characterData.selectedSpells.length > 0;
 
-          return true;
-          
-        case "ability-scores":
-          const scores = Object.values(characterData.abilityScores);
-          return scores.every(score => score >= 8 && score <= 15);
-          
-        case "skills":
-          return characterData.selectedSkills.length >= characterData.availableSkillChoices;
-          
-        case "equipment":
-          return characterData.hitPoints > 0;
-          
-        case "spells":
-          return !characterData.isSpellcaster || characterData.selectedSpells.length > 0;
-          
-        case "personality":
-          return (
-            characterData.personalityTraits.length > 0 &&
-            characterData.ideals.length > 0
-          );
-          
-        default:
-          return false;
-      }
-    },
-    [characterData]
-  );
+      case "personality":
+        return (
+          characterData.personalityTraits.length > 0 &&
+          characterData.ideals.length > 0 &&
+          characterData.bonds.length > 0 &&
+          characterData.flaws.length > 0
+        );
+
+      default:
+        return false;
+    }
+  }, [characterData]);
 
   const validateCurrentStep = useCallback((): boolean => {
-    const currentStepData = steps[currentStep];
     return currentStepData ? validateStep(currentStepData.id) : false;
   }, [currentStep, steps, validateStep]);
 
@@ -903,84 +1009,58 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [racesError, classesError, backgroundsError, spellsError, subracesError, subclassesError]);
 
   // ===========================
-  // SPELL INFO CALCULATION
+  // AUTO-UPDATE EFFECT FOR CLASS CHANGES
   // ===========================
 
-  const spellInfo = useMemo(() => {
-    if (!characterData.isSpellcaster || !characterData.selectedClass) {
-      return {
-        maxSpellLevel: 0,
-        startingCantrips: 0,
-        startingSpells: 0,
-        availableCantrips: [],
-        availableLevelSpells: [],
-      };
+  useEffect(() => {
+    if (characterData.selectedClass) {
+      const isSpellcaster = !!characterData.selectedClass.spellcasting;
+      const skillChoices = characterData.selectedClass.proficiency_choices?.[0]?.choose || 2;
+      
+      setCharacterData(prev => ({
+        ...prev,
+        isSpellcaster,
+        spellcastingAbility: isSpellcaster ? characterData.selectedClass?.spellcasting?.spellcasting_ability || null : null,
+        availableSkillChoices: skillChoices,
+        selectedSpells: isSpellcaster ? prev.selectedSpells : [],
+      }));
     }
-
-    // Spell progression by class and level
-    const spellProgression: Record<string, { maxLevel: number; cantrips: number; spells: number }> = {
-      'wizard': { maxLevel: 1, cantrips: 3, spells: 6 },
-      'sorcerer': { maxLevel: 1, cantrips: 4, spells: 2 },
-      'warlock': { maxLevel: 1, cantrips: 2, spells: 1 },
-      'bard': { maxLevel: 1, cantrips: 2, spells: 4 },
-      'cleric': { maxLevel: 1, cantrips: 3, spells: 2 },
-      'druid': { maxLevel: 1, cantrips: 2, spells: 2 },
-      'ranger': { maxLevel: 0, cantrips: 0, spells: 0 },
-      'paladin': { maxLevel: 0, cantrips: 0, spells: 0 },
-    };
-
-    const classInfo = spellProgression[characterData.selectedClass.index] || 
-      { maxLevel: 0, cantrips: 0, spells: 0 };
-
-    const availableCantrips = spellsData.filter(spell => 
-      spell.level === 0 && 
-      spell.classes.some(cls => cls.index === characterData.selectedClass?.index)
-    );
-
-    const availableLevelSpells = spellsData.filter(spell => 
-      spell.level > 0 && 
-      spell.level <= classInfo.maxLevel &&
-      spell.classes.some(cls => cls.index === characterData.selectedClass?.index)
-    );
-
-    return {
-      maxSpellLevel: classInfo.maxLevel,
-      startingCantrips: classInfo.cantrips,
-      startingSpells: classInfo.spells,
-      availableCantrips,
-      availableLevelSpells,
-    };
-  }, [characterData.selectedClass, characterData.isSpellcaster, spellsData]);
+  }, [characterData.selectedClass]);
 
   // ===========================
-  // CONTEXT VALUE - COMPLETO
+  // RETURN CONTEXT VALUE
   // ===========================
 
   return {
-    // Step Management
+    // Step management
     currentStep,
     steps,
+    currentStepData,
+    progress,
     nextStep,
     prevStep,
     goToStep,
+    canProceed,
 
-    // Character Data
+    // Character data
     characterData,
     updateCharacterData,
+    updateCharacterField,
+    updateAbilityScore,
+    toggleSkill,
+    toggleSpell,
 
-    // Loading States
-    loading,
-    error,
-
-    // D&D Data
-    races: racesData,
-    classes: classesData,
-    backgrounds: backgroundsData,
-    spells: spellsData,
-    subclasses: subclassesData,
+    // Data from API
+    races: filteredRaces,
     subraces: subracesData,
+    classes: filteredClasses,
+    subclasses: subclassesData,
+    backgrounds: backgroundsData,
+    spells: filteredSpells,
 
-    // Individual Loading States
+    // Loading states
+    isLoading,
+    loading,
     isLoadingRaces,
     isLoadingClasses,
     isLoadingBackgrounds,
@@ -988,26 +1068,46 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     isLoadingSubclasses,
     isLoadingSubraces,
 
-    // Search Functionality
-    raceSearch: debouncedRaceSearch,
+    // Search
+    raceSearchTerm,
+    setRaceSearchTerm,
+    classSearchTerm,
+    setClassSearchTerm,
+    spellSearchTerm,
+    setSpellSearchTerm,
+    raceSearch: raceSearchTerm,
     setRaceSearch: setRaceSearchTerm,
-    classSearch: debouncedClassSearch,
+    classSearch: classSearchTerm,
     setClassSearch: setClassSearchTerm,
-    spellSearch: debouncedSpellSearch,
+    spellSearch: spellSearchTerm,
     setSpellSearch: setSpellSearchTerm,
+
+    // Actions
+    resetCharacter,
+    createCharacter,
 
     // Validation
     validateStep,
-    isStepValid: validateStep,
     validateCurrentStep,
-    canProceed,
+    isStepValid: validateStep,
 
-    // Utility Functions
+    // Utility functions
+    calculateModifier: (score: number) => Math.floor((score - 10) / 2),
     getCombinedAbilityBonuses,
     getAbilityModifier,
     calculateHitPoints,
     calculateArmorClass,
     getSpellcastingAbility,
+    
+    // Subrace/Subclass Functions
+    getAvailableSubraces,
+    getAvailableSubclasses,
+    needsSubrace,
+    needsSubclass,
+    getAvailableSkills,
+    getSkillChoices,
+    
+    // Additional Utility Functions
     getProficiencyBonus: (level: number) => Math.ceil(level / 4) + 1,
     getSkillModifier: (skill: string, scores: AbilityScores, isProficient = false) => {
       const skillInfo = SKILLS.find(s => s.key === skill);
@@ -1019,30 +1119,27 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       
       return abilityMod + profBonus;
     },
-
-    // Subrace/Subclass Functions
-    getAvailableSubraces,
-    getAvailableSubclasses,
-    getSubraceAbilityBonuses: getCombinedAbilityBonuses,
-    getSubclassFeatures: (subclassIndex: string) => {
-      const subclass = subclassesData.find(sc => sc.index === subclassIndex);
-      return subclass?.subclass_levels.find(level => level.level <= characterData.level)?.features || [];
-    },
-    needsSubclass,
-    needsSubrace,
-    getAvailableSkills,
-    getSkillChoices,
-
-    // Actions
-    resetCharacter,
-    createCharacter,
-
-    // Additional Utility Functions
     getSpellSaveDC: (spellcastingMod: number, proficiencyBonus: number) => 8 + spellcastingMod + proficiencyBonus,
     getSpellAttackBonus: (spellcastingMod: number, proficiencyBonus: number) => spellcastingMod + proficiencyBonus,
     getCarryingCapacity: (strength: number) => strength * 15,
     getInitiativeModifier: (dexModifier: number) => dexModifier,
     generateRandomAbilityScores: () => {
+      const rollStat = () => {
+        const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
+        rolls.sort((a, b) => b - a);
+        return rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
+      };
+      
+      return {
+        strength: rollStat(),
+        dexterity: rollStat(),
+        constitution: rollStat(),
+        intelligence: rollStat(),
+        wisdom: rollStat(),
+        charisma: rollStat(),
+      };
+    },
+    rollAbilityScores: () => {
       const rollStat = () => {
         const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
         rolls.sort((a, b) => b - a);

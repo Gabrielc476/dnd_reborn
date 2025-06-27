@@ -8,6 +8,7 @@ import { DndRace, DndSubrace, DndClass, DndSubclass, DndBackground, DndSpell } f
 // 🎯 IMPORTAÇÕES DOS DADOS MOCK EXISTENTES
 import { mockSubraces } from "@/data/mockSubRaces";
 import { mockSubclasses } from "@/data/mockSubClasses";
+import { mockBackgrounds } from "@/data/mockBackgrounds";
 
 // ===========================
 // CONFIGURAÇÃO DA API
@@ -204,17 +205,12 @@ interface DndApiSubclass {
     }>;
   }>;
   spells?: Array<{
-    prerequisites: Array<{
+    level: number;
+    spells: Array<{
       index: string;
-      type: string;
       name: string;
       url: string;
     }>;
-    spell: {
-      index: string;
-      name: string;
-      url: string;
-    };
   }>;
   url: string;
 }
@@ -227,14 +223,20 @@ interface DndApiBackground {
     name: string;
     url: string;
   }>;
-  language_options: {
+  language_options?: {
     choose: number;
     type: string;
-    from: Array<{
-      index: string;
-      name: string;
-      url: string;
-    }>;
+    from: {
+      option_set_type: string;
+      options: Array<{
+        option_type: string;
+        item: {
+          index: string;
+          name: string;
+          url: string;
+        };
+      }>;
+    };
   };
   starting_equipment: Array<{
     equipment: {
@@ -244,36 +246,67 @@ interface DndApiBackground {
     };
     quantity: number;
   }>;
+  starting_equipment_options?: Array<{
+    desc: string;
+    choose: number;
+    type: string;
+    from: {
+      option_set_type: string;
+      options: Array<{
+        option_type: string;
+        equipment: {
+          index: string;
+          name: string;
+          url: string;
+        };
+        quantity?: number;
+      }>;
+    };
+  }>;
   feature: {
     name: string;
     desc: string[];
   };
   personality_traits: {
     choose: number;
-    type: string;
-    from: string[];
+    from: {
+      options: Array<{
+        option_type: string;
+        string: string;
+      }>;
+    };
   };
   ideals: {
     choose: number;
-    type: string;
-    from: Array<{
-      desc: string;
-      alignments: Array<{
-        index: string;
-        name: string;
-        url: string;
+    from: {
+      options: Array<{
+        option_type: string;
+        desc?: string;
+        alignments?: Array<{
+          index: string;
+          name: string;
+          url: string;
+        }>;
       }>;
-    }>;
+    };
   };
   bonds: {
     choose: number;
-    type: string;
-    from: string[];
+    from: {
+      options: Array<{
+        option_type: string;
+        string: string;
+      }>;
+    };
   };
   flaws: {
     choose: number;
-    type: string;
-    from: string[];
+    from: {
+      options: Array<{
+        option_type: string;
+        string: string;
+      }>;
+    };
   };
   url: string;
 }
@@ -493,6 +526,54 @@ function mergeSubclasses(apiSubclasses: DndSubclass[], classIndex: string): DndS
 }
 
 /**
+ * 🎯 NOVA FUNÇÃO: Mescla backgrounds da API com dados dos arquivos mock
+ */
+function mergeBackgrounds(apiBackgrounds: DndBackground[]): DndBackground[] {
+  if (!USE_MOCK_DATA) return apiBackgrounds;
+
+  // Encontrar backgrounds que estão nos mocks mas não vieram da API
+  const apiIndices = apiBackgrounds.map(background => background.index);
+  const missingBackgrounds = mockBackgrounds.filter(
+    background => !apiIndices.includes(background.index)
+  );
+
+  if (DEBUG_API) {
+    console.log(`🔧 ===== PROCESSO DE MERGE - BACKGROUNDS =====`);
+    console.log("📥 DADOS RECEBIDOS DA API:");
+    if (apiBackgrounds.length > 0) {
+      apiBackgrounds.forEach((background, index) => {
+        console.log(`   ${index + 1}. 🌐 ${background.name} (${background.index})`);
+      });
+    } else {
+      console.log("   (Nenhum background da API)");
+    }
+    
+    console.log("📋 DADOS LOCAIS DISPONÍVEIS:");
+    if (mockBackgrounds.length > 0) {
+      mockBackgrounds.forEach((background, index) => {
+        console.log(`   ${index + 1}. 📋 ${background.name} (${background.index})`);
+      });
+    } else {
+      console.log("   (Nenhum background local)");
+    }
+    
+    console.log("➕ ADICIONANDO DOS DADOS LOCAIS:");
+    if (missingBackgrounds.length > 0) {
+      missingBackgrounds.forEach((background, index) => {
+        console.log(`   ${index + 1}. ✅ ${background.name} (${background.index})`);
+      });
+    } else {
+      console.log("   (Nenhum background adicionado)");
+    }
+    
+    console.log(`🎯 RESULTADO FINAL: ${apiBackgrounds.length + missingBackgrounds.length} backgrounds total`);
+    console.log("===============================================");
+  }
+
+  return [...apiBackgrounds, ...missingBackgrounds];
+}
+
+/**
  * Busca uma subraça nos dados mock
  */
 function findMockSubrace(subraceIndex: string): DndSubrace | undefined {
@@ -504,6 +585,13 @@ function findMockSubrace(subraceIndex: string): DndSubrace | undefined {
  */
 function findMockSubclass(subclassIndex: string): DndSubclass | undefined {
   return mockSubclasses.find(subclass => subclass.index === subclassIndex);
+}
+
+/**
+ * 🎯 NOVA FUNÇÃO: Busca um background nos dados mock
+ */
+function findMockBackground(backgroundIndex: string): DndBackground | undefined {
+  return mockBackgrounds.find(background => background.index === backgroundIndex);
 }
 
 // ===========================
@@ -555,8 +643,8 @@ class DndAPI {
       "Elf": "Elfo",
       "Gnome": "Gnomo",
       "Half-Elf": "Meio-Elfo",
-      "Half-Orc": "Meio-Orc",
       "Halfling": "Halfling",
+      "Half-Orc": "Meio-Orc",
       "Human": "Humano",
       "Tiefling": "Tiefling",
     };
@@ -581,162 +669,124 @@ class DndAPI {
     return translations[name] || name;
   }
 
-  private translateSchoolName(name: string): string {
+  private translateBackgroundName(name: string): string {
     const translations: Record<string, string> = {
-      "Abjuration": "Abjuração",
-      "Conjuration": "Conjuração",
-      "Divination": "Adivinhação",
-      "Enchantment": "Encantamento",
-      "Evocation": "Evocação",
-      "Illusion": "Ilusão",
-      "Necromancy": "Necromancia",
-      "Transmutation": "Transmutação",
+      "Acolyte": "Acólito",
+      "Criminal": "Criminoso",
+      "Folk Hero": "Herói do Povo",
+      "Noble": "Nobre",
+      "Sage": "Sábio",
+      "Soldier": "Soldado",
+      "Charlatan": "Charlatão",
+      "Entertainer": "Artista",
+      "Guild Artisan": "Artesão de Guilda",
+      "Hermit": "Eremita",
+      "Outlander": "Forasteiro",
+      "Sailor": "Marinheiro",
     };
     return translations[name] || name;
   }
 
-  private convertRaceData(apiRace: DndApiRace): DndRace {
+  private convertRaceData(data: DndApiRace): DndRace {
     return {
-      index: apiRace.index,
-      name: this.translateRaceName(apiRace.name),
-      speed: apiRace.speed,
-      ability_bonuses: apiRace.ability_bonuses.map(bonus => ({
-        ability_score: {
-          index: bonus.ability_score.index,
-          name: bonus.ability_score.name,
-          url: bonus.ability_score.url,
-        },
-        bonus: bonus.bonus,
-      })),
-      alignment: apiRace.alignment,
-      age: apiRace.age,
-      size: apiRace.size,
-      size_description: apiRace.size_description,
-      starting_proficiencies: apiRace.starting_proficiencies,
-      languages: apiRace.languages,
-      language_desc: apiRace.language_desc,
-      traits: apiRace.traits,
-      subraces: apiRace.subraces,
-      url: apiRace.url,
+      index: data.index,
+      name: this.translateRaceName(data.name),
+      speed: data.speed,
+      ability_bonuses: data.ability_bonuses,
+      alignment: data.alignment,
+      age: data.age,
+      size: data.size,
+      size_description: data.size_description,
+      starting_proficiencies: data.starting_proficiencies,
+      languages: data.languages,
+      language_desc: data.language_desc,
+      traits: data.traits,
+      subraces: data.subraces,
+      url: data.url,
     };
   }
 
-  private convertSubraceData(apiSubrace: DndApiSubrace): DndSubrace {
+  private convertSubraceData(data: DndApiSubrace): DndSubrace {
     return {
-      index: apiSubrace.index,
-      name: apiSubrace.name,
-      race: apiSubrace.race,
-      desc: apiSubrace.desc,
-      ability_bonuses: apiSubrace.ability_bonuses.map(bonus => ({
-        ability_score: {
-          index: bonus.ability_score.index,
-          name: bonus.ability_score.name,
-          url: bonus.ability_score.url,
-        },
-        bonus: bonus.bonus,
-      })),
-      starting_proficiencies: apiSubrace.starting_proficiencies,
-      languages: apiSubrace.languages,
-      racial_traits: apiSubrace.racial_traits,
-      url: apiSubrace.url,
+      index: data.index,
+      name: data.name,
+      race: data.race,
+      desc: data.desc,
+      ability_bonuses: data.ability_bonuses,
+      starting_proficiencies: data.starting_proficiencies,
+      languages: data.languages,
+      racial_traits: data.racial_traits,
+      url: data.url,
     };
   }
 
-  private convertClassData(apiClass: DndApiClass): DndClass {
+  private convertClassData(data: DndApiClass): DndClass {
     return {
-      index: apiClass.index,
-      name: this.translateClassName(apiClass.name),
-      hit_die: apiClass.hit_die,
-      proficiencies: apiClass.proficiencies,
-      proficiency_choices: apiClass.proficiency_choices.map(choice => ({
-        desc: choice.desc,
-        choose: choice.choose,
-        type: choice.type,
-        from: {
-          option_set_type: choice.from.option_set_type,
-          options: choice.from.options.map(option => ({
-            option_type: option.option_type,
-            item: option.item,
-          })),
-        },
-      })),
-      saving_throws: apiClass.saving_throws,
-      starting_equipment: apiClass.starting_equipment.map(item => ({
-        equipment: item.equipment,
-        quantity: item.quantity,
-      })),
-      class_levels: apiClass.class_levels,
-      multi_classing: {
-        prerequisites: apiClass.multi_classing.prerequisites,
-        proficiencies: apiClass.multi_classing.proficiencies,
-      },
-      subclasses: apiClass.subclasses,
-      spellcasting: apiClass.spellcasting ? {
-        level: apiClass.spellcasting.level,
-        spellcasting_ability: apiClass.spellcasting.spellcasting_ability,
-        info: apiClass.spellcasting.info,
-      } : undefined,
-      url: apiClass.url,
+      index: data.index,
+      name: this.translateClassName(data.name),
+      hit_die: data.hit_die,
+      proficiencies: data.proficiencies,
+      proficiency_choices: data.proficiency_choices,
+      saving_throws: data.saving_throws,
+      starting_equipment: data.starting_equipment,
+      class_levels: data.class_levels,
+      multi_classing: data.multi_classing,
+      subclasses: data.subclasses,
+      spellcasting: data.spellcasting,
+      url: data.url,
     };
   }
 
-  private convertSubclassData(apiSubclass: DndApiSubclass): DndSubclass {
+  private convertSubclassData(data: DndApiSubclass): DndSubclass {
     return {
-      index: apiSubclass.index,
-      name: apiSubclass.name,
-      class: apiSubclass.class,
-      subclass_flavor: apiSubclass.subclass_flavor,
-      desc: apiSubclass.desc,
-      subclass_levels: apiSubclass.subclass_levels,
-      spells: apiSubclass.spells,
-      url: apiSubclass.url,
+      index: data.index,
+      name: data.name,
+      class: data.class,
+      subclass_flavor: data.subclass_flavor,
+      desc: data.desc,
+      subclass_levels: data.subclass_levels,
+      spells: data.spells,
+      url: data.url,
     };
   }
 
-  private convertBackgroundData(apiBackground: DndApiBackground): DndBackground {
+  private convertBackgroundData(data: DndApiBackground): DndBackground {
     return {
-      index: apiBackground.index,
-      name: apiBackground.name,
-      starting_proficiencies: apiBackground.starting_proficiencies,
-      language_options: apiBackground.language_options,
-      starting_equipment: apiBackground.starting_equipment,
-      feature: apiBackground.feature,
-      personality_traits: apiBackground.personality_traits,
-      ideals: apiBackground.ideals,
-      bonds: apiBackground.bonds,
-      flaws: apiBackground.flaws,
-      url: apiBackground.url,
+      index: data.index,
+      name: this.translateBackgroundName(data.name),
+      starting_proficiencies: data.starting_proficiencies,
+      language_options: data.language_options,
+      starting_equipment: data.starting_equipment,
+      starting_equipment_options: data.starting_equipment_options,
+      feature: data.feature,
+      personality_traits: data.personality_traits,
+      ideals: data.ideals,
+      bonds: data.bonds,
+      flaws: data.flaws,
+      url: data.url,
     };
   }
 
-  private convertSpellData(apiSpell: DndApiSpell): DndSpell {
+  private convertSpellData(data: DndApiSpell): DndSpell {
     return {
-      index: apiSpell.index,
-      name: apiSpell.name,
-      desc: apiSpell.desc,
-      higher_level: apiSpell.higher_level,
-      range: apiSpell.range,
-      components: apiSpell.components,
-      material: apiSpell.material,
-      ritual: apiSpell.ritual,
-      duration: apiSpell.duration,
-      concentration: apiSpell.concentration,
-      casting_time: apiSpell.casting_time,
-      level: apiSpell.level,
-      attack_type: apiSpell.attack_type,
-      damage: apiSpell.damage,
-      school: {
-        index: apiSpell.school.index,
-        name: this.translateSchoolName(apiSpell.school.name),
-        url: apiSpell.school.url,
-      },
-      classes: apiSpell.classes.map(cls => ({
-        index: cls.index,
-        name: this.translateClassName(cls.name),
-        url: cls.url,
-      })),
-      subclasses: apiSpell.subclasses,
-      url: apiSpell.url,
+      index: data.index,
+      name: data.name,
+      desc: data.desc,
+      higher_level: data.higher_level,
+      range: data.range,
+      components: data.components,
+      material: data.material,
+      ritual: data.ritual,
+      duration: data.duration,
+      concentration: data.concentration,
+      casting_time: data.casting_time,
+      level: data.level,
+      attack_type: data.attack_type,
+      damage: data.damage,
+      school: data.school,
+      classes: data.classes,
+      subclasses: data.subclasses,
+      url: data.url,
     };
   }
 
@@ -783,7 +833,7 @@ class DndAPI {
       
       return subracesData.map(subrace => this.convertSubraceData(subrace));
     } catch (error) {
-      console.error("Erro ao buscar sub-raças:", error);
+      console.error("Erro ao buscar subraças:", error);
       throw error;
     }
   }
@@ -799,7 +849,7 @@ class DndAPI {
       });
       
       const apiSubraces = await Promise.all(subracePromises);
-      
+
       // 🎯 AQUI É A MUDANÇA PRINCIPAL: mesclar com dados mock
       const completeSubraces = mergeSubraces(apiSubraces, raceIndex);
       
@@ -951,7 +1001,7 @@ class DndAPI {
   }
 
   // ===========================
-  // MÉTODOS PÚBLICOS - BACKGROUNDS
+  // 🎯 MÉTODOS PÚBLICOS - BACKGROUNDS (MODIFICADOS COM MERGE)
   // ===========================
 
   async getBackgrounds(): Promise<DndBackground[]> {
@@ -964,7 +1014,12 @@ class DndAPI {
         backgroundsData.push(backgroundData);
       }
       
-      return backgroundsData.map(bg => this.convertBackgroundData(bg));
+      const apiBackgrounds = backgroundsData.map(bg => this.convertBackgroundData(bg));
+      
+      // 🎯 AQUI É A MUDANÇA PRINCIPAL: mesclar com dados mock
+      const completeBackgrounds = mergeBackgrounds(apiBackgrounds);
+      
+      return completeBackgrounds;
     } catch (error) {
       console.error("Erro ao buscar backgrounds:", error);
       throw error;
@@ -973,10 +1028,28 @@ class DndAPI {
 
   async getBackground(backgroundIndex: string): Promise<DndBackground> {
     try {
-      const backgroundData = await this.request<DndApiBackground>(`/backgrounds/${backgroundIndex}`);
-      return this.convertBackgroundData(backgroundData);
+      // Tentar buscar na API primeiro
+      const data = await this.request<DndApiBackground>(`/backgrounds/${backgroundIndex}`);
+      if (DEBUG_API) {
+        console.log(`🌐 Background '${backgroundIndex}' encontrado na API oficial`);
+      }
+      return this.convertBackgroundData(data);
     } catch (error) {
-      console.error(`Erro ao buscar background ${backgroundIndex}:`, error);
+      // Se não encontrou na API, buscar nos dados mock
+      if (USE_MOCK_DATA) {
+        const mockBackground = findMockBackground(backgroundIndex);
+        if (mockBackground) {
+          if (DEBUG_API) {
+            console.log(`📋 ===== BACKGROUND ENCONTRADO NOS DADOS LOCAIS =====`);
+            console.log(`🔍 Procurando: ${backgroundIndex}`);
+            console.log(`✅ Encontrado: ${mockBackground.name}`);
+            console.log("===============================================");
+          }
+          return mockBackground;
+        }
+      }
+      
+      console.error(`❌ Background '${backgroundIndex}' não encontrado nem na API nem nos dados locais`);
       throw error;
     }
   }
