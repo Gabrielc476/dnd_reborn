@@ -1,9 +1,13 @@
 // ===========================
-// D&D API SERVICE - VERSÃO MELHORADA COM RATE LIMITING E RETRY
+// D&D API SERVICE - VERSÃO COMPLETA COM DADOS MOCK INTEGRADOS
 // src/api/dndAPI.ts
 // ===========================
 
 import { DndRace, DndSubrace, DndClass, DndSubclass, DndBackground, DndSpell } from "@/types/characterCreation";
+
+// 🎯 IMPORTAÇÕES DOS DADOS MOCK EXISTENTES
+import { mockSubraces } from "@/data/mockSubRaces";
+import { mockSubclasses } from "@/data/mockSubClasses";
 
 // ===========================
 // CONFIGURAÇÃO DA API
@@ -18,6 +22,10 @@ const RATE_LIMIT = {
   retryDelayBase: 1000, // Delay base para retry (1 segundo)
   maxRetries: 3, // Máximo de tentativas
 };
+
+// 🎯 CONFIGURAÇÕES DOS DADOS MOCK
+const USE_MOCK_DATA = true; // Controla se deve usar dados dos arquivos mock
+const DEBUG_API = true; // 🎯 ATIVADO PARA DEBUG - Mude para false depois
 
 // ===========================
 // TIPOS DA API D&D
@@ -196,12 +204,17 @@ interface DndApiSubclass {
     }>;
   }>;
   spells?: Array<{
-    level: number;
-    spells: Array<{
+    prerequisites: Array<{
       index: string;
+      type: string;
       name: string;
       url: string;
     }>;
+    spell: {
+      index: string;
+      name: string;
+      url: string;
+    };
   }>;
   url: string;
 }
@@ -214,11 +227,15 @@ interface DndApiBackground {
     name: string;
     url: string;
   }>;
-  languages: Array<{
-    index: string;
-    name: string;
-    url: string;
-  }>;
+  language_options: {
+    choose: number;
+    type: string;
+    from: Array<{
+      index: string;
+      name: string;
+      url: string;
+    }>;
+  };
   starting_equipment: Array<{
     equipment: {
       index: string;
@@ -233,10 +250,12 @@ interface DndApiBackground {
   };
   personality_traits: {
     choose: number;
+    type: string;
     from: string[];
   };
   ideals: {
     choose: number;
+    type: string;
     from: Array<{
       desc: string;
       alignments: Array<{
@@ -248,10 +267,12 @@ interface DndApiBackground {
   };
   bonds: {
     choose: number;
+    type: string;
     from: string[];
   };
   flaws: {
     choose: number;
+    type: string;
     from: string[];
   };
   url: string;
@@ -299,17 +320,13 @@ interface DndApiSpell {
 }
 
 // ===========================
-// RATE LIMITING UTILITY
+// UTILITÁRIOS DE RATE LIMITING E RETRY
 // ===========================
 
 class RateLimiter {
-  private queue: Array<() => Promise<any>> = [];
-  private running: number = 0;
-  private maxConcurrent: number;
-
-  constructor(maxConcurrent: number = RATE_LIMIT.maxConcurrent) {
-    this.maxConcurrent = maxConcurrent;
-  }
+  private queue: (() => Promise<any>)[] = [];
+  private processing = false;
+  private activeRequests = 0;
 
   async add<T>(fn: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -326,62 +343,167 @@ class RateLimiter {
   }
 
   private async process() {
-    if (this.running >= this.maxConcurrent || this.queue.length === 0) {
+    if (this.processing || this.activeRequests >= RATE_LIMIT.maxConcurrent) {
       return;
     }
 
-    this.running++;
-    const fn = this.queue.shift()!;
+    this.processing = true;
 
-    try {
-      await fn();
-    } finally {
-      this.running--;
-      // Delay between requests
-      if (this.queue.length > 0) {
-        setTimeout(() => this.process(), RATE_LIMIT.delayBetweenRequests);
+    while (this.queue.length > 0 && this.activeRequests < RATE_LIMIT.maxConcurrent) {
+      const fn = this.queue.shift();
+      if (fn) {
+        this.activeRequests++;
+        fn().finally(() => {
+          this.activeRequests--;
+          this.process();
+        });
+        
+        // Delay entre requisições
+        if (this.queue.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, RATE_LIMIT.delayBetweenRequests));
+        }
       }
     }
+
+    this.processing = false;
+  }
+}
+
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = RATE_LIMIT.maxRetries): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries > 0) {
+      const delay = RATE_LIMIT.retryDelayBase * (RATE_LIMIT.maxRetries - retries + 1);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return retryWithBackoff(fn, retries - 1);
+    }
+    throw error;
   }
 }
 
 // ===========================
-// RETRY UTILITY COM EXPONENTIAL BACKOFF
+// 🎯 FUNÇÕES HELPER PARA DADOS MOCK
 // ===========================
 
-async function retryWithBackoff<T>(
-  fn: () => Promise<T>,
-  maxRetries: number = RATE_LIMIT.maxRetries,
-  baseDelay: number = RATE_LIMIT.retryDelayBase
-): Promise<T> {
-  let lastError: Error;
+/**
+ * Mescla subraças da API com dados dos arquivos mock
+ */
+function mergeSubraces(apiSubraces: DndSubrace[], raceIndex: string): DndSubrace[] {
+  if (!USE_MOCK_DATA) return apiSubraces;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error as Error;
+  // Buscar subraças desta raça nos dados mock
+  const mockSubracesForRace = mockSubraces.filter(
+    subrace => subrace.race.index === raceIndex
+  );
 
-      // Se não é um erro 429, não retry
-      if (!error.message.includes("429")) {
-        throw error;
-      }
+  // Encontrar subraças que estão nos mocks mas não vieram da API
+  const apiIndices = apiSubraces.map(subrace => subrace.index);
+  const missingSubraces = mockSubracesForRace.filter(
+    subrace => !apiIndices.includes(subrace.index)
+  );
 
-      // Se é a última tentativa, lança o erro
-      if (attempt === maxRetries) {
-        break;
-      }
-
-      // Calcula delay exponencial: baseDelay * 2^attempt + jitter
-      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
-      
-      console.warn(`Rate limited (429), retrying in ${Math.round(delay)}ms... (attempt ${attempt + 1}/${maxRetries + 1})`);
-      
-      await new Promise(resolve => setTimeout(resolve, delay));
+  if (DEBUG_API) {
+    console.log(`🔧 ===== PROCESSO DE MERGE - SUBRAÇAS ${raceIndex.toUpperCase()} =====`);
+    console.log("📥 DADOS RECEBIDOS DA API:");
+    if (apiSubraces.length > 0) {
+      apiSubraces.forEach((subrace, index) => {
+        console.log(`   ${index + 1}. 🌐 ${subrace.name} (${subrace.index})`);
+      });
+    } else {
+      console.log("   (Nenhuma subraça da API)");
     }
+    
+    console.log("📋 DADOS LOCAIS DISPONÍVEIS:");
+    if (mockSubracesForRace.length > 0) {
+      mockSubracesForRace.forEach((subrace, index) => {
+        console.log(`   ${index + 1}. 📋 ${subrace.name} (${subrace.index})`);
+      });
+    } else {
+      console.log("   (Nenhuma subraça local)");
+    }
+    
+    console.log("➕ ADICIONANDO DOS DADOS LOCAIS:");
+    if (missingSubraces.length > 0) {
+      missingSubraces.forEach((subrace, index) => {
+        console.log(`   ${index + 1}. ✅ ${subrace.name} (${subrace.index})`);
+      });
+    } else {
+      console.log("   (Nenhuma subraça adicionada)");
+    }
+    
+    console.log(`🎯 RESULTADO FINAL: ${apiSubraces.length + missingSubraces.length} subraças total`);
+    console.log("===============================================");
   }
 
-  throw lastError!;
+  return [...apiSubraces, ...missingSubraces];
+}
+
+/**
+ * Mescla subclasses da API com dados dos arquivos mock
+ */
+function mergeSubclasses(apiSubclasses: DndSubclass[], classIndex: string): DndSubclass[] {
+  if (!USE_MOCK_DATA) return apiSubclasses;
+
+  // Buscar subclasses desta classe nos dados mock
+  const mockSubclassesForClass = mockSubclasses.filter(
+    subclass => subclass.class.index === classIndex
+  );
+
+  // Encontrar subclasses que estão nos mocks mas não vieram da API
+  const apiIndices = apiSubclasses.map(subclass => subclass.index);
+  const missingSubclasses = mockSubclassesForClass.filter(
+    subclass => !apiIndices.includes(subclass.index)
+  );
+
+  if (DEBUG_API) {
+    console.log(`🔧 ===== PROCESSO DE MERGE - SUBCLASSES ${classIndex.toUpperCase()} =====`);
+    console.log("📥 DADOS RECEBIDOS DA API:");
+    if (apiSubclasses.length > 0) {
+      apiSubclasses.forEach((subclass, index) => {
+        console.log(`   ${index + 1}. 🌐 ${subclass.name} (${subclass.index})`);
+      });
+    } else {
+      console.log("   (Nenhuma subclasse da API)");
+    }
+    
+    console.log("📋 DADOS LOCAIS DISPONÍVEIS:");
+    if (mockSubclassesForClass.length > 0) {
+      mockSubclassesForClass.forEach((subclass, index) => {
+        console.log(`   ${index + 1}. 📋 ${subclass.name} (${subclass.index})`);
+      });
+    } else {
+      console.log("   (Nenhuma subclasse local)");
+    }
+    
+    console.log("➕ ADICIONANDO DOS DADOS LOCAIS:");
+    if (missingSubclasses.length > 0) {
+      missingSubclasses.forEach((subclass, index) => {
+        console.log(`   ${index + 1}. ✅ ${subclass.name} (${subclass.index})`);
+      });
+    } else {
+      console.log("   (Nenhuma subclasse adicionada)");
+    }
+    
+    console.log(`🎯 RESULTADO FINAL: ${apiSubclasses.length + missingSubclasses.length} subclasses total`);
+    console.log("===============================================");
+  }
+
+  return [...apiSubclasses, ...missingSubclasses];
+}
+
+/**
+ * Busca uma subraça nos dados mock
+ */
+function findMockSubrace(subraceIndex: string): DndSubrace | undefined {
+  return mockSubraces.find(subrace => subrace.index === subraceIndex);
+}
+
+/**
+ * Busca uma subclasse nos dados mock
+ */
+function findMockSubclass(subclassIndex: string): DndSubclass | undefined {
+  return mockSubclasses.find(subclass => subclass.index === subclassIndex);
 }
 
 // ===========================
@@ -423,7 +545,7 @@ class DndAPI {
   }
 
   // ===========================
-  // MÉTODOS DE CONVERSÃO (mantidos iguais)
+  // MÉTODOS DE CONVERSÃO
   // ===========================
 
   private translateRaceName(name: string): string {
@@ -478,7 +600,14 @@ class DndAPI {
       index: apiRace.index,
       name: this.translateRaceName(apiRace.name),
       speed: apiRace.speed,
-      ability_bonuses: apiRace.ability_bonuses,
+      ability_bonuses: apiRace.ability_bonuses.map(bonus => ({
+        ability_score: {
+          index: bonus.ability_score.index,
+          name: bonus.ability_score.name,
+          url: bonus.ability_score.url,
+        },
+        bonus: bonus.bonus,
+      })),
       alignment: apiRace.alignment,
       age: apiRace.age,
       size: apiRace.size,
@@ -498,7 +627,14 @@ class DndAPI {
       name: apiSubrace.name,
       race: apiSubrace.race,
       desc: apiSubrace.desc,
-      ability_bonuses: apiSubrace.ability_bonuses,
+      ability_bonuses: apiSubrace.ability_bonuses.map(bonus => ({
+        ability_score: {
+          index: bonus.ability_score.index,
+          name: bonus.ability_score.name,
+          url: bonus.ability_score.url,
+        },
+        bonus: bonus.bonus,
+      })),
       starting_proficiencies: apiSubrace.starting_proficiencies,
       languages: apiSubrace.languages,
       racial_traits: apiSubrace.racial_traits,
@@ -512,13 +648,34 @@ class DndAPI {
       name: this.translateClassName(apiClass.name),
       hit_die: apiClass.hit_die,
       proficiencies: apiClass.proficiencies,
-      proficiency_choices: apiClass.proficiency_choices,
+      proficiency_choices: apiClass.proficiency_choices.map(choice => ({
+        desc: choice.desc,
+        choose: choice.choose,
+        type: choice.type,
+        from: {
+          option_set_type: choice.from.option_set_type,
+          options: choice.from.options.map(option => ({
+            option_type: option.option_type,
+            item: option.item,
+          })),
+        },
+      })),
       saving_throws: apiClass.saving_throws,
-      starting_equipment: apiClass.starting_equipment,
+      starting_equipment: apiClass.starting_equipment.map(item => ({
+        equipment: item.equipment,
+        quantity: item.quantity,
+      })),
       class_levels: apiClass.class_levels,
-      multi_classing: apiClass.multi_classing,
+      multi_classing: {
+        prerequisites: apiClass.multi_classing.prerequisites,
+        proficiencies: apiClass.multi_classing.proficiencies,
+      },
       subclasses: apiClass.subclasses,
-      spellcasting: apiClass.spellcasting,
+      spellcasting: apiClass.spellcasting ? {
+        level: apiClass.spellcasting.level,
+        spellcasting_ability: apiClass.spellcasting.spellcasting_ability,
+        info: apiClass.spellcasting.info,
+      } : undefined,
       url: apiClass.url,
     };
   }
@@ -527,16 +684,28 @@ class DndAPI {
     return {
       index: apiSubclass.index,
       name: apiSubclass.name,
-      class: {
-        index: apiSubclass.class.index,
-        name: this.translateClassName(apiSubclass.class.name),
-        url: apiSubclass.class.url,
-      },
+      class: apiSubclass.class,
       subclass_flavor: apiSubclass.subclass_flavor,
       desc: apiSubclass.desc,
       subclass_levels: apiSubclass.subclass_levels,
       spells: apiSubclass.spells,
       url: apiSubclass.url,
+    };
+  }
+
+  private convertBackgroundData(apiBackground: DndApiBackground): DndBackground {
+    return {
+      index: apiBackground.index,
+      name: apiBackground.name,
+      starting_proficiencies: apiBackground.starting_proficiencies,
+      language_options: apiBackground.language_options,
+      starting_equipment: apiBackground.starting_equipment,
+      feature: apiBackground.feature,
+      personality_traits: apiBackground.personality_traits,
+      ideals: apiBackground.ideals,
+      bonds: apiBackground.bonds,
+      flaws: apiBackground.flaws,
+      url: apiBackground.url,
     };
   }
 
@@ -579,7 +748,6 @@ class DndAPI {
     try {
       const racesList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/races");
       
-      // Usar rate limiter para as requisições individuais
       const racesData: DndApiRace[] = [];
       for (const race of racesList.results) {
         const raceData = await this.request<DndApiRace>(`/races/${race.index}`);
@@ -607,7 +775,6 @@ class DndAPI {
     try {
       const subracesList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/subraces");
       
-      // Usar rate limiter para as requisições individuais
       const subracesData: DndApiSubrace[] = [];
       for (const subrace of subracesList.results) {
         const subraceData = await this.request<DndApiSubrace>(`/subraces/${subrace.index}`);
@@ -621,14 +788,61 @@ class DndAPI {
     }
   }
 
-  async getSubracesByRace(raceIndex: string): Promise<DndSubrace[]> {
+  // 🎯 MÉTODO MODIFICADO - SUBRAÇAS POR RAÇA COM DADOS MOCK
+  async getRaceSubraces(raceIndex: string): Promise<DndSubrace[]> {
     try {
-      const allSubraces = await this.getSubraces();
-      return allSubraces.filter(subrace => subrace.race.index === raceIndex);
+      const data = await this.request<{results: {index: string, name: string, url: string}[]}>(`/races/${raceIndex}/subraces`);
+      
+      const subracePromises = data.results.map(async (subraceRef) => {
+        const subraceData = await this.request<DndApiSubrace>(`/subraces/${subraceRef.index}`);
+        return this.convertSubraceData(subraceData);
+      });
+      
+      const apiSubraces = await Promise.all(subracePromises);
+      
+      // 🎯 AQUI É A MUDANÇA PRINCIPAL: mesclar com dados mock
+      const completeSubraces = mergeSubraces(apiSubraces, raceIndex);
+      
+      return completeSubraces;
     } catch (error) {
-      console.error(`Erro ao buscar sub-raças da raça ${raceIndex}:`, error);
+      console.error(`Erro ao buscar subraças da raça ${raceIndex}:`, error);
       throw error;
     }
+  }
+
+  // 🎯 MÉTODO MODIFICADO - BUSCAR SUBRAÇA INDIVIDUAL COM FALLBACK PARA MOCK
+  async getSubrace(subraceIndex: string): Promise<DndSubrace> {
+    try {
+      // Tentar buscar na API primeiro
+      const data = await this.request<DndApiSubrace>(`/subraces/${subraceIndex}`);
+      if (DEBUG_API) {
+        console.log(`🌐 Subraça '${subraceIndex}' encontrada na API oficial`);
+      }
+      return this.convertSubraceData(data);
+    } catch (error) {
+      // Se não encontrou na API, buscar nos dados mock
+      if (USE_MOCK_DATA) {
+        const mockSubrace = findMockSubrace(subraceIndex);
+        if (mockSubrace) {
+          if (DEBUG_API) {
+            console.log(`📋 ===== SUBRAÇA ENCONTRADA NOS DADOS LOCAIS =====`);
+            console.log(`🔍 Procurando: ${subraceIndex}`);
+            console.log(`✅ Encontrada: ${mockSubrace.name}`);
+            console.log("===============================================");
+          }
+          return mockSubrace;
+        }
+      }
+      
+      console.error(`❌ Subraça '${subraceIndex}' não encontrada nem na API nem nos dados locais`);
+      throw error;
+    }
+  }
+
+  // 🎯 MÉTODO LEGADO PARA COMPATIBILIDADE - SUBSTITUI O EXISTENTE
+  async getSubracesByRace(raceIndex: string): Promise<DndSubrace[]> {
+    // Usar o novo método que tem dados mock
+    return this.getRaceSubraces(raceIndex);
   }
 
   // ===========================
@@ -639,7 +853,6 @@ class DndAPI {
     try {
       const classesList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/classes");
       
-      // Usar rate limiter para as requisições individuais
       const classesData: DndApiClass[] = [];
       for (const cls of classesList.results) {
         const classData = await this.request<DndApiClass>(`/classes/${cls.index}`);
@@ -667,7 +880,6 @@ class DndAPI {
     try {
       const subclassesList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/subclasses");
       
-      // Usar rate limiter para as requisições individuais
       const subclassesData: DndApiSubclass[] = [];
       for (const subcls of subclassesList.results) {
         const subclassData = await this.request<DndApiSubclass>(`/subclasses/${subcls.index}`);
@@ -681,14 +893,61 @@ class DndAPI {
     }
   }
 
-  async getSubclassesByClass(classIndex: string): Promise<DndSubclass[]> {
+  // 🎯 MÉTODO MODIFICADO - SUBCLASSES POR CLASSE COM DADOS MOCK
+  async getClassSubclasses(classIndex: string): Promise<DndSubclass[]> {
     try {
-      const allSubclasses = await this.getSubclasses();
-      return allSubclasses.filter(subclass => subclass.class.index === classIndex);
+      const data = await this.request<{results: {index: string, name: string, url: string}[]}>(`/classes/${classIndex}/subclasses`);
+      
+      const subclassPromises = data.results.map(async (subclassRef) => {
+        const subclassData = await this.request<DndApiSubclass>(`/subclasses/${subclassRef.index}`);
+        return this.convertSubclassData(subclassData);
+      });
+      
+      const apiSubclasses = await Promise.all(subclassPromises);
+      
+      // 🎯 AQUI É A MUDANÇA PRINCIPAL: mesclar com dados mock
+      const completeSubclasses = mergeSubclasses(apiSubclasses, classIndex);
+      
+      return completeSubclasses;
     } catch (error) {
       console.error(`Erro ao buscar subclasses da classe ${classIndex}:`, error);
       throw error;
     }
+  }
+
+  // 🎯 MÉTODO MODIFICADO - BUSCAR SUBCLASSE INDIVIDUAL COM FALLBACK PARA MOCK
+  async getSubclass(subclassIndex: string): Promise<DndSubclass> {
+    try {
+      // Tentar buscar na API primeiro
+      const data = await this.request<DndApiSubclass>(`/subclasses/${subclassIndex}`);
+      if (DEBUG_API) {
+        console.log(`🌐 Subclasse '${subclassIndex}' encontrada na API oficial`);
+      }
+      return this.convertSubclassData(data);
+    } catch (error) {
+      // Se não encontrou na API, buscar nos dados mock
+      if (USE_MOCK_DATA) {
+        const mockSubclass = findMockSubclass(subclassIndex);
+        if (mockSubclass) {
+          if (DEBUG_API) {
+            console.log(`📋 ===== SUBCLASSE ENCONTRADA NOS DADOS LOCAIS =====`);
+            console.log(`🔍 Procurando: ${subclassIndex}`);
+            console.log(`✅ Encontrada: ${mockSubclass.name}`);
+            console.log("===============================================");
+          }
+          return mockSubclass;
+        }
+      }
+      
+      console.error(`❌ Subclasse '${subclassIndex}' não encontrada nem na API nem nos dados locais`);
+      throw error;
+    }
+  }
+
+  // 🎯 MÉTODO LEGADO PARA COMPATIBILIDADE - SUBSTITUI O EXISTENTE
+  async getSubclassesByClass(classIndex: string): Promise<DndSubclass[]> {
+    // Usar o novo método que tem dados mock
+    return this.getClassSubclasses(classIndex);
   }
 
   // ===========================
@@ -699,26 +958,13 @@ class DndAPI {
     try {
       const backgroundsList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/backgrounds");
       
-      // Usar rate limiter para as requisições individuais
       const backgroundsData: DndApiBackground[] = [];
       for (const bg of backgroundsList.results) {
         const backgroundData = await this.request<DndApiBackground>(`/backgrounds/${bg.index}`);
         backgroundsData.push(backgroundData);
       }
       
-      return backgroundsData.map(bg => ({
-        index: bg.index,
-        name: bg.name,
-        starting_proficiencies: bg.starting_proficiencies,
-        languages: bg.languages,
-        starting_equipment: bg.starting_equipment,
-        feature: bg.feature,
-        personality_traits: bg.personality_traits,
-        ideals: bg.ideals,
-        bonds: bg.bonds,
-        flaws: bg.flaws,
-        url: bg.url,
-      }));
+      return backgroundsData.map(bg => this.convertBackgroundData(bg));
     } catch (error) {
       console.error("Erro ao buscar backgrounds:", error);
       throw error;
@@ -728,19 +974,7 @@ class DndAPI {
   async getBackground(backgroundIndex: string): Promise<DndBackground> {
     try {
       const backgroundData = await this.request<DndApiBackground>(`/backgrounds/${backgroundIndex}`);
-      return {
-        index: backgroundData.index,
-        name: backgroundData.name,
-        starting_proficiencies: backgroundData.starting_proficiencies,
-        languages: backgroundData.languages,
-        starting_equipment: backgroundData.starting_equipment,
-        feature: backgroundData.feature,
-        personality_traits: backgroundData.personality_traits,
-        ideals: backgroundData.ideals,
-        bonds: backgroundData.bonds,
-        flaws: backgroundData.flaws,
-        url: backgroundData.url,
-      };
+      return this.convertBackgroundData(backgroundData);
     } catch (error) {
       console.error(`Erro ao buscar background ${backgroundIndex}:`, error);
       throw error;
@@ -748,8 +982,25 @@ class DndAPI {
   }
 
   // ===========================
-  // MÉTODOS PÚBLICOS - SPELLS (MELHORADO)
+  // MÉTODOS PÚBLICOS - MAGIAS
   // ===========================
+
+  async getSpells(): Promise<DndSpell[]> {
+    try {
+      const spellsList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/spells");
+      
+      const spellsData: DndApiSpell[] = [];
+      for (const spell of spellsList.results) {
+        const spellData = await this.request<DndApiSpell>(`/spells/${spell.index}`);
+        spellsData.push(spellData);
+      }
+      
+      return spellsData.map(spell => this.convertSpellData(spell));
+    } catch (error) {
+      console.error("Erro ao buscar magias:", error);
+      throw error;
+    }
+  }
 
   async getSpell(spellIndex: string): Promise<DndSpell> {
     try {
@@ -761,69 +1012,26 @@ class DndAPI {
     }
   }
 
-  /**
-   * Busca magias de uma classe específica - MÉTODO MELHORADO
-   * Agora com rate limiting e processamento sequencial em lotes
-   */
-  async getSpellsByClass(classIndex: string): Promise<DndSpell[]> {
-    try {
-      const classData = await this.request<DndApiClass>(`/classes/${classIndex}`);
-      if (!classData.spellcasting) {
-        return []; // Classe não conjuradora
-      }
-      
-      const classSpells = await this.request<DndApiResponse<{index: string, name: string, url: string}>>(`/classes/${classIndex}/spells`);
-      
-      console.log(`📚 Carregando ${classSpells.results.length} magias para ${classIndex}...`);
-      
-      // Processar magias em lotes sequenciais para evitar rate limiting
-      const spellsData: DndApiSpell[] = [];
-      const batchSize = 10; // Processar em lotes de 10
-      
-      for (let i = 0; i < classSpells.results.length; i += batchSize) {
-        const batch = classSpells.results.slice(i, i + batchSize);
-        console.log(`📖 Processando lote ${Math.floor(i/batchSize) + 1}/${Math.ceil(classSpells.results.length/batchSize)}...`);
-        
-        // Processar cada spell do lote sequencialmente
-        for (const spell of batch) {
-          try {
-            const spellData = await this.request<DndApiSpell>(`/spells/${spell.index}`);
-            spellsData.push(spellData);
-          } catch (error) {
-            console.warn(`⚠️ Erro ao carregar magia ${spell.index}:`, error);
-            // Continuar com as outras magias mesmo se uma falhar
-          }
-        }
-      }
-      
-      console.log(`✅ ${spellsData.length} magias carregadas com sucesso para ${classIndex}`);
-      return spellsData.map(spell => this.convertSpellData(spell));
-      
-    } catch (error) {
-      console.error(`Erro ao buscar magias da classe ${classIndex}:`, error);
-      throw error;
-    }
-  }
-
-  /**
-   * Busca magias por nível - MÉTODO MELHORADO
-   */
   async getSpellsByLevel(level: number): Promise<DndSpell[]> {
     try {
       const spellsList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>(`/spells?level=${level}`);
       
       console.log(`📚 Carregando ${spellsList.results.length} magias de nível ${level}...`);
       
-      // Processar magias sequencialmente
       const spellsData: DndApiSpell[] = [];
-      for (const spell of spellsList.results) {
-        try {
-          const spellData = await this.request<DndApiSpell>(`/spells/${spell.index}`);
-          if (spellData.level === level) {
+      const batchSize = 10;
+      
+      for (let i = 0; i < spellsList.results.length; i += batchSize) {
+        const batch = spellsList.results.slice(i, i + batchSize);
+        console.log(`📖 Processando lote ${Math.floor(i/batchSize) + 1}/${Math.ceil(spellsList.results.length/batchSize)}...`);
+        
+        for (const spell of batch) {
+          try {
+            const spellData = await this.request<DndApiSpell>(`/spells/${spell.index}`);
             spellsData.push(spellData);
+          } catch (error) {
+            console.warn(`⚠️ Erro ao carregar magia ${spell.index}:`, error);
           }
-        } catch (error) {
-          console.warn(`⚠️ Erro ao carregar magia ${spell.index}:`, error);
         }
       }
       
@@ -836,25 +1044,19 @@ class DndAPI {
     }
   }
 
-  /**
-   * Busca todas as magias - MÉTODO MELHORADO
-   * Implementa paginação interna para evitar sobrecarregar a API
-   */
   async getAllSpells(): Promise<DndSpell[]> {
     try {
       const spellsList = await this.request<DndApiResponse<{index: string, name: string, url: string}>>("/spells");
       
       console.log(`📚 Carregando ${spellsList.results.length} magias...`);
       
-      // Processar magias em lotes sequenciais
       const spellsData: DndApiSpell[] = [];
-      const batchSize = 20; // Lotes maiores para todas as magias
+      const batchSize = 20;
       
       for (let i = 0; i < spellsList.results.length; i += batchSize) {
         const batch = spellsList.results.slice(i, i + batchSize);
         console.log(`📖 Processando lote ${Math.floor(i/batchSize) + 1}/${Math.ceil(spellsList.results.length/batchSize)}...`);
         
-        // Processar cada spell do lote
         for (const spell of batch) {
           try {
             const spellData = await this.request<DndApiSpell>(`/spells/${spell.index}`);
@@ -864,7 +1066,6 @@ class DndAPI {
           }
         }
         
-        // Pequena pausa entre lotes para ser gentil com a API
         if (i + batchSize < spellsList.results.length) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
@@ -879,9 +1080,10 @@ class DndAPI {
     }
   }
 
-  /**
-   * Testa a conectividade com a API
-   */
+  // ===========================
+  // MÉTODOS UTILITÁRIOS
+  // ===========================
+
   async healthCheck(): Promise<boolean> {
     try {
       await this.request("/");

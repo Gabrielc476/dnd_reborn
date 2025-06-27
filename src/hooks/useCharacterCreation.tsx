@@ -161,12 +161,18 @@ function useRacesQuery() {
     queryFn: async () => {
       try {
         const races = await dndAPI.getRaces();
-        console.log("✅ Raças carregadas da API oficial:", races.length);
+        console.log("🌐 ===== RAÇAS CARREGADAS DA API OFICIAL =====");
+        console.log(`📊 Total: ${races.length} raças`);
+        console.log("📋 Lista:", races.map(r => r.name).join(", "));
+        console.log("===============================================");
         return races;
       } catch (error) {
         console.error("❌ Erro ao carregar raças da API:", error);
-        console.log("🔄 Usando dados mock como fallback...");
+        console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
         const { mockRaces } = await import("@/data/mockRaces");
+        console.log(`📊 Total: ${mockRaces.length} raças dos dados locais`);
+        console.log("📋 Lista:", mockRaces.map(r => r.name).join(", "));
+        console.log("===============================================");
         return mockRaces;
       }
     },
@@ -181,21 +187,68 @@ function useSubracesQuery(enabled: boolean = true, raceIndex?: string) {
     queryFn: async () => {
       try {
         if (raceIndex) {
+          console.log(`🔍 ===== BUSCANDO SUBRAÇAS PARA ${raceIndex.toUpperCase()} =====`);
           const subraces = await dndAPI.getSubracesByRace(raceIndex);
-          console.log(`✅ Sub-raças da raça ${raceIndex} carregadas:`, subraces.length);
+          console.log(`📊 Total encontrado: ${subraces.length} subraças`);
+          
+          // Verificar quais vieram da API e quais dos mocks
+          const { mockSubraces } = await import("@/data/mockSubRaces");
+          const mockSubracesForRace = mockSubraces.filter(sr => sr.race.index === raceIndex);
+          const mockIndices = mockSubracesForRace.map(sr => sr.index);
+          
+          const fromAPI = subraces.filter(sr => !mockIndices.includes(sr.index));
+          const fromMock = subraces.filter(sr => mockIndices.includes(sr.index));
+          
+          console.log("📋 DETALHAMENTO POR FONTE:");
+          if (fromAPI.length > 0) {
+            console.log(`🌐 Da API oficial (${fromAPI.length}):`);
+            fromAPI.forEach((subrace, index) => {
+              console.log(`   ${index + 1}. ${subrace.name} (${subrace.index})`);
+            });
+          } else {
+            console.log("🌐 Da API oficial: Nenhuma");
+          }
+          
+          if (fromMock.length > 0) {
+            console.log(`📋 Dos dados locais (${fromMock.length}):`);
+            fromMock.forEach((subrace, index) => {
+              console.log(`   ${index + 1}. ${subrace.name} (${subrace.index})`);
+            });
+          } else {
+            console.log("📋 Dos dados locais: Nenhuma");
+          }
+          
+          console.log("✅ LISTA FINAL COMPLETA:");
+          subraces.forEach((subrace, index) => {
+            const source = mockIndices.includes(subrace.index) ? "📋" : "🌐";
+            console.log(`   ${index + 1}. ${source} ${subrace.name}`);
+          });
+          console.log("===============================================");
           return subraces;
         } else {
           const subraces = await dndAPI.getSubraces();
-          console.log("✅ Todas as sub-raças carregadas:", subraces.length);
+          console.log("🌐 ===== TODAS AS SUBRAÇAS DA API =====");
+          console.log(`📊 Total: ${subraces.length} subraças`);
+          console.log("===============================================");
           return subraces;
         }
       } catch (error) {
         console.error("❌ Erro ao carregar sub-raças da API:", error);
-        console.log("🔄 Usando dados mock de sub-raças como fallback...");
-        const { mockSubraces } = await import("@/data/mockSubraces");
+        console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
+        // 🎯 CORREÇÃO AQUI - IMPORTAÇÃO CORRETA:
+        const { mockSubraces } = await import("@/data/mockSubRaces");
         if (raceIndex) {
-          return mockSubraces.filter(subrace => subrace.race.index === raceIndex);
+          const raceSubraces = mockSubraces.filter(subrace => subrace.race.index === raceIndex);
+          console.log(`📊 Total: ${raceSubraces.length} subraças de ${raceIndex} dos dados locais`);
+          console.log("📋 LISTA DETALHADA:");
+          raceSubraces.forEach((subrace, index) => {
+            console.log(`   ${index + 1}. ${subrace.name} (${subrace.index})`);
+          });
+          console.log("===============================================");
+          return raceSubraces;
         }
+        console.log(`📊 Total: ${mockSubraces.length} subraças dos dados locais`);
+        console.log("===============================================");
         return mockSubraces;
       }
     },
@@ -210,12 +263,18 @@ function useClassesQuery() {
     queryFn: async () => {
       try {
         const classes = await dndAPI.getClasses();
-        console.log("✅ Classes carregadas da API oficial:", classes.length);
+        console.log("🌐 ===== CLASSES CARREGADAS DA API OFICIAL =====");
+        console.log(`📊 Total: ${classes.length} classes`);
+        console.log("📋 Lista:", classes.map(c => c.name).join(", "));
+        console.log("===============================================");
         return classes;
       } catch (error) {
         console.error("❌ Erro ao carregar classes da API:", error);
-        console.log("🔄 Usando dados mock de classes como fallback...");
+        console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
         const { mockClasses } = await import("@/data/mockClasses");
+        console.log(`📊 Total: ${mockClasses.length} classes dos dados locais`);
+        console.log("📋 Lista:", mockClasses.map(c => c.name).join(", "));
+        console.log("===============================================");
         return mockClasses;
       }
     },
@@ -230,21 +289,68 @@ function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
     queryFn: async () => {
       try {
         if (classIndex) {
+          console.log(`🔍 ===== BUSCANDO SUBCLASSES PARA ${classIndex.toUpperCase()} =====`);
           const subclasses = await dndAPI.getSubclassesByClass(classIndex);
-          console.log(`✅ Subclasses da classe ${classIndex} carregadas:`, subclasses.length);
+          console.log(`📊 Total encontrado: ${subclasses.length} subclasses`);
+          
+          // Verificar quais vieram da API e quais dos mocks
+          const { mockSubclasses } = await import("@/data/mockSubClasses");
+          const mockSubclassesForClass = mockSubclasses.filter(sc => sc.class.index === classIndex);
+          const mockIndices = mockSubclassesForClass.map(sc => sc.index);
+          
+          const fromAPI = subclasses.filter(sc => !mockIndices.includes(sc.index));
+          const fromMock = subclasses.filter(sc => mockIndices.includes(sc.index));
+          
+          console.log("📋 DETALHAMENTO POR FONTE:");
+          if (fromAPI.length > 0) {
+            console.log(`🌐 Da API oficial (${fromAPI.length}):`);
+            fromAPI.forEach((subclass, index) => {
+              console.log(`   ${index + 1}. ${subclass.name} (${subclass.index})`);
+            });
+          } else {
+            console.log("🌐 Da API oficial: Nenhuma");
+          }
+          
+          if (fromMock.length > 0) {
+            console.log(`📋 Dos dados locais (${fromMock.length}):`);
+            fromMock.forEach((subclass, index) => {
+              console.log(`   ${index + 1}. ${subclass.name} (${subclass.index})`);
+            });
+          } else {
+            console.log("📋 Dos dados locais: Nenhuma");
+          }
+          
+          console.log("✅ LISTA FINAL COMPLETA:");
+          subclasses.forEach((subclass, index) => {
+            const source = mockIndices.includes(subclass.index) ? "📋" : "🌐";
+            console.log(`   ${index + 1}. ${source} ${subclass.name}`);
+          });
+          console.log("===============================================");
           return subclasses;
         } else {
           const subclasses = await dndAPI.getSubclasses();
-          console.log("✅ Todas as subclasses carregadas:", subclasses.length);
+          console.log("🌐 ===== TODAS AS SUBCLASSES DA API =====");
+          console.log(`📊 Total: ${subclasses.length} subclasses`);
+          console.log("===============================================");
           return subclasses;
         }
       } catch (error) {
         console.error("❌ Erro ao carregar subclasses da API:", error);
-        console.log("🔄 Usando dados mock de subclasses como fallback...");
+        console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
+        // 🎯 CORREÇÃO AQUI - IMPORTAÇÃO CORRETA:
         const { mockSubclasses } = await import("@/data/mockSubClasses");
         if (classIndex) {
-          return mockSubclasses.filter(subclass => subclass.class.index === classIndex);
+          const classSubclasses = mockSubclasses.filter(subclass => subclass.class.index === classIndex);
+          console.log(`📊 Total: ${classSubclasses.length} subclasses de ${classIndex} dos dados locais`);
+          console.log("📋 LISTA DETALHADA:");
+          classSubclasses.forEach((subclass, index) => {
+            console.log(`   ${index + 1}. ${subclass.name} (${subclass.index})`);
+          });
+          console.log("===============================================");
+          return classSubclasses;
         }
+        console.log(`📊 Total: ${mockSubclasses.length} subclasses dos dados locais`);
+        console.log("===============================================");
         return mockSubclasses;
       }
     },
@@ -259,65 +365,74 @@ function useBackgroundsQuery() {
     queryFn: async () => {
       try {
         const backgrounds = await dndAPI.getBackgrounds();
-        console.log("✅ Backgrounds carregados da API oficial:", backgrounds.length);
+        console.log("🌐 ===== BACKGROUNDS CARREGADOS DA API OFICIAL =====");
+        console.log(`📊 Total: ${backgrounds.length} backgrounds`);
+        console.log("📋 Lista:", backgrounds.map(b => b.name).join(", "));
+        console.log("===============================================");
         return backgrounds;
       } catch (error) {
         console.error("❌ Erro ao carregar backgrounds da API:", error);
-        console.log("🔄 Usando dados mock de backgrounds como fallback...");
+        console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
         const { mockBackgrounds } = await import("@/data/mockBackgrounds");
+        console.log(`📊 Total: ${mockBackgrounds.length} backgrounds dos dados locais`);
+        console.log("📋 Lista:", mockBackgrounds.map(b => b.name).join(", "));
+        console.log("===============================================");
         return mockBackgrounds;
       }
     },
     staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
   });
 }
 
-function useSpellsQuery(enabled: boolean = true, level?: number, classIndex?: string) {
+function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
-    queryKey: ["dnd", "spells", level, classIndex],
+    queryKey: ["dnd", "spells", classIndex],
     queryFn: async () => {
       try {
         if (classIndex) {
-          const spells = await dndAPI.getSpellsByClass(classIndex);
-          console.log(`✅ Magias da classe ${classIndex} carregadas:`, spells.length);
-          if (level !== undefined) {
-            return spells.filter(spell => spell.level === level);
-          }
-          return spells;
-        } else if (level !== undefined) {
-          const spells = await dndAPI.getSpellsByLevel(level);
-          console.log(`✅ Magias de nível ${level} carregadas:`, spells.length);
-          return spells;
+          console.log(`🔍 ===== BUSCANDO MAGIAS PARA ${classIndex.toUpperCase()} =====`);
+          const spells = await dndAPI.getSpells();
+          const classSpells = spells.filter(spell => 
+            spell.classes.some(cls => cls.index === classIndex)
+          );
+          console.log(`📊 Total encontrado: ${classSpells.length} magias para ${classIndex}`);
+          console.log("📋 Níveis disponíveis:", [...new Set(classSpells.map(s => s.level))].sort().join(", "));
+          console.log("===============================================");
+          return classSpells;
         } else {
-          const spells = await dndAPI.getAllSpells();
-          console.log("✅ Todas as magias carregadas:", spells.length);
+          const spells = await dndAPI.getSpells();
+          console.log("🌐 ===== TODAS AS MAGIAS DA API =====");
+          console.log(`📊 Total: ${spells.length} magias`);
+          console.log("📋 Níveis disponíveis:", [...new Set(spells.map(s => s.level))].sort().join(", "));
+          console.log("===============================================");
           return spells;
         }
       } catch (error) {
         console.error("❌ Erro ao carregar magias da API:", error);
-        console.log("🔄 Usando dados mock de magias como fallback...");
+        console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
         const { mockSpells } = await import("@/data/mockSpells");
-        let spells = mockSpells;
-        if (level !== undefined) {
-          spells = spells.filter(spell => spell.level === level);
-        }
         if (classIndex) {
-          spells = spells.filter(spell => 
-            spell.classes.some((cls: any) => cls.index === classIndex)
+          const classSpells = mockSpells.filter(spell => 
+            spell.classes.some(cls => cls.index === classIndex)
           );
+          console.log(`📊 Total: ${classSpells.length} magias de ${classIndex} dos dados locais`);
+          console.log("📋 Níveis disponíveis:", [...new Set(classSpells.map(s => s.level))].sort().join(", "));
+          console.log("===============================================");
+          return classSpells;
         }
-        return spells;
+        console.log(`📊 Total: ${mockSpells.length} magias dos dados locais`);
+        console.log("📋 Níveis disponíveis:", [...new Set(mockSpells.map(s => s.level))].sort().join(", "));
+        console.log("===============================================");
+        return mockSpells;
       }
     },
     enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 2 * 60 * 60 * 1000, // 2 hours
   });
 }
 
 // ===========================
-// CONTEXT
+// CHARACTER CREATION CONTEXT
 // ===========================
 
 const CharacterCreationContext = createContext<CharacterCreationContextType | null>(null);
@@ -352,11 +467,12 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     error: racesError,
   } = useRacesQuery();
 
+  // 🎯 BUSCAR SUBRAÇAS BASEADO NA RAÇA SELECIONADA
   const {
     data: subracesData = [],
     isLoading: isLoadingSubraces,
     error: subracesError,
-  } = useSubracesQuery();
+  } = useSubracesQuery(true, characterData.selectedRace?.index);
 
   const {
     data: classesData = [],
@@ -364,11 +480,12 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     error: classesError,
   } = useClassesQuery();
 
+  // 🎯 BUSCAR SUBCLASSES BASEADO NA CLASSE SELECIONADA
   const {
     data: subclassesData = [],
     isLoading: isLoadingSubclasses,
     error: subclassesError,
-  } = useSubclassesQuery();
+  } = useSubclassesQuery(true, characterData.selectedClass?.index);
 
   const {
     data: backgroundsData = [],
@@ -380,148 +497,144 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     data: spellsData = [],
     isLoading: isLoadingSpells,
     error: spellsError,
-  } = useSpellsQuery();
+  } = useSpellsQuery(characterData.isSpellcaster, characterData.selectedClass?.index);
 
   // ===========================
   // CHARACTER DATA MANAGEMENT
   // ===========================
 
   const updateCharacterData = useCallback((updates: Partial<CharacterCreationData>) => {
-    setCharacterData(prev => ({ ...prev, ...updates }));
+    console.log("🔄 ===== ATUALIZANDO DADOS DO PERSONAGEM =====");
+    console.log("📝 Atualizações recebidas:", Object.keys(updates));
+    
+    // Log específico para seleção de raça
+    if (updates.selectedRace) {
+      console.log(`🧝 Nova raça selecionada: ${updates.selectedRace.name} (${updates.selectedRace.index})`);
+      console.log("🔍 Isso deve triggerar busca de subraças...");
+    }
+    
+    // Log específico para seleção de classe
+    if (updates.selectedClass) {
+      console.log(`⚔️ Nova classe selecionada: ${updates.selectedClass.name} (${updates.selectedClass.index})`);
+      console.log("🔍 Isso deve triggerar busca de subclasses...");
+    }
+    
+    setCharacterData(prev => {
+      const newData = { ...prev, ...updates };
+      console.log("✅ Dados atualizados com sucesso");
+      console.log("===============================================");
+      return newData;
+    });
   }, []);
 
   // ===========================
-  // CORE UTILITY FUNCTIONS
+  // UTILITY FUNCTIONS
   // ===========================
 
-  const getCombinedAbilityBonuses = useCallback(() => {
-    const bonuses: Record<keyof AbilityScores, number> = {
-      strength: 0,
-      dexterity: 0,
-      constitution: 0,
-      intelligence: 0,
-      wisdom: 0,
-      charisma: 0,
-    };
+  const getAbilityModifier = useCallback((score: number): number => {
+    return Math.floor((score - 10) / 2);
+  }, []);
 
-    // Bônus da raça principal
-    if (characterData.selectedRace?.ability_bonuses) {
+  const getCombinedAbilityBonuses = useMemo(() => {
+    const bonuses: Record<string, number> = {};
+
+    // Race bonuses
+    if (characterData.selectedRace) {
       characterData.selectedRace.ability_bonuses.forEach(bonus => {
-        const abilityKey = bonus.ability_score.index.toLowerCase() as keyof AbilityScores;
-        if (abilityKey === 'str') bonuses.strength += bonus.bonus;
-        else if (abilityKey === 'dex') bonuses.dexterity += bonus.bonus;
-        else if (abilityKey === 'con') bonuses.constitution += bonus.bonus;
-        else if (abilityKey === 'int') bonuses.intelligence += bonus.bonus;
-        else if (abilityKey === 'wis') bonuses.wisdom += bonus.bonus;
-        else if (abilityKey === 'cha') bonuses.charisma += bonus.bonus;
+        const key = bonus.ability_score.index;
+        bonuses[key] = (bonuses[key] || 0) + bonus.bonus;
       });
     }
 
-    // Bônus da sub-raça
-    if (characterData.selectedSubrace?.ability_bonuses) {
+    // Subrace bonuses
+    if (characterData.selectedSubrace) {
       characterData.selectedSubrace.ability_bonuses.forEach(bonus => {
-        const abilityKey = bonus.ability_score.index.toLowerCase() as keyof AbilityScores;
-        if (abilityKey === 'str') bonuses.strength += bonus.bonus;
-        else if (abilityKey === 'dex') bonuses.dexterity += bonus.bonus;
-        else if (abilityKey === 'con') bonuses.constitution += bonus.bonus;
-        else if (abilityKey === 'int') bonuses.intelligence += bonus.bonus;
-        else if (abilityKey === 'wis') bonuses.wisdom += bonus.bonus;
-        else if (abilityKey === 'cha') bonuses.charisma += bonus.bonus;
+        const key = bonus.ability_score.index;
+        bonuses[key] = (bonuses[key] || 0) + bonus.bonus;
       });
     }
 
     return bonuses;
   }, [characterData.selectedRace, characterData.selectedSubrace]);
 
-  const getAbilityModifier = useCallback((score: number): number => {
-    return Math.floor((score - 10) / 2);
-  }, []);
+  const calculateHitPoints = useCallback((constitution: number, level: number, hitDie: number): number => {
+    const conModifier = getAbilityModifier(constitution);
+    const baseHP = hitDie + conModifier;
+    const additionalHP = (level - 1) * (Math.floor(hitDie / 2) + 1 + conModifier);
+    return Math.max(1, baseHP + additionalHP);
+  }, [getAbilityModifier]);
 
-  const calculateHitPoints = useCallback((): number => {
-    if (!characterData.selectedClass) return 1;
+  const calculateArmorClass = useCallback((dexterity: number): number => {
+    const dexModifier = getAbilityModifier(dexterity);
+    return 10 + dexModifier;
+  }, [getAbilityModifier]);
 
-    const hitDie = characterData.selectedClass.hit_die;
-    const constitutionMod = getAbilityModifier(characterData.abilityScores.constitution);
-    
-    const baseHP = hitDie + constitutionMod;
-    const additionalLevels = characterData.level - 1;
-    const avgPerLevel = Math.floor(hitDie / 2) + 1 + constitutionMod;
-    
-    return Math.max(1, baseHP + (additionalLevels * avgPerLevel));
-  }, [characterData.selectedClass, characterData.level, characterData.abilityScores.constitution, getAbilityModifier]);
-
-  const calculateArmorClass = useCallback((): number => {
-    const dexterityMod = getAbilityModifier(characterData.abilityScores.dexterity);
-    return 10 + dexterityMod;
-  }, [characterData.abilityScores.dexterity, getAbilityModifier]);
-
-  const getSpellcastingAbility = useCallback((classIndex?: string): keyof AbilityScores | null => {
-    const spellcastingAbilities: Record<string, keyof AbilityScores> = {
-      'wizard': 'intelligence',
-      'sorcerer': 'charisma',
-      'warlock': 'charisma',
-      'bard': 'charisma',
-      'cleric': 'wisdom',
-      'druid': 'wisdom',
-      'paladin': 'charisma',
-      'ranger': 'wisdom',
+  const getSpellcastingAbility = useCallback((classIndex: string): string | null => {
+    const spellcastingAbilities: Record<string, string> = {
+      'wizard': 'int',
+      'sorcerer': 'cha',
+      'warlock': 'cha',
+      'bard': 'cha',
+      'cleric': 'wis',
+      'druid': 'wis',
+      'ranger': 'wis',
+      'paladin': 'cha',
     };
-    
-    return classIndex ? spellcastingAbilities[classIndex] || null : null;
+    return spellcastingAbilities[classIndex] || null;
   }, []);
 
   // ===========================
-  // SUBRACE/SUBCLASS FUNCTIONS
+  // SUBRACE & SUBCLASS FUNCTIONS
   // ===========================
 
-  const getAvailableSubraces = useCallback((): DndSubrace[] => {
+  const getAvailableSubraces = useMemo(() => {
     if (!characterData.selectedRace) {
+      console.log("🔍 Nenhuma raça selecionada para buscar subraças");
       return [];
     }
-    return subracesData.filter(subrace => 
+    
+    console.log(`🔍 Buscando subraças para raça: ${characterData.selectedRace.name} (${characterData.selectedRace.index})`);
+    console.log(`📊 Dados de subraças disponíveis: ${subracesData.length} itens`);
+    
+    const availableSubraces = subracesData.filter(subrace => 
       subrace.race.index === characterData.selectedRace?.index
     );
+    
+    console.log(`✅ Subraças filtradas para ${characterData.selectedRace.name}: ${availableSubraces.length}`);
+    if (availableSubraces.length > 0) {
+      console.log("📋 Lista:", availableSubraces.map(sr => `${sr.name} (${sr.index})`).join(", "));
+    }
+    
+    return availableSubraces;
   }, [characterData.selectedRace, subracesData]);
 
-  const getAvailableSubclasses = useCallback((): DndSubclass[] => {
+  const getAvailableSubclasses = useMemo(() => {
     if (!characterData.selectedClass) {
+      console.log("🔍 Nenhuma classe selecionada para buscar subclasses");
       return [];
     }
-    return subclassesData.filter(subclass => 
+    
+    console.log(`🔍 Buscando subclasses para classe: ${characterData.selectedClass.name} (${characterData.selectedClass.index})`);
+    console.log(`📊 Dados de subclasses disponíveis: ${subclassesData.length} itens`);
+    
+    const availableSubclasses = subclassesData.filter(subclass => 
       subclass.class.index === characterData.selectedClass?.index
     );
+    
+    console.log(`✅ Subclasses filtradas para ${characterData.selectedClass.name}: ${availableSubclasses.length}`);
+    if (availableSubclasses.length > 0) {
+      console.log("📋 Lista:", availableSubclasses.map(sc => `${sc.name} (${sc.index})`).join(", "));
+    }
+    
+    return availableSubclasses;
   }, [characterData.selectedClass, subclassesData]);
 
-  const getSubraceAbilityBonuses = useCallback(() => {
-    return characterData.selectedSubrace?.ability_bonuses || [];
-  }, [characterData.selectedSubrace]);
+  const needsSubrace = useMemo(() => {
+    return characterData.selectedRace && 
+      ['elf', 'dwarf', 'halfling', 'gnome'].includes(characterData.selectedRace.index);
+  }, [characterData.selectedRace]);
 
-  const getSubclassFeatures = useCallback((level?: number) => {
-    if (!characterData.selectedSubclass) {
-      return [];
-    }
-    
-    if (!characterData.selectedSubclass.subclass_levels || 
-        !Array.isArray(characterData.selectedSubclass.subclass_levels)) {
-      console.warn('subclass_levels is not a valid array:', characterData.selectedSubclass.subclass_levels);
-      return [];
-    }
-    
-    const targetLevel = level || characterData.level;
-    const features: DndApiReference[] = [];
-    
-    characterData.selectedSubclass.subclass_levels.forEach(levelData => {
-      if (levelData && typeof levelData.level === 'number' && levelData.level <= targetLevel) {
-        if (levelData.features && Array.isArray(levelData.features)) {
-          features.push(...levelData.features);
-        }
-      }
-    });
-    
-    return features;
-  }, [characterData.selectedSubclass, characterData.level]);
-
-  const needsSubclass = useCallback((): boolean => {
+  const needsSubclass = useMemo(() => {
     if (!characterData.selectedClass) return false;
     
     const subclassLevels: Record<string, number> = {
@@ -543,50 +656,28 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return characterData.level >= requiredLevel;
   }, [characterData.selectedClass, characterData.level]);
 
-  const needsSubrace = useCallback((): boolean => {
-    if (!characterData.selectedRace) return false;
-    const alwaysNeedSubrace = ['elf', 'dwarf', 'halfling', 'gnome'];
-    return alwaysNeedSubrace.includes(characterData.selectedRace.index);
-  }, [characterData.selectedRace]);
-
-  const getAvailableSkills = useCallback(() => {
-    if (!characterData.selectedClass) return SKILLS;
-    return SKILLS;
+  const getAvailableSkills = useMemo(() => {
+    if (!characterData.selectedClass) return [];
+    
+    // Get class skill proficiencies
+    const classSkills = characterData.selectedClass.proficiency_choices
+      .find(choice => choice.type === "proficiencies")?.from.options
+      .map(option => option.item.index) || [];
+    
+    return classSkills;
   }, [characterData.selectedClass]);
 
-  const getSkillChoices = useCallback((): number => {
+  const getSkillChoices = useMemo(() => {
     if (!characterData.selectedClass) return 0;
     
-    const skillChoicesByClass: Record<string, number> = {
-      'barbarian': 2,
-      'bard': 3,
-      'cleric': 2,
-      'druid': 2,
-      'fighter': 2,
-      'monk': 2,
-      'paladin': 2,
-      'ranger': 3,
-      'rogue': 4,
-      'sorcerer': 2,
-      'warlock': 2,
-      'wizard': 2,
-    };
+    const skillChoice = characterData.selectedClass.proficiency_choices
+      .find(choice => choice.type === "proficiencies");
     
-    return skillChoicesByClass[characterData.selectedClass.index] || 2;
+    return skillChoice?.choose || 0;
   }, [characterData.selectedClass]);
 
-  useEffect(() => {
-    const availableChoices = getSkillChoices();
-    if (availableChoices !== characterData.availableSkillChoices) {
-      updateCharacterData({ 
-        availableSkillChoices: availableChoices,
-        selectedSkills: []
-      });
-    }
-  }, [characterData.selectedClass, getSkillChoices, characterData.availableSkillChoices, updateCharacterData]);
-
   // ===========================
-  // STEP VALIDATION
+  // VALIDATION
   // ===========================
 
   const validateStep = useCallback(
@@ -673,28 +764,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return validateCurrentStep();
   }, [validateCurrentStep]);
 
-  const resetCharacter = useCallback(() => {
-    setCharacterData(initialCharacterData);
-    setCurrentStep(0);
-  }, []);
-
-  const createCharacter = useCallback(async (): Promise<void> => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      console.log("Criando personagem:", characterData);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log("✅ Personagem criado com sucesso!");
-      
-    } catch (error) {
-      console.error("❌ Erro ao criar personagem:", error);
-      setError(error instanceof Error ? error.message : "Erro ao criar personagem");
-    } finally {
-      setLoading(false);
-    }
-  }, [characterData]);
-
   // ===========================
   // STEP NAVIGATION
   // ===========================
@@ -718,6 +787,32 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [steps.length]);
 
   // ===========================
+  // CHARACTER ACTIONS
+  // ===========================
+
+  const resetCharacter = useCallback(() => {
+    setCharacterData(initialCharacterData);
+    setCurrentStep(0);
+  }, []);
+
+  const createCharacter = useCallback(async (): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log("Criando personagem:", characterData);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log("✅ Personagem criado com sucesso!");
+      
+    } catch (error) {
+      console.error("❌ Erro ao criar personagem:", error);
+      setError(error instanceof Error ? error.message : "Erro ao criar personagem");
+    } finally {
+      setLoading(false);
+    }
+  }, [characterData]);
+
+  // ===========================
   // UPDATE STEP VALIDATION STATUS
   // ===========================
 
@@ -737,50 +832,82 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 
   useEffect(() => {
     const errors = [];
+    const fallbacks = [];
     
     if (racesError) {
-      console.warn("Aviso: Erro ao carregar raças da API, usando fallback:", racesError);
+      console.warn("⚠️ ===== ERRO AO CARREGAR RAÇAS DA API =====");
+      console.warn("📋 Detalhes:", racesError);
+      console.warn("🔄 Usando dados mock como fallback");
+      console.warn("===============================================");
       errors.push("raças");
+      fallbacks.push("📋 Raças: dados locais");
     }
     
     if (classesError) {
-      console.warn("Aviso: Erro ao carregar classes da API, usando fallback:", classesError);
+      console.warn("⚠️ ===== ERRO AO CARREGAR CLASSES DA API =====");
+      console.warn("📋 Detalhes:", classesError);
+      console.warn("🔄 Usando dados mock como fallback");
+      console.warn("===============================================");
       errors.push("classes");
+      fallbacks.push("📋 Classes: dados locais");
     }
     
     if (backgroundsError) {
-      console.warn("Aviso: Erro ao carregar backgrounds da API, usando fallback:", backgroundsError);
+      console.warn("⚠️ ===== ERRO AO CARREGAR BACKGROUNDS DA API =====");
+      console.warn("📋 Detalhes:", backgroundsError);
+      console.warn("🔄 Usando dados mock como fallback");
+      console.warn("===============================================");
       errors.push("backgrounds");
+      fallbacks.push("📋 Backgrounds: dados locais");
     }
     
     if (spellsError) {
-      console.warn("Aviso: Erro ao carregar magias da API, usando fallback:", spellsError);
+      console.warn("⚠️ ===== ERRO AO CARREGAR MAGIAS DA API =====");
+      console.warn("📋 Detalhes:", spellsError);
+      console.warn("🔄 Usando dados mock como fallback");
+      console.warn("===============================================");
       errors.push("magias");
+      fallbacks.push("📋 Magias: dados locais");
     }
 
     if (subracesError) {
-      console.warn("Aviso: Erro ao carregar sub-raças da API, usando fallback:", subracesError);
+      console.warn("⚠️ ===== ERRO AO CARREGAR SUB-RAÇAS DA API =====");
+      console.warn("📋 Detalhes:", subracesError);
+      console.warn("🔄 Usando dados mock como fallback");
+      console.warn("===============================================");
       errors.push("sub-raças");
+      fallbacks.push("📋 Sub-raças: dados locais");
     }
 
     if (subclassesError) {
-      console.warn("Aviso: Erro ao carregar subclasses da API, usando fallback:", subclassesError);
+      console.warn("⚠️ ===== ERRO AO CARREGAR SUBCLASSES DA API =====");
+      console.warn("📋 Detalhes:", subclassesError);
+      console.warn("🔄 Usando dados mock como fallback");
+      console.warn("===============================================");
       errors.push("subclasses");
+      fallbacks.push("📋 Subclasses: dados locais");
     }
-    
-    if (errors.length > 0) {
-      setError(`Alguns dados foram carregados do cache: ${errors.join(", ")}`);
-    } else {
-      setError(null);
+
+    if (fallbacks.length > 0) {
+      console.log("🛡️ ===== RESUMO DOS FALLBACKS =====");
+      console.log("📊 Dados sendo usados dos arquivos locais:");
+      fallbacks.forEach(fallback => console.log(fallback));
+      console.log("===============================================");
+    }
+
+    if (errors.length === 0) {
+      console.log("✅ ===== TODOS OS DADOS CARREGADOS DA API =====");
+      console.log("🌐 Conexão com API D&D funcionando perfeitamente!");
+      console.log("===============================================");
     }
   }, [racesError, classesError, backgroundsError, spellsError, subracesError, subclassesError]);
 
   // ===========================
-  // SPELL INFO CALCULATIONS
+  // SPELL INFO CALCULATION
   // ===========================
 
   const spellInfo = useMemo(() => {
-    if (!characterData.selectedClass || !characterData.isSpellcaster) {
+    if (!characterData.isSpellcaster || !characterData.selectedClass) {
       return {
         maxSpellLevel: 0,
         startingCantrips: 0,
@@ -790,25 +917,20 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       };
     }
 
-    const spellcastingClasses: Record<string, { cantrips: number; spells: number; maxLevel: number }> = {
-      'wizard': { cantrips: 3, spells: 6, maxLevel: 1 },
-      'sorcerer': { cantrips: 4, spells: 2, maxLevel: 1 },
-      'cleric': { cantrips: 3, spells: 2, maxLevel: 1 },
-      'bard': { cantrips: 2, spells: 4, maxLevel: 1 },
-      'druid': { cantrips: 2, spells: 2, maxLevel: 1 },
-      'warlock': { cantrips: 2, spells: 2, maxLevel: 1 },
+    // Spell progression by class and level
+    const spellProgression: Record<string, { maxLevel: number; cantrips: number; spells: number }> = {
+      'wizard': { maxLevel: 1, cantrips: 3, spells: 6 },
+      'sorcerer': { maxLevel: 1, cantrips: 4, spells: 2 },
+      'warlock': { maxLevel: 1, cantrips: 2, spells: 1 },
+      'bard': { maxLevel: 1, cantrips: 2, spells: 4 },
+      'cleric': { maxLevel: 1, cantrips: 3, spells: 2 },
+      'druid': { maxLevel: 1, cantrips: 2, spells: 2 },
+      'ranger': { maxLevel: 0, cantrips: 0, spells: 0 },
+      'paladin': { maxLevel: 0, cantrips: 0, spells: 0 },
     };
 
-    const classInfo = spellcastingClasses[characterData.selectedClass.index];
-    if (!classInfo) {
-      return {
-        maxSpellLevel: 0,
-        startingCantrips: 0,
-        startingSpells: 0,
-        availableCantrips: [],
-        availableLevelSpells: [],
-      };
-    }
+    const classInfo = spellProgression[characterData.selectedClass.index] || 
+      { maxLevel: 0, cantrips: 0, spells: 0 };
 
     const availableCantrips = spellsData.filter(spell => 
       spell.level === 0 && 
@@ -901,8 +1023,11 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     // Subrace/Subclass Functions
     getAvailableSubraces,
     getAvailableSubclasses,
-    getSubraceAbilityBonuses,
-    getSubclassFeatures,
+    getSubraceAbilityBonuses: getCombinedAbilityBonuses,
+    getSubclassFeatures: (subclassIndex: string) => {
+      const subclass = subclassesData.find(sc => sc.index === subclassIndex);
+      return subclass?.subclass_levels.find(level => level.level <= characterData.level)?.features || [];
+    },
     needsSubclass,
     needsSubrace,
     getAvailableSkills,
