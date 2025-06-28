@@ -1,35 +1,29 @@
 // ===========================
-// CHARACTER CREATION WIZARD - COMPONENTE REFATORADO
+// CHARACTER CREATION WIZARD - ARQUIVO COMPLETO CORRIGIDO
 // src/components/character-creation/CharacterCreationWizard.tsx
 // ===========================
 
 "use client";
 
+import { useState } from "react";
+import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { 
-  CheckCircle, 
-  AlertCircle, 
-  ChevronLeft, 
-  ChevronRight, 
   User, 
   Zap, 
   Shield, 
   Sword, 
   Sparkles, 
   Heart,
-  RefreshCw,
-  Save,
-  Eye,
-  EyeOff,
-  Crown,
-  Wand2,
-  Check,
-  Circle,
-  Dice6
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  Settings,
+  Info,
+  CheckCircle,
+  Circle
 } from "lucide-react";
-import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
-import { useState } from "react";
 
-// Step Components
+// Step components
 import BasicInfoStep from "./steps/BasicInfoStep";
 import AbilityScoresStep from "./steps/AbilityScoresStep";
 import SkillsStep from "./steps/SkillsStep";
@@ -56,7 +50,7 @@ export default function CharacterCreationWizard({
     loading,
     error,
     
-    // Validação
+    // Validação - 🔥 ESTAS FUNÇÕES AGORA FUNCIONAM CORRETAMENTE
     validateCurrentStep,
     canProceed,
     validateStep,
@@ -111,15 +105,41 @@ export default function CharacterCreationWizard({
     }
   };
 
+  // ===========================
+  // 🔥 NAVEGAÇÃO CORRIGIDA
+  // ===========================
+
+  const handleNextStep = () => {
+    // Agora a validação funciona corretamente para o step de equipment
+    if (canProceed()) {
+      nextStepAction();
+    } else {
+      // Debug para identificar problemas
+      console.warn("❌ Não é possível prosseguir:", {
+        currentStep: steps[currentStep]?.title,
+        stepId: steps[currentStep]?.id,
+        isValid: validateCurrentStep(),
+        characterData: {
+          selectedEquipment: characterData.selectedEquipment,
+          equipmentCount: characterData.selectedEquipment?.length || 0
+        }
+      });
+    }
+  };
+
+  const handlePrevStep = () => {
+    prevStepAction();
+  };
+
   // Handler para finalizar criação
   const handleComplete = async () => {
     if (!canProceed()) return;
     
     setIsCreating(true);
     try {
-      const newCharacter = await createCharacter(characterData);
+      await createCharacter();
       if (onComplete) {
-        onComplete(newCharacter);
+        onComplete(characterData);
       }
     } catch (error) {
       console.error("❌ Erro ao criar personagem:", error);
@@ -144,127 +164,58 @@ export default function CharacterCreationWizard({
         {index < steps.length - 1 && (
           <div className={`absolute left-8 top-8 w-px h-16 transition-colors duration-300 ${
             isCompleted || index < currentStep
-              ? 'bg-gradient-to-b from-emerald-400 to-emerald-500' 
+              ? 'bg-green-400'
               : 'bg-gray-600'
           }`} />
         )}
-        
+
         {/* Step Circle */}
         <div className={`relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 ${
-          isActive 
-            ? `bg-gradient-to-br ${stepInfo.color} shadow-lg shadow-blue-500/25 border-2 border-white/20` 
+          isActive
+            ? `bg-gradient-to-br ${stepInfo.color} shadow-lg shadow-blue-500/25`
             : isCompleted
-            ? 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/25'
-            : 'bg-gray-700 hover:bg-gray-600 border border-gray-600'
+              ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
+              : 'bg-gray-700/80 border border-gray-600/50'
         }`}>
           {isCompleted && !isActive ? (
-            <Check className="w-6 h-6 text-white" />
+            <CheckCircle className="w-8 h-8 text-white" />
           ) : (
-            <Icon className={`w-6 h-6 ${isActive ? 'text-white' : 'text-gray-300'}`} />
-          )}
-          
-          {/* Active Ring */}
-          {isActive && (
-            <div className="absolute inset-0 rounded-2xl border-2 border-white/30 animate-pulse" />
+            <Icon className={`w-8 h-8 ${isActive || isCompleted ? 'text-white' : 'text-gray-400'}`} />
           )}
         </div>
-        
+
         {/* Step Info */}
         <div className="ml-4 flex-1">
           <h3 className={`font-semibold transition-colors ${
-            isActive ? 'text-white' : isCompleted ? 'text-gray-200' : 'text-gray-400'
+            isActive ? 'text-white' : isCompleted ? 'text-green-400' : 'text-gray-400'
           }`}>
             {step.title}
           </h3>
-          <p className={`text-sm mt-1 transition-colors ${
+          <p className={`text-sm transition-colors ${
             isActive ? 'text-gray-300' : 'text-gray-500'
           }`}>
             {step.description}
           </p>
         </div>
+
+        {/* Validation Status */}
+        <div className="ml-4">
+          {validateStep(step.id) ? (
+            <CheckCircle className="w-5 h-5 text-green-400" />
+          ) : (
+            <Circle className="w-5 h-5 text-gray-500" />
+          )}
+        </div>
       </div>
     );
   };
 
-  // Componente do resumo do personagem
-  const CharacterSummaryCard = () => (
-    <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-6 space-y-6">
-      <div className="flex items-center space-x-3">
-        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-          <Crown className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <h3 className="text-white font-bold text-lg">Resumo do Personagem</h3>
-          <p className="text-gray-400 text-sm">Visualização em tempo real</p>
-        </div>
-      </div>
-      
-      <div className="space-y-4">
-        <div className="p-4 bg-gray-700/30 rounded-xl border border-gray-600/30">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-300 text-sm">Nome</span>
-            <span className="text-white font-semibold">
-              {characterData.name || "Sem nome"}
-            </span>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-            <div className="text-blue-400 text-xs uppercase tracking-wide">Raça</div>
-            <div className="text-white font-medium">
-              {characterData.selectedRace?.name || "Não selecionada"}
-            </div>
-            {characterData.selectedSubrace && (
-              <div className="text-blue-300 text-sm">
-                {characterData.selectedSubrace.name}
-              </div>
-            )}
-          </div>
-          <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-            <div className="text-green-400 text-xs uppercase tracking-wide">Classe</div>
-            <div className="text-white font-medium">
-              {characterData.selectedClass?.name || "Não selecionada"}
-            </div>
-            {characterData.selectedSubclass && (
-              <div className="text-green-300 text-sm">
-                {characterData.selectedSubclass.name}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-2">
-          <div className="text-center p-3 bg-gray-700/20 rounded-lg">
-            <div className="text-gray-400 text-xs">Nível</div>
-            <div className="text-white font-bold text-lg">{characterData.level}</div>
-          </div>
-          <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-            <div className="text-red-400 text-xs">PV</div>
-            <div className="text-white font-bold text-lg">{calculateHitPoints()}</div>
-          </div>
-          <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-            <div className="text-yellow-400 text-xs">CA</div>
-            <div className="text-white font-bold text-lg">{calculateArmorClass()}</div>
-          </div>
-        </div>
-
-        {characterData.selectedBackground && (
-          <div className="p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
-            <div className="text-purple-400 text-xs uppercase tracking-wide">Background</div>
-            <div className="text-white font-medium">{characterData.selectedBackground.name}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  // Renderizar conteúdo do step atual
-  const renderStepContent = () => {
+  // Renderizar componente do step atual
+  const renderCurrentStep = () => {
     const stepId = steps[currentStep]?.id;
     const stepInfo = stepConfig[stepId] || stepConfig["basic-info"];
     const StepIcon = stepInfo.icon;
-    
+
     return (
       <div className={`min-h-96 rounded-2xl border border-gray-700/50 p-8 ${stepInfo.gradient} backdrop-blur-sm`}>
         <div className="flex items-center space-x-4 mb-8">
@@ -313,189 +264,247 @@ export default function CharacterCreationWizard({
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 border-4 border-purple-300 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-2">Carregando D&D</h2>
-            <p className="text-gray-400">Buscando dados das raças da API oficial...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
-        <div className="text-center bg-red-900/30 p-8 rounded-xl max-w-md border border-red-700/50 backdrop-blur-sm">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Erro ao Carregar</h2>
-          <p className="text-red-200 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-          >
-            Tentar Novamente
-          </button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <h2 className="text-white text-xl font-semibold mb-2">Carregando...</h2>
+          <p className="text-gray-400">Preparando o criador de personagens</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent)] pointer-events-none" />
-      
-      <div className="relative z-10 flex flex-col lg:flex-row min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
+      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
+      <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
+      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
+
+      {/* Main Layout */}
+      <div className="relative z-10 flex min-h-screen">
         {/* Sidebar */}
-        <div className={`lg:w-96 bg-gray-800/30 backdrop-blur-xl border-r border-gray-700/50 p-6 space-y-6 transition-all duration-300 ${
-          showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}>
-          {/* Header */}
-          <div className="text-center space-y-2">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-purple-500/25">
-              <Wand2 className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-2xl font-bold text-white">Criação de Personagem</h1>
-            <p className="text-gray-400">Configure seu herói épico</p>
-          </div>
-          
-          {/* Progress */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Progresso</span>
-              <span className="text-white font-medium">
-                {Math.round(((currentStep + 1) / steps.length) * 100)}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500 ease-out"
-                style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-              />
-            </div>
-          </div>
-          
-          {/* Steps */}
-          <div className="space-y-4">
-            {steps.map((step, index) => (
-              <StepIndicator
-                key={step.id}
-                step={step}
-                index={index}
-                isActive={currentStep === index}
-                isCompleted={step.isCompleted || index < currentStep}
-              />
-            ))}
-          </div>
-          
-          {/* Character Summary */}
-          <CharacterSummaryCard />
-          
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <button 
-              className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-purple-500/25"
-              disabled={isCreating}
-            >
-              <Save className="w-5 h-5" />
-              <span>Salvar Rascunho</span>
-            </button>
-            <button 
-              onClick={resetCharacter}
-              className="w-full px-4 py-3 bg-gray-700/50 hover:bg-gray-700 text-gray-300 font-medium rounded-xl transition-all duration-200 flex items-center justify-center space-x-2 border border-gray-600/50"
-            >
-              <RefreshCw className="w-5 h-5" />
-              <span>Recomeçar</span>
-            </button>
-            {onCancel && (
-              <button 
-                onClick={onCancel}
-                className="w-full px-4 py-3 bg-red-600/20 hover:bg-red-600/30 text-red-400 font-medium rounded-xl transition-all duration-200 border border-red-600/30"
-              >
-                Cancelar
-              </button>
-            )}
-          </div>
-        </div>
-        
-        {/* Mobile Sidebar Toggle */}
-        <button
-          onClick={() => setShowSidebar(!showSidebar)}
-          className="lg:hidden fixed top-4 left-4 z-50 w-12 h-12 bg-gray-800/80 backdrop-blur-sm rounded-xl flex items-center justify-center text-white border border-gray-700/50"
-        >
-          {showSidebar ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-        </button>
-        
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col">
-          {/* Content Area */}
-          <div className="flex-1 p-6">
-            {renderStepContent()}
-          </div>
-          
-          {/* Navigation Footer */}
-          <div className="bg-gray-800/30 backdrop-blur-xl border-t border-gray-700/50 p-6">
-            <div className="flex justify-between items-center">
-              <button 
-                onClick={prevStepAction}
-                disabled={isFirstStep}
-                className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
-                  isFirstStep 
-                    ? 'bg-gray-700/30 text-gray-500 cursor-not-allowed' 
-                    : 'bg-gray-700/50 hover:bg-gray-700 text-white shadow-lg'
-                }`}
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span>Anterior</span>
-              </button>
-              
-              <div className="flex items-center space-x-2 text-gray-400">
-                <span>{currentStep + 1}</span>
-                <span>de</span>
-                <span>{steps.length}</span>
+        {showSidebar && (
+          <div className="w-80 bg-gray-900/80 backdrop-blur-sm border-r border-gray-700/50 p-6 overflow-y-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h1 className="text-2xl font-bold text-white">Criador de Personagem</h1>
+                <button
+                  onClick={() => setShowSidebar(false)}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
               </div>
               
-              {isLastStep ? (
-                <button 
-                  onClick={handleComplete}
-                  disabled={!canProceed() || isCreating}
-                  className={`flex items-center space-x-2 px-8 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
-                    canProceed() && !isCreating
-                      ? 'bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white shadow-emerald-500/25'
-                      : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {isCreating ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Criando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-5 h-5" />
-                      <span>Finalizar</span>
-                    </>
+              {/* Progress Bar */}
+              <div className="bg-gray-700/50 rounded-full h-2 mb-4">
+                <div 
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
+                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                />
+              </div>
+              
+              <p className="text-gray-400 text-sm">
+                Step {currentStep + 1} de {steps.length}
+              </p>
+            </div>
+
+            {/* Steps List */}
+            <div className="space-y-6">
+              {steps.map((step, index) => (
+                <StepIndicator
+                  key={step.id}
+                  step={step}
+                  index={index}
+                  isActive={index === currentStep}
+                  isCompleted={step.isCompleted}
+                />
+              ))}
+            </div>
+
+            {/* Character Summary */}
+            {characterData.name && (
+              <div className="mt-8 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
+                <h3 className="text-white font-semibold mb-3">Resumo do Personagem</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Nome:</span>
+                    <span className="text-white">{characterData.name}</span>
+                  </div>
+                  {characterData.selectedRace && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Raça:</span>
+                      <span className="text-white">{characterData.selectedRace.name}</span>
+                    </div>
                   )}
-                </button>
-              ) : (
-                <button 
-                  onClick={nextStepAction}
-                  disabled={!validateCurrentStep()}
-                  className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg ${
-                    validateCurrentStep()
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-blue-500/25'
-                      : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                  }`}
+                  {characterData.selectedClass && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Classe:</span>
+                      <span className="text-white">{characterData.selectedClass.name}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Nível:</span>
+                    <span className="text-white">{characterData.level}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">PV:</span>
+                    <span className="text-white">{characterData.hitPoints}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">CA:</span>
+                    <span className="text-white">{characterData.armorClass}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="mt-8 space-y-3">
+              <button
+                onClick={resetCharacter}
+                className="w-full px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-xl transition-all border border-gray-600/50"
+              >
+                <Settings className="w-4 h-4 inline mr-2" />
+                Resetar Personagem
+              </button>
+              
+              {onCancel && (
+                <button
+                  onClick={onCancel}
+                  className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all border border-red-500/50"
                 >
-                  <span>Próximo</span>
-                  <ChevronRight className="w-5 h-5" />
+                  Cancelar
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div className="flex-1 flex flex-col">
+          {/* Sidebar Toggle (when hidden) */}
+          {!showSidebar && (
+            <div className="p-4">
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="p-3 bg-gray-900/80 backdrop-blur-sm text-white rounded-xl border border-gray-700/50 hover:bg-gray-800/80 transition-all"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
+
+          {/* Step Content */}
+          <div className="flex-1 p-8">
+            <div className="max-w-4xl mx-auto">
+              {error && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <AlertCircle className="w-5 h-5 text-red-400" />
+                    <h3 className="text-red-400 font-semibold">Atenção</h3>
+                  </div>
+                  <p className="text-red-300 text-sm mt-1">{error}</p>
+                </div>
+              )}
+
+              {renderCurrentStep()}
+            </div>
+          </div>
+
+          {/* Footer Navigation - 🔥 CORRIGIDO */}
+          <div className="bg-gray-900/80 backdrop-blur-sm border-t border-gray-700/50 p-6">
+            <div className="max-w-4xl mx-auto flex items-center justify-between">
+              {/* Progress Info */}
+              <div className="text-gray-300">
+                <span className="text-sm">
+                  Step {currentStep + 1} de {steps.length}
+                </span>
+                {/* 🔥 INDICADOR DE VALIDAÇÃO VISUAL */}
+                <div className="flex items-center space-x-2 mt-1">
+                  <div className={`w-2 h-2 rounded-full ${validateCurrentStep() ? 'bg-green-400' : 'bg-red-400'}`} />
+                  <span className="text-xs">
+                    {validateCurrentStep() ? 'Completo' : 'Incompleto'}
+                  </span>
+                  {/* Debug info para equipment step */}
+                  {steps[currentStep]?.id === 'equipment' && (
+                    <span className="text-xs text-gray-400 ml-2">
+                      ({characterData.selectedEquipment?.length || 0} equipamentos)
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Navigation Buttons */}
+              <div className="flex items-center space-x-4">
+                {/* Botão Anterior */}
+                <button
+                  onClick={handlePrevStep}
+                  disabled={isFirstStep}
+                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
+                    isFirstStep
+                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                      : 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600/50 hover:border-gray-500/50'
+                  }`}
+                >
+                  <ChevronLeft className="w-4 h-4 inline mr-2" />
+                  Anterior
+                </button>
+
+                {/* Botão Próximo/Finalizar - 🔥 CORRIGIDO */}
+                {isLastStep ? (
+                  <button
+                    onClick={handleComplete}
+                    disabled={!canProceed() || isCreating}
+                    className={`px-8 py-3 rounded-xl font-medium transition-all ${
+                      canProceed() && !isCreating
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg'
+                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {isCreating ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Criando...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 inline mr-2" />
+                        Finalizar
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleNextStep}
+                    disabled={!canProceed()}
+                    className={`px-8 py-3 rounded-xl font-medium transition-all ${
+                      canProceed()
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg'
+                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    Próximo
+                    <ChevronRight className="w-4 h-4 inline ml-2" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 🔥 DEBUG INFO - REMOVER EM PRODUÇÃO */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="max-w-4xl mx-auto mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
+                <strong>Debug Info:</strong> Step "{steps[currentStep]?.id}" | 
+                Valid: {validateCurrentStep() ? '✅' : '❌'} | 
+                {steps[currentStep]?.id === 'equipment' && (
+                  <>Equipment: {characterData.selectedEquipment?.length || 0} items | </>
+                )}
+                Can Proceed: {canProceed() ? '✅' : '❌'}
+              </div>
+            )}
           </div>
         </div>
       </div>
