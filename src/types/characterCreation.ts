@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION TYPES - COMPLETO COM SELECTED EQUIPMENT
+// CHARACTER CREATION TYPES - COMPLETO COM CONSTANTES
 // src/types/characterCreation.ts
 // ===========================
 
@@ -23,6 +23,59 @@ export interface CharacterCreationStep {
   isValid: boolean;
   isCompleted: boolean;
 }
+
+// ===========================
+// ABILITY SCORE CONSTANTS
+// ===========================
+
+export const ABILITY_SCORE_NAMES: Record<keyof AbilityScores, string> = {
+  strength: "Força",
+  dexterity: "Destreza", 
+  constitution: "Constituição",
+  intelligence: "Inteligência",
+  wisdom: "Sabedoria",
+  charisma: "Carisma",
+};
+
+export const ABILITY_SCORE_ABBREVIATIONS: Record<keyof AbilityScores, string> = {
+  strength: "FOR",
+  dexterity: "DES",
+  constitution: "CON", 
+  intelligence: "INT",
+  wisdom: "SAB",
+  charisma: "CAR",
+};
+
+// ===========================
+// SKILLS CONSTANTS
+// ===========================
+
+export interface Skill {
+  key: string;
+  name: string;
+  ability: keyof AbilityScores;
+}
+
+export const SKILLS: Skill[] = [
+  { key: "acrobatics", name: "Acrobacia", ability: "dexterity" },
+  { key: "animal-handling", name: "Adestramento", ability: "wisdom" },
+  { key: "arcana", name: "Arcanismo", ability: "intelligence" },
+  { key: "athletics", name: "Atletismo", ability: "strength" },
+  { key: "deception", name: "Enganação", ability: "charisma" },
+  { key: "history", name: "História", ability: "intelligence" },
+  { key: "insight", name: "Intuição", ability: "wisdom" },
+  { key: "intimidation", name: "Intimidação", ability: "charisma" },
+  { key: "investigation", name: "Investigação", ability: "intelligence" },
+  { key: "medicine", name: "Medicina", ability: "wisdom" },
+  { key: "nature", name: "Natureza", ability: "intelligence" },
+  { key: "perception", name: "Percepção", ability: "wisdom" },
+  { key: "performance", name: "Atuação", ability: "charisma" },
+  { key: "persuasion", name: "Persuasão", ability: "charisma" },
+  { key: "religion", name: "Religião", ability: "intelligence" },
+  { key: "sleight-of-hand", name: "Prestidigitação", ability: "dexterity" },
+  { key: "stealth", name: "Furtividade", ability: "dexterity" },
+  { key: "survival", name: "Sobrevivência", ability: "wisdom" },
+];
 
 // ===========================
 // D&D API INTERFACES
@@ -129,19 +182,19 @@ export interface DndClass {
   index: string;
   name: string;
   hit_die: number;
-  primary_ability: string[];
-  saving_throw_proficiencies: DndReference[];
+  primary_ability?: string[];
+  saving_throw_proficiencies?: DndReference[];
   proficiencies: DndReference[];
   proficiency_choices: DndProficiencyChoice[];
   starting_equipment: DndStartingEquipment[];
-  starting_equipment_options: DndStartingEquipmentOption[];
-  class_levels: string;
-  multi_classing: {
-    prerequisites: Array<{
+  starting_equipment_options?: DndStartingEquipmentOption[];
+  class_levels?: string;
+  multi_classing?: {
+    prerequisites?: Array<{
       ability_score: DndReference;
       minimum_score: number;
     }>;
-    proficiencies: DndReference[];
+    proficiencies?: DndReference[];
     proficiency_choices?: DndProficiencyChoice[];
   };
   subclasses: DndReference[];
@@ -156,9 +209,9 @@ export interface DndSubclass {
   class: DndReference;
   subclass_flavor: string;
   desc: string[];
-  subclass_levels: string;
+  subclass_levels?: string;
   spells?: Array<{
-    prerequisites: Array<{
+    prerequisites?: Array<{
       index: string;
       name: string;
       type: string;
@@ -254,7 +307,7 @@ export interface DndSpell {
 }
 
 // ===========================
-// CHARACTER CREATION DATA - 🔥 CORREÇÃO: Adicionado selectedEquipment
+// CHARACTER CREATION DATA
 // ===========================
 
 export interface CharacterCreationData {
@@ -286,7 +339,7 @@ export interface CharacterCreationData {
   proficiencies: string[];
   languages: string[];
   
-  // Equipment - 🔥 CORREÇÃO: Campo selectedEquipment adicionado
+  // Equipment
   selectedEquipment: string[];
   
   // Spellcasting
@@ -453,16 +506,44 @@ export interface CharacterCreationContextType {
   /**
    * Funções para sub-raças e sub-classes
    */
-  getAvailableSubraces: (raceIndex: string) => DndSubrace[];
-  getAvailableSubclasses: (classIndex: string) => DndSubclass[];
+  getAvailableSubraces: () => DndSubrace[];
+  getAvailableSubclasses: () => DndSubclass[];
   needsSubrace: () => boolean;
   needsSubclass: () => boolean;
 
   /**
    * Funções para perícias
    */
-  getAvailableSkills: () => Array<{ key: string; name: string; ability: keyof AbilityScores }>;
+  getAvailableSkills: () => DndReference[];
   getSkillChoices: () => number;
+
+  /**
+   * Geração de atributos
+   */
+  generateRandomAbilityScores: () => AbilityScores;
+  calculateAbilityScorePoints: (scores: AbilityScores) => number;
+
+  /**
+   * Funções auxiliares
+   */
+  rollAbilityScores: () => AbilityScores;
+  getCarryingCapacity: (strength: number) => number;
+  getInitiativeModifier: (dexModifier: number) => number;
+  getSpellSaveDC: (spellcastingMod: number, proficiencyBonus: number) => number;
+  getSpellAttackBonus: (spellcastingMod: number, proficiencyBonus: number) => number;
+  getSubclassLevel: (classIndex?: string) => number;
+
+  /**
+   * Informações de magias
+   */
+  spellInfo: {
+    maxSpellLevel: number;
+    startingCantrips: number;
+    startingSpells: number;
+  };
+  maxSpellLevel: number;
+  startingCantrips: number;
+  startingSpells: number;
 }
 
 // ===========================
@@ -503,6 +584,12 @@ export type RarityType = "common" | "uncommon" | "rare" | "very-rare" | "legenda
 export interface ValidationError {
   field: string;
   message: string;
+}
+
+export interface StepValidation {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: string[];
 }
 
 export interface StepValidationResult {
@@ -575,6 +662,12 @@ export interface PersonalityOption {
   bond?: string;
   flaw?: string;
 }
+
+// ===========================
+// EXPORT LEGACY INTERFACE
+// ===========================
+
+export interface DndApiReference extends DndReference {}
 
 // ===========================
 // EXPORT ALL

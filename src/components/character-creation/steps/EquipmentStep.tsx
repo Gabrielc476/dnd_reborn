@@ -5,7 +5,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { 
   Sword, 
@@ -21,7 +21,10 @@ import {
   Backpack,
   Zap,
   Target,
-  Crown
+  Crown,
+  Hammer,
+  Scroll,
+  Gem
 } from "lucide-react";
 
 interface EquipmentCategory {
@@ -45,7 +48,10 @@ interface EquipmentItem {
   cost?: string;
 }
 
-// Mock data - em produção virá da API
+// ===========================
+// MOCK EQUIPMENT DATA COMPLETO
+// ===========================
+
 const mockEquipment: EquipmentCategory[] = [
   {
     id: 'weapons',
@@ -107,6 +113,17 @@ const mockEquipment: EquipmentCategory[] = [
         description: 'Uma besta compacta e fácil de usar.',
         weight: 5,
         cost: '25 po'
+      },
+      {
+        id: 'rapier',
+        name: 'Rapieira',
+        type: 'Arma Corpo a Corpo',
+        rarity: 'common',
+        damage: '1d8 perfurante',
+        properties: ['Finesse'],
+        description: 'Uma espada elegante e precisa.',
+        weight: 2,
+        cost: '25 po'
       }
     ]
   },
@@ -122,7 +139,7 @@ const mockEquipment: EquipmentCategory[] = [
         type: 'Armadura Leve',
         rarity: 'common',
         armorClass: 11,
-        description: 'Proteção básica feita de couro endurecido.',
+        description: 'Armadura feita de couro sobreposto.',
         weight: 10,
         cost: '10 po'
       },
@@ -132,7 +149,7 @@ const mockEquipment: EquipmentCategory[] = [
         type: 'Armadura Leve',
         rarity: 'common',
         armorClass: 12,
-        description: 'Couro reforçado com tachas metálicas.',
+        description: 'Armadura de couro reforçada com tachas.',
         weight: 13,
         cost: '45 po'
       },
@@ -141,20 +158,10 @@ const mockEquipment: EquipmentCategory[] = [
         name: 'Cota de Malha',
         type: 'Armadura Média',
         rarity: 'common',
-        armorClass: 13,
-        description: 'Anéis de metal entrelaçados oferecendo boa proteção.',
-        weight: 20,
-        cost: '50 po'
-      },
-      {
-        id: 'scale-mail',
-        name: 'Cota de Escamas',
-        type: 'Armadura Média',
-        rarity: 'common',
-        armorClass: 14,
-        description: 'Armadura feita de escamas metálicas sobrepostas.',
-        weight: 45,
-        cost: '50 po'
+        armorClass: 16,
+        description: 'Armadura de anéis metálicos entrelaçados.',
+        weight: 55,
+        cost: '75 po'
       },
       {
         id: 'plate-armor',
@@ -165,6 +172,16 @@ const mockEquipment: EquipmentCategory[] = [
         description: 'A melhor proteção disponível, feita de placas de aço.',
         weight: 65,
         cost: '1500 po'
+      },
+      {
+        id: 'scale-mail',
+        name: 'Armadura de Escamas',
+        type: 'Armadura Média',
+        rarity: 'common',
+        armorClass: 14,
+        description: 'Armadura feita de escamas metálicas sobrepostas.',
+        weight: 45,
+        cost: '50 po'
       }
     ]
   },
@@ -175,97 +192,101 @@ const mockEquipment: EquipmentCategory[] = [
     color: 'from-green-500 to-green-600',
     items: [
       {
-        id: 'adventuring-pack',
-        name: 'Kit do Aventureiro',
-        type: 'Kit de Equipamentos',
-        rarity: 'common',
-        description: 'Mochila, saco de dormir, kit de refeição, corda (50 pés), 10 tochas.',
-        weight: 30,
-        cost: '15 po'
-      },
-      {
-        id: 'thieves-tools',
-        name: 'Ferramentas de Ladrão',
-        type: 'Ferramenta',
-        rarity: 'common',
-        description: 'Um conjunto de pequenas ferramentas para abrir fechaduras.',
-        weight: 1,
-        cost: '25 po'
-      },
-      {
         id: 'rope',
         name: 'Corda de Cânhamo',
         type: 'Equipamento de Aventura',
         rarity: 'common',
-        description: 'Corda resistente de 50 pés.',
+        description: 'Equipamento de Aventura',
         weight: 10,
         cost: '2 po'
       },
       {
-        id: 'healing-potion',
-        name: 'Poção de Cura',
-        type: 'Poção',
+        id: 'thieves-tools',
+        name: 'Ferramentas de Ladrão',
+        type: 'Ferramentas',
         rarity: 'common',
-        description: 'Restaura 2d4+2 pontos de vida quando consumida.',
-        weight: 0.5,
-        cost: '50 po'
+        description: 'Conjunto de ferramentas para arrombamento.',
+        weight: 1,
+        cost: '25 po'
       },
       {
-        id: 'torch',
-        name: 'Tocha',
-        type: 'Equipamento de Aventura',
+        id: 'healers-kit',
+        name: 'Kit de Curandeiro',
+        type: 'Kit',
         rarity: 'common',
-        description: 'Fornece luz em um raio de 20 pés por 1 hora.',
-        weight: 1,
-        cost: '1 cp'
+        description: 'Kit médico para primeiros socorros.',
+        weight: 3,
+        cost: '5 po'
+      },
+      {
+        id: 'backpack',
+        name: 'Mochila',
+        type: 'Container',
+        rarity: 'common',
+        description: 'Mochila de couro para carregar equipamentos.',
+        weight: 5,
+        cost: '2 po'
       },
       {
         id: 'bedroll',
         name: 'Saco de Dormir',
+        type: 'Equipamento de Acampamento',
+        rarity: 'common',
+        description: 'Saco de dormir portátil.',
+        weight: 7,
+        cost: '1 po'
+      },
+      {
+        id: 'tinderbox',
+        name: 'Caixa de Fogo',
         type: 'Equipamento de Aventura',
         rarity: 'common',
-        description: 'Um saco confortável para dormir ao ar livre.',
-        weight: 7,
-        cost: '5 sp'
+        description: 'Kit para acender fogueiras.',
+        weight: 1,
+        cost: '5 mo'
       }
     ]
   },
   {
     id: 'tools',
     name: 'Ferramentas',
-    icon: Target,
-    color: 'from-purple-500 to-purple-600',
+    icon: Hammer,
+    color: 'from-yellow-500 to-orange-500',
     items: [
       {
         id: 'smiths-tools',
         name: 'Ferramentas de Ferreiro',
         type: 'Ferramentas de Artesão',
         rarity: 'common',
-        description: 'Martelos, tenazes e outras ferramentas para trabalhar metal.',
+        description: 'Ferramentas para trabalhar com metal.',
         weight: 8,
         cost: '20 po'
       },
       {
-        id: 'herbalism-kit',
-        name: 'Kit de Herbalismo',
-        type: 'Kit',
+        id: 'alchemists-supplies',
+        name: 'Suprimentos de Alquimista',
+        type: 'Ferramentas de Artesão',
         rarity: 'common',
-        description: 'Ferramentas para identificar e usar plantas medicinais.',
-        weight: 3,
-        cost: '5 po'
+        description: 'Equipamentos para criar poções e elixires.',
+        weight: 8,
+        cost: '50 po'
       },
       {
-        id: 'disguise-kit',
-        name: 'Kit de Disfarce',
-        type: 'Kit',
+        id: 'carpenters-tools',
+        name: 'Ferramentas de Carpinteiro',
+        type: 'Ferramentas de Artesão',
         rarity: 'common',
-        description: 'Cosméticos, tintas e pequenos acessórios para disfarces.',
-        weight: 3,
-        cost: '25 po'
+        description: 'Ferramentas para trabalhar com madeira.',
+        weight: 6,
+        cost: '8 po'
       }
     ]
   }
 ];
+
+// ===========================
+// EQUIPMENT CARD COMPONENT
+// ===========================
 
 function EquipmentCard({ 
   item, 
@@ -276,89 +297,100 @@ function EquipmentCard({
   isSelected: boolean; 
   onToggle: () => void; 
 }) {
+  // 🚨 DEBUG LOG para EquipmentCard
+  if (item.id === 'longsword') { // Log apenas para longsword
+    console.log(`📋 EQUIPMENT CARD (${item.name}) - isSelected: ${isSelected}`);
+  }
+
   const rarityColors = {
-    common: 'border-gray-500/50 text-gray-300',
-    uncommon: 'border-green-500/50 text-green-400',
-    rare: 'border-blue-500/50 text-blue-400',
-    epic: 'border-purple-500/50 text-purple-400',
-    legendary: 'border-orange-500/50 text-orange-400'
+    common: 'from-gray-500 to-gray-600',
+    uncommon: 'from-green-500 to-green-600',
+    rare: 'from-blue-500 to-blue-600',
+    epic: 'from-purple-500 to-purple-600',
+    legendary: 'from-yellow-500 to-orange-500'
   };
 
-  const rarityBgs = {
-    common: 'bg-gray-500/10',
-    uncommon: 'bg-green-500/10',
-    rare: 'bg-blue-500/10',
-    epic: 'bg-purple-500/10',
-    legendary: 'bg-orange-500/10'
+  const rarityBorders = {
+    common: 'border-gray-500/50',
+    uncommon: 'border-green-500/50',
+    rare: 'border-blue-500/50',
+    epic: 'border-purple-500/50',
+    legendary: 'border-yellow-500/50'
   };
 
   return (
-    <div
-      onClick={onToggle}
+    <div 
+      onClick={() => {
+        console.log(`📋 CARD ONCLICK: ${item.name}, calling onToggle`);
+        onToggle();
+      }}
       className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
         isSelected
-          ? 'bg-blue-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20'
-          : 'bg-gray-800/50 border-gray-600/50 hover:border-gray-500/50'
+          ? `bg-blue-500/20 border-blue-500/50 shadow-lg shadow-blue-500/25`
+          : `bg-gray-800/50 ${rarityBorders[item.rarity]} hover:border-gray-500/50`
       }`}
     >
-      {/* Header with name and selection indicator */}
-      <div className="flex items-start justify-between mb-2">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-3">
         <div className="flex-1">
-          <h4 className="text-white font-semibold text-sm">{item.name}</h4>
+          <h4 className="text-white font-semibold text-sm mb-1">{item.name}</h4>
           <p className="text-gray-400 text-xs">{item.type}</p>
         </div>
-        {isSelected ? (
-          <CheckCircle className="w-5 h-5 text-blue-400 flex-shrink-0" />
-        ) : (
-          <Circle className="w-5 h-5 text-gray-500 flex-shrink-0" />
-        )}
+        <div className="ml-3 flex-shrink-0">
+          {isSelected ? (
+            <CheckCircle className="w-5 h-5 text-blue-400" />
+          ) : (
+            <Circle className="w-5 h-5 text-gray-500" />
+          )}
+        </div>
       </div>
 
-      {/* Rarity badge */}
-      <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium mb-2 ${rarityBgs[item.rarity]} ${rarityColors[item.rarity]}`}>
-        <Crown className="w-3 h-3 mr-1" />
-        {item.rarity.charAt(0).toUpperCase() + item.rarity.slice(1)}
+      {/* Rarity Badge */}
+      <div className={`inline-flex items-center px-2 py-1 rounded-lg bg-gradient-to-r ${rarityColors[item.rarity]} text-white text-xs font-medium mb-2`}>
+        {item.rarity === 'common' && 'Comum'}
+        {item.rarity === 'uncommon' && 'Incomum'}
+        {item.rarity === 'rare' && 'Raro'}
+        {item.rarity === 'epic' && 'Épico'}
+        {item.rarity === 'legendary' && 'Lendário'}
       </div>
 
       {/* Stats */}
-      <div className="space-y-1 mb-3">
+      <div className="space-y-2 mb-3">
         {item.damage && (
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-xs">Dano:</span>
-            <span className="text-red-400 text-xs font-mono">{item.damage}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">Dano:</span>
+            <span className="text-red-400 font-medium">{item.damage}</span>
           </div>
         )}
         {item.armorClass && (
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-xs">CA:</span>
-            <span className="text-blue-400 text-xs font-mono">{item.armorClass}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">CA:</span>
+            <span className="text-blue-400 font-medium">{item.armorClass}</span>
           </div>
         )}
         {item.weight && (
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-xs">Peso:</span>
-            <span className="text-yellow-400 text-xs font-mono">{item.weight} lb</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">Peso:</span>
+            <span className="text-yellow-400 font-medium">{item.weight} lb</span>
           </div>
         )}
         {item.cost && (
-          <div className="flex items-center justify-between">
-            <span className="text-gray-400 text-xs">Custo:</span>
-            <span className="text-green-400 text-xs font-mono">{item.cost}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">Custo:</span>
+            <span className="text-green-400 font-medium">{item.cost}</span>
           </div>
         )}
       </div>
 
-      {/* Description */}
-      <p className="text-gray-300 text-xs mb-3 leading-relaxed">{item.description}</p>
-
       {/* Properties */}
       {item.properties && item.properties.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-gray-600/50">
+        <div className="mb-3">
+          <p className="text-gray-400 text-xs mb-1">Propriedades:</p>
           <div className="flex flex-wrap gap-1">
             {item.properties.map((prop, index) => (
               <span 
                 key={index}
-                className="text-xs px-2 py-1 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30"
+                className="px-2 py-1 bg-gray-700/50 text-gray-300 text-xs rounded"
               >
                 {prop}
               </span>
@@ -366,49 +398,78 @@ function EquipmentCard({
           </div>
         </div>
       )}
+
+      {/* Description */}
+      <p className="text-gray-400 text-xs leading-relaxed">
+        {item.description}
+      </p>
     </div>
   );
 }
+
+// ===========================
+// MAIN COMPONENT - 🔥 CORRIGIDO
+// ===========================
 
 export default function EquipmentStep() {
   const { characterData, updateCharacterData } = useCharacterCreationContext();
   
   const [selectedCategory, setSelectedCategory] = useState('weapons');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+
+  // 🔥 CORREÇÃO: Usar diretamente o estado global
+  const selectedEquipment = characterData.selectedEquipment || [];
 
   // ===========================
-  // 🔥 CORREÇÃO 1: Sincronizar estado local com global
+  // 🚨 DEBUG LOGS - DIAGNÓSTICO
   // ===========================
   
-  // Inicializar estado local com dados salvos
-  useEffect(() => {
-    if (characterData.selectedEquipment && characterData.selectedEquipment.length > 0) {
-      setSelectedEquipment(characterData.selectedEquipment);
-    }
-  }, []);
-
-  // Salvar equipamentos no estado global sempre que mudar
-  useEffect(() => {
-    updateCharacterData({ 
-      selectedEquipment: selectedEquipment 
-    });
-  }, [selectedEquipment, updateCharacterData]);
+  console.log("🔍 ===== EQUIPMENT STEP DEBUG =====");
+  console.log("📦 characterData.selectedEquipment:", characterData.selectedEquipment);
+  console.log("📦 selectedEquipment (local):", selectedEquipment);
+  console.log("📦 selectedEquipment.length:", selectedEquipment.length);
+  console.log("📦 Type of selectedEquipment:", typeof selectedEquipment);
+  console.log("📦 Is Array:", Array.isArray(selectedEquipment));
+  console.log("📦 Full characterData keys:", Object.keys(characterData));
+  console.log("📦 updateCharacterData type:", typeof updateCharacterData);
+  console.log("=====================================");
 
   // ===========================
-  // HANDLERS
+  // HANDLERS CORRIGIDOS
   // ===========================
 
   const handleEquipmentToggle = (itemId: string) => {
-    setSelectedEquipment(prev => 
-      prev.includes(itemId)
-        ? prev.filter(id => id !== itemId)
-        : [...prev, itemId]
-    );
+    console.log("🎯 ===== HANDLE EQUIPMENT TOGGLE =====");
+    console.log("🎯 Item ID:", itemId);
+    console.log("🎯 Current selectedEquipment:", selectedEquipment);
+    console.log("🎯 Is item currently selected:", selectedEquipment.includes(itemId));
+    
+    const newSelectedEquipment = selectedEquipment.includes(itemId)
+      ? selectedEquipment.filter(id => id !== itemId)
+      : [...selectedEquipment, itemId];
+    
+    console.log("🎯 New selectedEquipment:", newSelectedEquipment);
+    console.log("🎯 Calling updateCharacterData with:", { selectedEquipment: newSelectedEquipment });
+    
+    // Atualizar diretamente o estado global
+    updateCharacterData({ 
+      selectedEquipment: newSelectedEquipment 
+    });
+    
+    console.log("🎯 updateCharacterData called");
+    console.log("=====================================");
   };
 
   const clearAllEquipment = () => {
-    setSelectedEquipment([]);
+    console.log("🧹 ===== CLEAR ALL EQUIPMENT =====");
+    console.log("🧹 Before clear:", selectedEquipment);
+    
+    updateCharacterData({ 
+      selectedEquipment: [] 
+    });
+    
+    console.log("🧹 Clear all called");
+    console.log("=====================================");
   };
 
   // ===========================
@@ -427,6 +488,33 @@ export default function EquipmentStep() {
 
   const totalWeight = selectedItems.reduce((sum, item) => sum + (item.weight || 0), 0);
   const carryingCapacity = (characterData.abilityScores.strength || 10) * 15; // 15 lbs per STR point
+
+  const loadStatus = totalWeight > carryingCapacity ? 'Sobrecarregado' : 
+                    totalWeight > carryingCapacity * 0.75 ? 'Pesado' : 'Normal';
+
+  // ===========================
+  // 🚨 DEBUG LOGS - COMPUTED VALUES
+  // ===========================
+  
+  console.log("🧮 ===== COMPUTED VALUES DEBUG =====");
+  console.log("🧮 selectedItems:", selectedItems);
+  console.log("🧮 selectedItems.length:", selectedItems.length);
+  console.log("🧮 totalWeight:", totalWeight);
+  console.log("🧮 carryingCapacity:", carryingCapacity);
+  console.log("🧮 loadStatus:", loadStatus);
+  console.log("=====================================");
+
+  // ===========================
+  // 🚨 DEBUG LOGS - EFFECT PARA MONITORAR MUDANÇAS
+  // ===========================
+  
+  React.useEffect(() => {
+    console.log("⚡ ===== EQUIPMENT CHANGED EFFECT =====");
+    console.log("⚡ selectedEquipment changed to:", selectedEquipment);
+    console.log("⚡ characterData.selectedEquipment:", characterData.selectedEquipment);
+    console.log("⚡ Are they equal?", JSON.stringify(selectedEquipment) === JSON.stringify(characterData.selectedEquipment));
+    console.log("=========================================");
+  }, [selectedEquipment, characterData.selectedEquipment]);
 
   return (
     <div className="space-y-8">
@@ -451,20 +539,26 @@ export default function EquipmentStep() {
           </div>
         </div>
         
-        <div className="mt-4 grid md:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between">
-            <span className="text-red-200 text-sm">Peso Total:</span>
-            <span className={`font-medium ${
+        <div className="mt-4 grid md:grid-cols-3 gap-4">
+          <div className="text-center p-3 bg-red-500/10 rounded-lg border border-red-500/20">
+            <div className="text-red-400 text-xs uppercase tracking-wide">Total de Itens</div>
+            <div className="text-white font-bold text-lg">{selectedEquipment.length}</div>
+          </div>
+          <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+            <div className="text-yellow-400 text-xs uppercase tracking-wide">Peso Total</div>
+            <div className="text-white font-bold text-lg">{totalWeight} lb</div>
+          </div>
+          <div className={`text-center p-3 rounded-lg border ${
+            totalWeight > carryingCapacity 
+              ? 'bg-red-500/10 border-red-500/20' 
+              : 'bg-green-500/10 border-green-500/20'
+          }`}>
+            <div className={`text-xs uppercase tracking-wide ${
               totalWeight > carryingCapacity ? 'text-red-400' : 'text-green-400'
             }`}>
-              {totalWeight} / {carryingCapacity} lb
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-red-200 text-sm">Capacidade:</span>
-            <span className="text-blue-400 font-medium">
-              {Math.round((totalWeight / carryingCapacity) * 100)}%
-            </span>
+              Status de Carga
+            </div>
+            <div className="text-white font-bold text-lg">{loadStatus}</div>
           </div>
         </div>
       </div>
@@ -530,14 +624,26 @@ export default function EquipmentStep() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map((item) => (
-            <EquipmentCard
-              key={item.id}
-              item={item}
-              isSelected={selectedEquipment.includes(item.id)}
-              onToggle={() => handleEquipmentToggle(item.id)}
-            />
-          ))}
+          {filteredItems.map((item) => {
+            const isSelected = selectedEquipment.includes(item.id);
+            
+            // 🚨 DEBUG LOG para cada item
+            if (item.id === 'longsword') { // Log apenas para longsword para não poluir
+              console.log(`🗡️ LONGSWORD DEBUG - isSelected: ${isSelected}, selectedEquipment:`, selectedEquipment);
+            }
+            
+            return (
+              <EquipmentCard
+                key={item.id}
+                item={item}
+                isSelected={isSelected}
+                onToggle={() => {
+                  console.log(`🎯 CARD CLICKED: ${item.name} (${item.id})`);
+                  handleEquipmentToggle(item.id);
+                }}
+              />
+            );
+          })}
         </div>
 
         {filteredItems.length === 0 && (
@@ -561,88 +667,53 @@ export default function EquipmentStep() {
             <h4 className="text-white font-semibold">Equipamentos Selecionados</h4>
           </div>
           
-          <div className="space-y-4">
-            {/* Summary Stats */}
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
-                <div className="text-blue-400 text-xs uppercase tracking-wide">Total de Itens</div>
-                <div className="text-white font-bold text-lg">{selectedItems.length}</div>
-              </div>
-              <div className="text-center p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-                <div className="text-yellow-400 text-xs uppercase tracking-wide">Peso Total</div>
-                <div className="text-white font-bold text-lg">{totalWeight} lb</div>
-              </div>
-              <div className={`text-center p-3 rounded-lg border ${
-                totalWeight > carryingCapacity 
-                  ? 'bg-red-500/10 border-red-500/20' 
-                  : 'bg-green-500/10 border-green-500/20'
-              }`}>
-                <div className={`text-xs uppercase tracking-wide ${
-                  totalWeight > carryingCapacity ? 'text-red-400' : 'text-green-400'
-                }`}>
-                  Status de Carga
+          <div className="grid md:grid-cols-2 gap-4">
+            {selectedItems.map((item) => (
+              <div 
+                key={item.id}
+                className="flex items-center justify-between p-3 bg-blue-500/10 rounded-lg border border-blue-500/20"
+              >
+                <div>
+                  <div className="text-white font-medium text-sm">{item.name}</div>
+                  <div className="text-blue-400 text-xs">{item.type}</div>
                 </div>
-                <div className={`font-bold text-lg ${
-                  totalWeight > carryingCapacity ? 'text-red-400' : 'text-green-400'
-                }`}>
-                  {totalWeight > carryingCapacity ? 'Sobrecarga' : 'Normal'}
+                <div className="text-right">
+                  {item.weight && (
+                    <div className="text-yellow-400 text-xs">{item.weight} lb</div>
+                  )}
+                  {item.cost && (
+                    <div className="text-green-400 text-xs">{item.cost}</div>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Selected Items List */}
-            <div className="grid md:grid-cols-2 gap-3">
-              {selectedItems.map((item) => (
-                <div 
-                  key={item.id}
-                  className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg border border-gray-700/50"
-                >
-                  <div className="flex-1">
-                    <h5 className="text-white font-medium text-sm">{item.name}</h5>
-                    <p className="text-gray-400 text-xs">{item.type}</p>
-                  </div>
-                  <div className="text-right">
-                    {item.weight && (
-                      <div className="text-yellow-400 text-xs font-mono">{item.weight} lb</div>
-                    )}
-                    {item.cost && (
-                      <div className="text-green-400 text-xs font-mono">{item.cost}</div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Weight Warning */}
-            {totalWeight > carryingCapacity && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
-                <div className="flex items-center space-x-2">
-                  <Info className="w-5 h-5 text-red-400" />
-                  <h5 className="text-red-400 font-semibold">Sobrecarga Detectada</h5>
-                </div>
-                <p className="text-red-300 text-sm mt-1">
-                  Seu personagem está carregando mais peso do que sua força permite. 
-                  Isso pode resultar em penalidades de movimento e outras desvantagens.
-                </p>
-              </div>
-            )}
+            ))}
           </div>
         </div>
       )}
 
-      {/* Tips */}
-      <div className="bg-gray-800/30 border border-gray-700/50 rounded-xl p-4">
-        <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <h5 className="text-blue-400 font-semibold text-sm">Dicas de Equipamentos</h5>
-            <ul className="text-gray-300 text-sm mt-1 space-y-1">
-              <li>• Selecione pelo menos uma arma para combate</li>
-              <li>• Considere uma armadura adequada ao seu personagem</li>
-              <li>• Não esqueça de equipamentos básicos como corda e tochas</li>
-              <li>• Fique atento ao limite de peso baseado na sua Força</li>
-            </ul>
-          </div>
+      {/* Dicas de Equipamentos */}
+      <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6">
+        <div className="flex items-center space-x-3 mb-4">
+          <Info className="w-5 h-5 text-blue-400" />
+          <h4 className="text-white font-semibold">Dicas de Equipamentos</h4>
+        </div>
+        
+        <div className="space-y-2 text-blue-200 text-sm">
+          <p>• Selecione pelo menos uma arma para combate</p>
+          <p>• Considere uma armadura adequada ao seu personagem</p>
+          <p>• Não esqueça de equipamentos básicos como corda e tochas</p>
+          <p>• Fique atento ao limite de peso baseado na sua Força</p>
+        </div>
+      </div>
+
+      {/* 🚨 DEBUG INFO VISUAL */}
+      <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
+        <h4 className="text-purple-400 font-semibold mb-2">🚨 DEBUG INFO</h4>
+        <div className="space-y-1 text-xs font-mono">
+          <div className="text-white">Selected Equipment: <span className="text-yellow-400">{JSON.stringify(selectedEquipment)}</span></div>
+          <div className="text-white">Array Length: <span className="text-green-400">{selectedEquipment.length}</span></div>
+          <div className="text-white">Is Valid: <span className="text-blue-400">{selectedEquipment.length > 0 ? 'TRUE' : 'FALSE'}</span></div>
+          <div className="text-white">Character Data Equipment: <span className="text-cyan-400">{JSON.stringify(characterData.selectedEquipment)}</span></div>
         </div>
       </div>
     </div>
