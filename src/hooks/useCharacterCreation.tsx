@@ -1,5 +1,5 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO COMPLETA CORRIGIDA
+// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO ORIGINAL + MAGIAS
 // src/hooks/useCharacterCreation.tsx
 // ===========================
 "use client";
@@ -34,6 +34,98 @@ import {
 
 // Importar API do D&D
 import { dndAPI } from "@/api/dndAPI";
+
+// ===========================
+// CONFIGURAÇÕES DE MAGIAS POR CLASSE - ✨ NOVO
+// ===========================
+
+const SPELL_CONFIG_BY_CLASS: Record<string, {
+  cantripsKnown: number;
+  spellsKnown: number;
+  maxSpellLevel: number;
+  spellcastingAbility: 'int' | 'wis' | 'cha' | null;
+  isSpellcaster: boolean;
+}> = {
+  'wizard': { cantripsKnown: 3, spellsKnown: 6, maxSpellLevel: 1, spellcastingAbility: 'int', isSpellcaster: true },
+  'sorcerer': { cantripsKnown: 4, spellsKnown: 2, maxSpellLevel: 1, spellcastingAbility: 'cha', isSpellcaster: true },
+  'cleric': { cantripsKnown: 3, spellsKnown: 2, maxSpellLevel: 1, spellcastingAbility: 'wis', isSpellcaster: true },
+  'druid': { cantripsKnown: 2, spellsKnown: 2, maxSpellLevel: 1, spellcastingAbility: 'wis', isSpellcaster: true },
+  'bard': { cantripsKnown: 2, spellsKnown: 4, maxSpellLevel: 1, spellcastingAbility: 'cha', isSpellcaster: true },
+  'warlock': { cantripsKnown: 2, spellsKnown: 2, maxSpellLevel: 1, spellcastingAbility: 'cha', isSpellcaster: true },
+  'ranger': { cantripsKnown: 0, spellsKnown: 0, maxSpellLevel: 0, spellcastingAbility: 'wis', isSpellcaster: false },
+  'paladin': { cantripsKnown: 0, spellsKnown: 0, maxSpellLevel: 0, spellcastingAbility: 'cha', isSpellcaster: false },
+  'fighter': { cantripsKnown: 0, spellsKnown: 0, maxSpellLevel: 0, spellcastingAbility: 'int', isSpellcaster: false },
+  'rogue': { cantripsKnown: 0, spellsKnown: 0, maxSpellLevel: 0, spellcastingAbility: 'int', isSpellcaster: false },
+  'barbarian': { cantripsKnown: 0, spellsKnown: 0, maxSpellLevel: 0, spellcastingAbility: null, isSpellcaster: false },
+  'monk': { cantripsKnown: 0, spellsKnown: 0, maxSpellLevel: 0, spellcastingAbility: null, isSpellcaster: false },
+};
+
+// ===========================
+// FUNÇÕES DE VALIDAÇÃO DE MAGIAS - ✨ NOVO
+// ===========================
+
+interface SpellValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  cantripsCount: number;
+  spellsCount: number;
+  maxCantrips: number;
+  maxSpells: number;
+}
+
+function canClassAccessSpell(classIndex: string, spell: DndSpell): boolean {
+  const hasAccess = spell.classes?.some(spellClass => spellClass.index === classIndex);
+  if (!hasAccess) return false;
+
+  const classConfig = SPELL_CONFIG_BY_CLASS[classIndex];
+  if (!classConfig) return false;
+
+  return spell.level <= classConfig.maxSpellLevel;
+}
+
+function validateSpellSelection(
+  classIndex: string,
+  selectedSpells: string[],
+  availableSpells: DndSpell[]
+): SpellValidationResult {
+  const classConfig = SPELL_CONFIG_BY_CLASS[classIndex];
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!classConfig || !classConfig.isSpellcaster) {
+    return { isValid: false, errors: ["Classe não é conjuradora"], warnings: [], cantripsCount: 0, spellsCount: 0, maxCantrips: 0, maxSpells: 0 };
+  }
+
+  let cantripsCount = 0;
+  let spellsCount = 0;
+
+  for (const spellIndex of selectedSpells) {
+    const spell = availableSpells.find(s => s.index === spellIndex);
+    if (!spell) continue;
+    if (!canClassAccessSpell(classIndex, spell)) continue;
+
+    if (spell.level === 0) cantripsCount++;
+    else spellsCount++;
+  }
+
+  if (cantripsCount > classConfig.cantripsKnown) {
+    errors.push(`Muitos cantrips: ${cantripsCount}/${classConfig.cantripsKnown}`);
+  }
+  if (spellsCount > classConfig.spellsKnown) {
+    errors.push(`Muitas magias: ${spellsCount}/${classConfig.spellsKnown}`);
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    cantripsCount,
+    spellsCount,
+    maxCantrips: classConfig.cantripsKnown,
+    maxSpells: classConfig.spellsKnown,
+  };
+}
 
 // ===========================
 // QUERY CLIENT SETUP
@@ -232,33 +324,14 @@ function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
     queryKey: ["dnd", "subclasses", classIndex],
     queryFn: async () => {
       try {
-        if (classIndex) {
-          // Usar o método específico para classe se existir
-          const classSubclasses = await dndAPI.getSubclassesByClass(classIndex);
-          console.log("🌐 ===== SUBCLASSES CARREGADAS DA API =====");
-          console.log(`📊 Total: ${classSubclasses.length} subclasses para ${classIndex}`);
-          return classSubclasses;
-        }
-        
-        // Buscar todas as subclasses se não há classe específica
-        const allSubclasses = await dndAPI.getSubclasses();
-        console.log("🌐 ===== TODAS SUBCLASSES CARREGADAS DA API =====");
-        console.log(`📊 Total: ${allSubclasses.length} subclasses`);
-        return allSubclasses;
+        const subclasses = await dndAPI.getSubclasses();
+        console.log("🌐 ===== SUBCLASSES CARREGADAS (API + DADOS LOCAIS) =====");
+        console.log(`📊 Total: ${subclasses.length} subclasses`);
+        return subclasses;
       } catch (error) {
         console.error("❌ Erro ao carregar subclasses da API:", error);
-        const { mockSubclasses } = await import("@/data/mockSubclasses");
+        const { mockSubclasses } = await import("@/data/mockSubClasses");
         console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
-        
-        if (classIndex) {
-          // Filtrar subclasses mock por classe
-          const classSubclasses = mockSubclasses.filter(subclass => 
-            subclass.class.index === classIndex
-          );
-          console.log(`📊 Total: ${classSubclasses.length} subclasses para ${classIndex} dos dados locais`);
-          return classSubclasses;
-        }
-        
         console.log(`📊 Total: ${mockSubclasses.length} subclasses dos dados locais`);
         return mockSubclasses;
       }
@@ -289,41 +362,44 @@ function useBackgroundsQuery() {
   });
 }
 
+// ===========================
+// HOOK DE MAGIAS CORRIGIDO - ✨ NOVO
+// ===========================
 function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "spells", classIndex],
     queryFn: async () => {
       try {
-        // Buscar todas as magias da API primeiro
+        console.log(`🔍 ===== CARREGANDO MAGIAS PARA ${classIndex || 'TODAS AS CLASSES'} =====`);
+        
         const allSpells = await dndAPI.getSpells();
-        console.log("🌐 ===== MAGIAS CARREGADAS DA API =====");
+        console.log(`📊 Total de magias da API: ${allSpells.length}`);
         
         if (classIndex) {
-          // Filtrar magias por classe
-          const classSpells = allSpells.filter(spell => 
-            spell.classes.some(cls => cls.index === classIndex)
-          );
-          console.log(`📊 Total: ${classSpells.length} magias para ${classIndex}`);
+          const classSpells = allSpells.filter(spell => {
+            const hasClass = spell.classes?.some(cls => cls.index === classIndex);
+            return hasClass;
+          });
+          
+          console.log(`🎯 Magias filtradas para ${classIndex}: ${classSpells.length}`);
           return classSpells;
         }
         
-        console.log(`📊 Total: ${allSpells.length} magias carregadas`);
         return allSpells;
+        
       } catch (error) {
         console.error("❌ Erro ao carregar magias da API:", error);
         const { mockSpells } = await import("@/data/mockSpells");
         console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
         
         if (classIndex) {
-          // Filtrar magias mock por classe
           const classSpells = mockSpells.filter(spell => 
-            spell.classes.some(cls => cls.index === classIndex)
+            spell.classes?.some(cls => cls.index === classIndex)
           );
-          console.log(`📊 Total: ${classSpells.length} magias para ${classIndex} dos dados locais`);
+          console.log(`📊 Magias mock para ${classIndex}: ${classSpells.length}`);
           return classSpells;
         }
         
-        console.log(`📊 Total: ${mockSpells.length} magias dos dados locais`);
         return mockSpells;
       }
     },
@@ -402,67 +478,67 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   // COMPUTED VALUES
   // ===========================
 
+  // Loading state
   const isLoading = useMemo(() => {
-    return isLoadingRaces || isLoadingClasses || isLoadingBackgrounds || 
-           (characterData.selectedRace && isLoadingSubraces) ||
-           (characterData.selectedClass && isLoadingSubclasses) ||
-           (characterData.isSpellcaster && isLoadingSpells);
-  }, [
-    isLoadingRaces, 
-    isLoadingClasses, 
-    isLoadingBackgrounds, 
-    isLoadingSubraces, 
-    isLoadingSubclasses, 
-    isLoadingSpells,
-    characterData.selectedRace,
-    characterData.selectedClass,
-    characterData.isSpellcaster
-  ]);
+    return isLoadingRaces || isLoadingClasses || isLoadingBackgrounds || isLoadingSpells || isLoadingSubclasses || isLoadingSubraces;
+  }, [isLoadingRaces, isLoadingClasses, isLoadingBackgrounds, isLoadingSpells, isLoadingSubclasses, isLoadingSubraces]);
 
-  // Filtered data
+  // Progress calculation
+  const progress = useMemo(() => {
+    return Math.round((currentStep / (steps.length - 1)) * 100);
+  }, [currentStep, steps.length]);
+
+  // Current step data
+  const currentStepData = useMemo(() => {
+    return steps[currentStep];
+  }, [currentStep, steps]);
+
+  // Filter data by search terms
   const filteredRaces = useMemo(() => {
-    return racesData.filter(race => 
+    if (!debouncedRaceSearch) return racesData;
+    return racesData.filter(race =>
       race.name.toLowerCase().includes(debouncedRaceSearch.toLowerCase())
     );
   }, [racesData, debouncedRaceSearch]);
 
   const filteredClasses = useMemo(() => {
-    return classesData.filter(cls => 
+    if (!debouncedClassSearch) return classesData;
+    return classesData.filter(cls =>
       cls.name.toLowerCase().includes(debouncedClassSearch.toLowerCase())
     );
   }, [classesData, debouncedClassSearch]);
 
   const filteredSpells = useMemo(() => {
-    return spellsData.filter(spell => 
-      spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase())
+    if (!debouncedSpellSearch) return spellsData;
+    return spellsData.filter(spell =>
+      spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase()) ||
+      (Array.isArray(spell.desc) ? spell.desc.join(' ') : spell.desc || '')
+        .toLowerCase().includes(debouncedSpellSearch.toLowerCase())
     );
   }, [spellsData, debouncedSpellSearch]);
 
-  // Progress tracking
-  const currentStepData = useMemo(() => {
-    return steps[currentStep];
-  }, [steps, currentStep]);
+  // ===========================
+  // INFORMAÇÕES DE MAGIAS PARA CLASSE ATUAL - ✨ NOVO
+  // ===========================
 
-  const progress = useMemo(() => {
-    return Math.round(((currentStep + 1) / steps.length) * 100);
-  }, [currentStep, steps.length]);
-
-  // Spell Info
   const spellInfo = useMemo(() => {
-    if (!characterData.selectedClass?.spellcasting) {
-      return {
-        maxSpellLevel: 0,
-        startingCantrips: 0,
-        startingSpells: 0,
-      };
+    if (!characterData.selectedClass || !characterData.selectedClass.spellcasting) {
+      return { maxSpellLevel: 0, startingCantrips: 0, startingSpells: 0 };
+    }
+
+    const classIndex = characterData.selectedClass.index;
+    const classConfig = SPELL_CONFIG_BY_CLASS[classIndex];
+    
+    if (!classConfig) {
+      return { maxSpellLevel: 0, startingCantrips: 0, startingSpells: 0 };
     }
 
     return {
-      maxSpellLevel: characterData.level >= 17 ? 9 : characterData.level >= 15 ? 8 : characterData.level >= 13 ? 7 : characterData.level >= 11 ? 6 : characterData.level >= 9 ? 5 : characterData.level >= 7 ? 4 : characterData.level >= 5 ? 3 : characterData.level >= 3 ? 2 : 1,
-      startingCantrips: characterData.level >= 10 ? 4 : characterData.level >= 4 ? 3 : 2,
-      startingSpells: characterData.level + 1,
+      maxSpellLevel: classConfig.maxSpellLevel,
+      startingCantrips: classConfig.cantripsKnown,
+      startingSpells: classConfig.spellsKnown,
     };
-  }, [characterData.selectedClass, characterData.level]);
+  }, [characterData.selectedClass]);
 
   // ===========================
   // CHARACTER DATA UPDATES
@@ -476,8 +552,35 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     field: K,
     value: CharacterCreationData[K]
   ) => {
+    // Se mudou a classe, limpar magias inválidas - ✨ ADICIONADO
+    if (field === 'selectedClass' && value) {
+      const newClass = value as DndClass;
+      const currentSpells = characterData.selectedSpells || [];
+      
+      if (currentSpells.length > 0) {
+        console.log(`🔄 Classe mudou para ${newClass.name}, validando magias...`);
+        
+        // Filtrar magias válidas para a nova classe
+        const validSpells = currentSpells.filter(spellIndex => {
+          const spell = spellsData.find(s => s.index === spellIndex);
+          return spell && canClassAccessSpell(newClass.index, spell);
+        });
+        
+        if (validSpells.length !== currentSpells.length) {
+          console.log(`⚠️ ${currentSpells.length - validSpells.length} magia(s) removida(s) por incompatibilidade`);
+          
+          setCharacterData(prev => ({
+            ...prev,
+            [field]: value,
+            selectedSpells: validSpells,
+          }));
+          return;
+        }
+      }
+    }
+
     setCharacterData(prev => ({ ...prev, [field]: value }));
-  }, []);
+  }, [characterData.selectedSpells, spellsData]);
 
   // Ability Scores
   const updateAbilityScore = useCallback((ability: keyof AbilityScores, value: number) => {
@@ -511,24 +614,56 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     });
   }, []);
 
-  // Spells
+  // ===========================
+  // FUNÇÃO PARA TOGGLE DE MAGIAS - ✨ NOVO
+  // ===========================
+
   const toggleSpell = useCallback((spellIndex: string) => {
-    setCharacterData(prev => {
-      const isSelected = prev.selectedSpells.includes(spellIndex);
-      
-      if (isSelected) {
-        return {
-          ...prev,
-          selectedSpells: prev.selectedSpells.filter(s => s !== spellIndex),
-        };
-      } else {
-        return {
-          ...prev,
-          selectedSpells: [...prev.selectedSpells, spellIndex],
-        };
+    const currentSelection = characterData.selectedSpells || [];
+    const isSelected = currentSelection.includes(spellIndex);
+    
+    if (isSelected) {
+      const newSelection = currentSelection.filter(s => s !== spellIndex);
+      updateCharacterData({ selectedSpells: newSelection });
+      console.log(`🗑️ Magia ${spellIndex} removida`);
+    } else {
+      const spell = spellsData.find(s => s.index === spellIndex);
+      if (!spell) {
+        console.error(`❌ Magia ${spellIndex} não encontrada`);
+        return;
       }
-    });
-  }, []);
+
+      const classIndex = characterData.selectedClass?.index;
+      if (!classIndex) {
+        console.error("❌ Nenhuma classe selecionada");
+        return;
+      }
+
+      const validation = validateSpellSelection(classIndex, currentSelection, spellsData);
+      const classConfig = SPELL_CONFIG_BY_CLASS[classIndex];
+      
+      if (!classConfig) {
+        console.error(`❌ Configuração não encontrada para classe ${classIndex}`);
+        return;
+      }
+      
+      if (spell.level === 0) {
+        if (validation.cantripsCount >= classConfig.cantripsKnown) {
+          console.warn(`⚠️ Limite de cantrips atingido (${classConfig.cantripsKnown})`);
+          return;
+        }
+      } else {
+        if (validation.spellsCount >= classConfig.spellsKnown) {
+          console.warn(`⚠️ Limite de magias atingido (${classConfig.spellsKnown})`);
+          return;
+        }
+      }
+
+      const newSelection = [...currentSelection, spellIndex];
+      updateCharacterData({ selectedSpells: newSelection });
+      console.log(`✅ Magia ${spell.name} adicionada`);
+    }
+  }, [characterData.selectedSpells, characterData.selectedClass, spellsData, updateCharacterData]);
 
   // ===========================
   // UTILITY FUNCTIONS - CORRIGIDAS
@@ -538,7 +673,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return Math.floor((score - 10) / 2);
   }, []);
 
-  const getCombinedAbilityBonuses = useCallback((): Record<keyof AbilityScores, number> => {
+  const getCombinedAbilityBonuses = useMemo((): Record<keyof AbilityScores, number> => {
     const bonuses: Record<keyof AbilityScores, number> = {
       strength: 0,
       dexterity: 0,
@@ -689,7 +824,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, []);
 
   // ===========================
-  // STEP VALIDATION - 🔥 CORRIGIDO COM LOGS
+  // STEP VALIDATION - ORIGINAL COM MAGIAS ADICIONADAS
   // ===========================
 
   const validateStep = useCallback((stepId: string): boolean => {
@@ -735,13 +870,31 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         return equipmentValid;
 
       case "spells":
-        if (!characterData.isSpellcaster) {
-          console.log("🔧 spells valid: true (not a spellcaster)");
+        // ✨ NOVA VALIDAÇÃO DE MAGIAS
+        if (!characterData.selectedClass) {
+          console.log("🔧 spells: Nenhuma classe selecionada");
+          return false;
+        }
+        
+        const classIndex = characterData.selectedClass.index;
+        const classConfig = SPELL_CONFIG_BY_CLASS[classIndex];
+        
+        if (!classConfig || !classConfig.isSpellcaster) {
+          console.log("🔧 spells: Classe não é conjuradora - válido");
           return true;
         }
-        const spellsValid = characterData.selectedSpells.length > 0;
-        console.log("🔧 spells valid:", spellsValid, "selected spells:", characterData.selectedSpells.length);
-        return spellsValid;
+        
+        const currentSelection = characterData.selectedSpells || [];
+        const validation = validateSpellSelection(classIndex, currentSelection, spellsData);
+        
+        console.log("🔧 spells validation:", {
+          valid: validation.isValid,
+          cantrips: `${validation.cantripsCount}/${classConfig.cantripsKnown}`,
+          spells: `${validation.spellsCount}/${classConfig.spellsKnown}`,
+          errors: validation.errors
+        });
+        
+        return validation.isValid;
 
       case "personality":
         const personalityValid = (
@@ -757,18 +910,35 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         console.log("🔧 Unknown step, returning false");
         return false;
     }
-  }, [characterData]);
+  }, [
+    // 🔥 DEPENDÊNCIAS ESPECÍFICAS ao invés de characterData completo para evitar loop
+    characterData.name,
+    characterData.selectedRace,
+    characterData.selectedClass,
+    characterData.selectedBackground,
+    characterData.selectedSkills,
+    characterData.selectedEquipment,
+    characterData.selectedSpells,
+    characterData.personalityTraits,
+    characterData.ideals,
+    characterData.bonds,
+    characterData.flaws,
+    characterData.abilityScores,
+    characterData.availableSkillChoices,
+    characterData.isSpellcaster,
+    spellsData
+  ]);
 
   const validateCurrentStep = useCallback((): boolean => {
     return currentStepData ? validateStep(currentStepData.id) : false;
-  }, [currentStep, steps, validateStep]);
+  }, [currentStepData?.id, validateStep]); // 🔥 APENAS o ID, não o objeto completo
 
   const canProceed = useCallback((): boolean => {
     return validateCurrentStep();
   }, [validateCurrentStep]);
 
   // ===========================
-  // STEP NAVIGATION
+  // STEP NAVIGATION - ORIGINAL
   // ===========================
 
   const nextStep = useCallback(() => {
@@ -790,7 +960,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [steps.length]);
 
   // ===========================
-  // CHARACTER ACTIONS
+  // CHARACTER ACTIONS - ORIGINAL
   // ===========================
 
   const resetCharacter = useCallback(() => {
@@ -816,7 +986,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [characterData]);
 
   // ===========================
-  // UPDATE STEP VALIDATION STATUS - 🔥 COM LOGS
+  // UPDATE STEP VALIDATION STATUS - CORRIGIDO SEM LOOP INFINITO
   // ===========================
 
   useEffect(() => {
@@ -837,22 +1007,39 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     );
     
     console.log("🔄 =====================================");
-  }, [characterData, validateStep]);
+  }, [
+    // 🔥 APENAS as propriedades que realmente importam para validação
+    characterData.name,
+    characterData.selectedRace?.index,
+    characterData.selectedClass?.index,
+    characterData.selectedBackground?.index,
+    characterData.selectedSkills?.length,
+    characterData.selectedEquipment?.length,
+    characterData.selectedSpells?.length,
+    characterData.personalityTraits?.length,
+    characterData.ideals?.length,
+    characterData.bonds?.length,
+    characterData.flaws?.length,
+    JSON.stringify(characterData.abilityScores),
+    // 🔥 REMOVIDO validateStep para quebrar o ciclo
+  ]);
 
-  // 🔥 FORÇAR VALIDAÇÃO IMEDIATA QUANDO EQUIPMENTS MUDAM
+  // 🔥 FORÇAR VALIDAÇÃO IMEDIATA QUANDO EQUIPMENTS MUDAM - CORRIGIDO
   useEffect(() => {
     console.log("⚡ ===== EQUIPMENT CHANGED - FORCING VALIDATION =====");
     console.log("⚡ selectedEquipment:", characterData.selectedEquipment);
     
-    // Forçar validação do step equipment
-    const equipmentValid = validateStep("equipment");
+    // Forçar validação do step equipment usando lógica inline
+    const equipmentValid = characterData.selectedEquipment && 
+                          Array.isArray(characterData.selectedEquipment) &&
+                          characterData.selectedEquipment.length > 0;
     console.log("⚡ Equipment validation result:", equipmentValid);
     
     console.log("⚡ ================================================");
-  }, [characterData.selectedEquipment, validateStep]);
+  }, [characterData.selectedEquipment?.length]); // 🔥 APENAS o tamanho, não validateStep
 
   // ===========================
-  // ERROR HANDLING
+  // ERROR HANDLING - ORIGINAL
   // ===========================
 
   useEffect(() => {
@@ -910,7 +1097,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [racesError, classesError, backgroundsError, spellsError, subracesError, subclassesError]);
 
   // ===========================
-  // AUTO-UPDATE EFFECT FOR CLASS CHANGES
+  // AUTO-UPDATE EFFECT FOR CLASS CHANGES - CORRIGIDO
   // ===========================
 
   useEffect(() => {
@@ -926,10 +1113,10 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         selectedSpells: isSpellcaster ? prev.selectedSpells : [],
       }));
     }
-  }, [characterData.selectedClass]);
+  }, [characterData.selectedClass?.index]); // 🔥 APENAS o index para evitar loop
 
   // ===========================
-  // RETURN CONTEXT VALUE - CORRIGIDO
+  // RETURN CONTEXT VALUE - ORIGINAL + MAGIAS
   // ===========================
 
   const contextValue: CharacterCreationContextType = {
@@ -949,7 +1136,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     updateCharacterField,
     updateAbilityScore,
     toggleSkill,
-    toggleSpell,
+    toggleSpell, // ✨ NOVO
 
     // Data from API
     races: filteredRaces,
@@ -993,7 +1180,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     isStepValid: validateStep,
 
     // ===========================
-    // UTILITY FUNCTIONS (PRINCIPAIS) - TODAS CORRIGIDAS
+    // UTILITY FUNCTIONS (PRINCIPAIS) - TODAS ORIGINAIS
     // ===========================
     
     getCombinedAbilityBonuses,
@@ -1014,7 +1201,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     getSubclassLevel,
     
     // ===========================
-    // UTILITY FUNCTIONS (ADICIONAIS)
+    // UTILITY FUNCTIONS (ADICIONAIS) - ORIGINAIS
     // ===========================
     
     calculateModifier: (score: number) => Math.floor((score - 10) / 2),
@@ -1050,15 +1237,49 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       };
     },
 
-    // Spell Info
+    // ===========================
+    // INFORMAÇÕES DE MAGIAS - ✨ NOVO
+    // ===========================
+    
     spellInfo,
     maxSpellLevel: spellInfo.maxSpellLevel,
     startingCantrips: spellInfo.startingCantrips,
     startingSpells: spellInfo.startingSpells,
+    
+    // Dados de magias filtrados por classe - ✨ NOVO
+    availableSpells: spellsData,
+    isSpellcaster: characterData.isSpellcaster,
+    cantripsKnown: spellInfo.startingCantrips,
+    spellsKnown: spellInfo.startingSpells,
+    
+    // Funções de validação de magias - ✨ NOVO
+    validateSpellSelection: (spells?: string[]) => {
+      const selection = spells || characterData.selectedSpells || [];
+      const classIndex = characterData.selectedClass?.index;
+      if (!classIndex) return { isValid: false, errors: ["Nenhuma classe selecionada"], warnings: [], cantripsCount: 0, spellsCount: 0, maxCantrips: 0, maxSpells: 0 };
+      
+      return validateSpellSelection(classIndex, selection, spellsData);
+    },
+    
+    getSpellSelectionSummary: () => {
+      const selection = characterData.selectedSpells || [];
+      return {
+        total: selection.length,
+        cantrips: selection.filter(spellIndex => {
+          const spell = spellsData.find(s => s.index === spellIndex);
+          return spell?.level === 0;
+        }).length,
+        levelSpells: selection.filter(spellIndex => {
+          const spell = spellsData.find(s => s.index === spellIndex);
+          return spell && spell.level > 0;
+        }).length,
+      };
+    },
+
     error,
   };
 
-  // 🚨 TESTE DIRETO - VALIDAÇÃO EQUIPMENT (dentro da função)
+  // 🚨 TESTE DIRETO - VALIDAÇÃO EQUIPMENT (dentro da função) - ORIGINAL
   console.log("🧪 ===== TESTE DIRETO - EQUIPMENT VALIDATION =====");
   console.log("🧪 characterData.selectedEquipment:", characterData.selectedEquipment);
   console.log("🧪 Equipment valid?", 
@@ -1072,7 +1293,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
 };
 
 // ===========================
-// PROVIDER COMPONENT
+// PROVIDER COMPONENT - ORIGINAL
 // ===========================
 
 const CharacterCreationInternalProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -1100,7 +1321,7 @@ export const CharacterCreationProvider: React.FC<{ children: React.ReactNode }> 
 };
 
 // ===========================
-// CONTEXT HOOK
+// CONTEXT HOOK - ORIGINAL
 // ===========================
 
 export const useCharacterCreationContext = (): CharacterCreationContextType => {
@@ -1113,7 +1334,7 @@ export const useCharacterCreationContext = (): CharacterCreationContextType => {
   return context;
 };
 
-// Export individual hooks for flexibility
+// Export individual hooks for flexibility - ORIGINAL
 export {
   useRacesQuery,
   useSubracesQuery,
