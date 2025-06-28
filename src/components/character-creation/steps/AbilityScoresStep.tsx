@@ -1,5 +1,5 @@
 // ===========================
-// ABILITY SCORES STEP - COMPONENTE REFATORADO
+// ABILITY SCORES STEP - COMPONENTE CORRIGIDO
 // src/components/character-creation/steps/AbilityScoresStep.tsx
 // ===========================
 
@@ -160,7 +160,7 @@ export default function AbilityScoresStep() {
   const {
     characterData,
     updateCharacterData,
-    getCombinedAbilityBonuses,
+    getCombinedAbilityBonuses, // ✅ CORRIGIDO: removido os parênteses ()
     getAbilityModifier,
     generateRandomAbilityScores,
     calculateAbilityScorePoints
@@ -168,8 +168,8 @@ export default function AbilityScoresStep() {
 
   const [method, setMethod] = useState<AbilityMethod>(characterData.abilityMethod);
 
-  // getCombinedAbilityBonuses() retorna um objeto, não um array
-  const racialBonuses = getCombinedAbilityBonuses();
+  // ✅ CORRIGIDO: getCombinedAbilityBonuses é um valor, não uma função
+  const racialBonuses = getCombinedAbilityBonuses;
   
   // Para point buy system
   const pointsUsed = calculateAbilityScorePoints(characterData.abilityScores);
@@ -184,84 +184,13 @@ export default function AbilityScoresStep() {
     return pointCosts[score] || 0;
   };
 
-  const canIncrease = (ability: keyof AbilityScores): boolean => {
-    const currentScore = characterData.abilityScores[ability];
-    if (currentScore >= 15) return false;
-    
-    if (method === "point_buy") {
-      const cost = getPointCost(currentScore + 1) - getPointCost(currentScore);
-      return pointsUsed + cost <= maxPoints;
-    }
-    
-    return true;
-  };
-
-  const canDecrease = (ability: keyof AbilityScores): boolean => {
-    return characterData.abilityScores[ability] > 8;
-  };
-
-  // ===========================
-  // METHOD HANDLERS
-  // ===========================
-
-  const handleMethodChange = (newMethod: AbilityMethod) => {
-    setMethod(newMethod);
-    updateCharacterData({ abilityMethod: newMethod });
-    
-    if (newMethod === "standard") {
-      // Standard array: 15, 14, 13, 12, 10, 8
-      updateCharacterData({
-        abilityScores: {
-          strength: 15,
-          dexterity: 14,
-          constitution: 13,
-          intelligence: 12,
-          wisdom: 10,
-          charisma: 8,
-        }
-      });
-    } else if (newMethod === "point_buy") {
-      // Start with all 8s for point buy
-      updateCharacterData({
-        abilityScores: {
-          strength: 8,
-          dexterity: 8,
-          constitution: 8,
-          intelligence: 8,
-          wisdom: 8,
-          charisma: 8,
-        }
-      });
-    }
-  };
-
-  const rollRandomScores = () => {
-    const newScores = generateRandomAbilityScores();
-    updateCharacterData({ abilityScores: newScores });
-  };
-
-  const resetToStandard = () => {
-    updateCharacterData({
-      abilityScores: {
-        strength: 15,
-        dexterity: 14,
-        constitution: 13,
-        intelligence: 12,
-        wisdom: 10,
-        charisma: 8,
-      }
-    });
-  };
-
-  const adjustAbilityScore = (ability: keyof AbilityScores, delta: number) => {
+  // Atualiza os ability scores
+  const handleAbilityScoreChange = (ability: keyof AbilityScores, delta: number) => {
     if (method === "roll" && delta === 0) {
-      // Special case for rerolling individual ability
+      // Rolar novos valores
       const newScores = generateRandomAbilityScores();
       updateCharacterData({
-        abilityScores: {
-          ...characterData.abilityScores,
-          [ability]: newScores[ability]
-        }
+        abilityScores: newScores
       });
       return;
     }
@@ -269,14 +198,16 @@ export default function AbilityScoresStep() {
     const currentScore = characterData.abilityScores[ability];
     const newScore = Math.max(8, Math.min(15, currentScore + delta));
     
-    // For point buy, check if we have enough points
-    if (method === "point_buy" && delta > 0) {
-      const cost = getPointCost(newScore) - getPointCost(currentScore);
-      if (pointsUsed + cost > maxPoints) {
-        return; // Can't afford this increase
+    if (method === "point_buy") {
+      const currentCost = getPointCost(currentScore);
+      const newCost = getPointCost(newScore);
+      const costDifference = newCost - currentCost;
+      
+      if (remainingPoints - costDifference < 0) {
+        return; // Não tem pontos suficientes
       }
     }
-    
+
     updateCharacterData({
       abilityScores: {
         ...characterData.abilityScores,
@@ -285,132 +216,117 @@ export default function AbilityScoresStep() {
     });
   };
 
+  // Muda o método de distribuição
+  const handleMethodChange = (newMethod: AbilityMethod) => {
+    setMethod(newMethod);
+    
+    let newScores: AbilityScores;
+    
+    switch (newMethod) {
+      case "standard":
+        newScores = {
+          strength: 15,
+          dexterity: 14,
+          constitution: 13,
+          intelligence: 12,
+          wisdom: 10,
+          charisma: 8
+        };
+        break;
+      case "point_buy":
+        newScores = {
+          strength: 8,
+          dexterity: 8,
+          constitution: 8,
+          intelligence: 8,
+          wisdom: 8,
+          charisma: 8
+        };
+        break;
+      case "roll":
+        newScores = generateRandomAbilityScores();
+        break;
+      default:
+        newScores = characterData.abilityScores;
+    }
+
+    updateCharacterData({
+      abilityMethod: newMethod,
+      abilityScores: newScores
+    });
+  };
+
   return (
     <div className="space-y-8">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h2 className="text-3xl font-bold text-white">Atributos do Personagem</h2>
+        <p className="text-gray-400">
+          Defina os valores dos seus seis atributos fundamentais
+        </p>
+      </div>
+
       {/* Method Selection */}
-      <div className="space-y-4">
-        <h3 className="text-white font-semibold text-xl flex items-center space-x-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-            <Target className="w-4 h-4 text-white" />
-          </div>
-          <span>Método de Determinação</span>
+      <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
+        <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
+          <Calculator className="w-5 h-5 text-blue-400" />
+          <span>Método de Distribuição</span>
         </h3>
         
         <div className="grid md:grid-cols-3 gap-4">
-          {/* Standard Array */}
-          <div
+          <button
             onClick={() => handleMethodChange("standard")}
-            className={`p-6 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+            className={`p-4 rounded-xl border-2 transition-all duration-200 ${
               method === "standard"
-                ? 'bg-blue-500/20 border-blue-500/50 shadow-lg shadow-blue-500/25'
-                : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50'
+                ? 'border-blue-400 bg-blue-500/20 text-blue-400'
+                : 'border-gray-600 bg-gray-700/30 text-gray-300 hover:border-gray-500'
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <Calculator className="w-5 h-5 text-white" />
-              </div>
-              {method === "standard" && (
-                <CheckCircle className="w-5 h-5 text-blue-400" />
-              )}
-            </div>
-            <h4 className="text-white font-semibold mb-2">Array Padrão</h4>
-            <p className="text-gray-400 text-sm mb-3">Valores fixos balanceados</p>
-            <div className="text-xs text-gray-300 font-mono">
-              15, 14, 13, 12, 10, 8
-            </div>
-          </div>
-
-          {/* Point Buy */}
-          <div
+            <Target className="w-6 h-6 mx-auto mb-2" />
+            <div className="font-semibold">Padrão</div>
+            <div className="text-sm opacity-75">15, 14, 13, 12, 10, 8</div>
+          </button>
+          
+          <button
             onClick={() => handleMethodChange("point_buy")}
-            className={`p-6 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+            className={`p-4 rounded-xl border-2 transition-all duration-200 ${
               method === "point_buy"
-                ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/25'
-                : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50'
+                ? 'border-purple-400 bg-purple-500/20 text-purple-400'
+                : 'border-gray-600 bg-gray-700/30 text-gray-300 hover:border-gray-500'
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-                <Target className="w-5 h-5 text-white" />
-              </div>
-              {method === "point_buy" && (
-                <CheckCircle className="w-5 h-5 text-green-400" />
-              )}
-            </div>
-            <h4 className="text-white font-semibold mb-2">Compra de Pontos</h4>
-            <p className="text-gray-400 text-sm mb-3">27 pontos para distribuir</p>
-            <div className="text-xs text-gray-300">
-              Customização completa
-            </div>
-          </div>
-
-          {/* Random Roll */}
-          <div
+            <Calculator className="w-6 h-6 mx-auto mb-2" />
+            <div className="font-semibold">Comprar Pontos</div>
+            <div className="text-sm opacity-75">27 pontos para distribuir</div>
+          </button>
+          
+          <button
             onClick={() => handleMethodChange("roll")}
-            className={`p-6 rounded-xl border cursor-pointer transition-all duration-200 hover:scale-[1.02] ${
+            className={`p-4 rounded-xl border-2 transition-all duration-200 ${
               method === "roll"
-                ? 'bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/25'
-                : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50'
+                ? 'border-yellow-400 bg-yellow-500/20 text-yellow-400'
+                : 'border-gray-600 bg-gray-700/30 text-gray-300 hover:border-gray-500'
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Dice1 className="w-5 h-5 text-white" />
-              </div>
-              {method === "roll" && (
-                <CheckCircle className="w-5 h-5 text-purple-400" />
-              )}
-            </div>
-            <h4 className="text-white font-semibold mb-2">Rolagem Aleatória</h4>
-            <p className="text-gray-400 text-sm mb-3">4d6, descartar menor</p>
-            <div className="text-xs text-gray-300">
-              Totalmente aleatório
-            </div>
-          </div>
+            <Dice1 className="w-6 h-6 mx-auto mb-2" />
+            <div className="font-semibold">Rolar Dados</div>
+            <div className="text-sm opacity-75">4d6, descarta menor</div>
+          </button>
         </div>
       </div>
 
       {/* Point Buy Info */}
       {method === "point_buy" && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-4">
+        <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Info className="w-5 h-5 text-green-400" />
-              <span className="text-green-400 font-medium">Pontos Restantes</span>
+            <div className="flex items-center space-x-2">
+              <Calculator className="w-5 h-5 text-purple-400" />
+              <span className="text-purple-300 font-medium">Pontos Disponíveis</span>
             </div>
-            <div className={`text-2xl font-bold ${
-              remainingPoints >= 0 ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {remainingPoints}
+            <div className="text-2xl font-bold text-purple-400">
+              {remainingPoints} / {maxPoints}
             </div>
           </div>
-          <div className="mt-2 text-sm text-gray-300">
-            Cada ponto tem um custo diferente. Scores mais altos custam mais pontos.
-          </div>
-        </div>
-      )}
-
-      {/* Action Buttons */}
-      {method !== "standard" && (
-        <div className="flex flex-wrap gap-3">
-          {method === "roll" && (
-            <button
-              onClick={rollRandomScores}
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 text-white font-medium rounded-xl transition-all duration-200 flex items-center space-x-2 shadow-lg shadow-purple-500/25"
-            >
-              <Dice1 className="w-5 h-5" />
-              <span>Rolar Todos</span>
-            </button>
-          )}
-          
-          <button
-            onClick={resetToStandard}
-            className="px-6 py-3 bg-gray-700/50 hover:bg-gray-700 text-gray-300 font-medium rounded-xl transition-all duration-200 flex items-center space-x-2 border border-gray-600/50"
-          >
-            <RotateCcw className="w-5 h-5" />
-            <span>Resetar</span>
-          </button>
         </div>
       )}
 
@@ -421,7 +337,24 @@ export default function AbilityScoresStep() {
           const racialBonus = racialBonuses[ability] || 0;
           const finalScore = baseScore + racialBonus;
           const modifier = getAbilityModifier(finalScore);
-
+          
+          // Lógica para habilitar/desabilitar botões
+          let canIncrease = false;
+          let canDecrease = false;
+          
+          if (method === "point_buy") {
+            const currentCost = getPointCost(baseScore);
+            const increaseCost = getPointCost(baseScore + 1);
+            const costDifference = increaseCost - currentCost;
+            
+            canIncrease = baseScore < 15 && remainingPoints >= costDifference;
+            canDecrease = baseScore > 8;
+          } else if (method === "standard") {
+            // No método padrão, permite redistribuir os valores predefinidos
+            canIncrease = baseScore < 15;
+            canDecrease = baseScore > 8;
+          }
+          
           return (
             <AbilityScoreCard
               key={ability}
@@ -430,9 +363,9 @@ export default function AbilityScoresStep() {
               racialBonus={racialBonus}
               finalScore={finalScore}
               modifier={modifier}
-              onAdjust={(delta) => adjustAbilityScore(ability, delta)}
-              canIncrease={canIncrease(ability)}
-              canDecrease={canDecrease(ability)}
+              onAdjust={(delta) => handleAbilityScoreChange(ability, delta)}
+              canIncrease={canIncrease}
+              canDecrease={canDecrease}
               method={method}
             />
           );
@@ -440,7 +373,7 @@ export default function AbilityScoresStep() {
       </div>
 
       {/* Summary */}
-      <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+      <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl p-6 border border-gray-700/50">
         <h4 className="text-white font-semibold mb-4 flex items-center space-x-2">
           <Sparkles className="w-5 h-5 text-yellow-400" />
           <span>Resumo dos Atributos</span>

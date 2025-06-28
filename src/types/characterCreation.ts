@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION TYPES - ARQUIVO COMPLETO
+// CHARACTER CREATION TYPES - ARQUIVO COMPLETO CORRIGIDO
 // src/types/characterCreation.ts
 // ===========================
 
@@ -241,7 +241,7 @@ export interface SpellInfo {
 }
 
 // ===========================
-// CONTEXT TYPE
+// CONTEXT TYPE (CORRIGIDO)
 // ===========================
 
 export interface CharacterCreationContextType {
@@ -289,13 +289,14 @@ export interface CharacterCreationContextType {
   isStepValid: (stepId: string) => boolean;
 
   // ===========================
-  // UTILITY FUNCTIONS
+  // UTILITY FUNCTIONS (CORRIGIDO)
   // ===========================
 
   /**
-   * Calcula bônus combinados de habilidade (raça + sub-raça)
+   * ✅ CORRIGIDO: Bônus combinados de habilidade (raça + sub-raça)
+   * É um valor computado, não uma função
    */
-  getCombinedAbilityBonuses: () => Record<keyof AbilityScores, number>;
+  getCombinedAbilityBonuses: Record<keyof AbilityScores, number>;
 
   /**
    * Calcula modificador de habilidade
@@ -450,9 +451,16 @@ export interface Alignment {
 }
 
 export interface ProficiencyChoice {
+  desc: string;
   choose: number;
   type: string;
-  from: DndApiReference[];
+  from: {
+    option_set_type: string;
+    options: Array<{
+      option_type: string;
+      item: DndApiReference;
+    }>;
+  };
 }
 
 // ===========================
@@ -464,19 +472,19 @@ export const ALIGNMENTS: Alignment[] = [
     value: "lawful-good", 
     label: "Leal e Bom", 
     short: "LB",
-    description: "Criaturas que se comportam como se esperaria de um combater do bem. Dragões de ouro, paladinos e a maioria dos anões são leais e bons."
+    description: "Criaturas que podem ser contadas para fazer a coisa certa como esperado pela sociedade. Dragões dourados, paladinos e a maioria dos anões são leais e bons."
   },
   { 
     value: "neutral-good", 
     label: "Neutro e Bom", 
     short: "NB",
-    description: "Aqueles que fazem o melhor que conseguem para ajudar outros de acordo com suas necessidades. Muitos celestiais, alguns gigantes das nuvens e a maioria dos gnomos são neutros e bons."
+    description: "Pessoas que fazem o melhor que podem para ajudar outras pessoas de acordo com suas necessidades. Muitos celestiais, alguns gigantes das nuvens e a maioria dos gnomos são neutros e bons."
   },
   { 
     value: "chaotic-good", 
     label: "Caótico e Bom", 
     short: "CB",
-    description: "Criaturas que agem de acordo com sua consciência, com pouca consideração pelo que os outros esperam. Dragões de cobre, muitos elfos e unicórnios são caóticos e bons."
+    description: "Criaturas que agem de acordo com sua consciência, com pouca consideração para o que os outros esperam. Dragões de cobre, muitos elfos e unicórnios são caóticos e bons."
   },
   { 
     value: "lawful-neutral", 
@@ -485,22 +493,22 @@ export const ALIGNMENTS: Alignment[] = [
     description: "Indivíduos que agem de acordo com a lei, tradição ou códigos pessoais. Muitos monges e alguns magos são leais e neutros."
   },
   { 
-    value: "true-neutral", 
-    label: "Neutro Absoluto", 
+    value: "neutral", 
+    label: "Neutro", 
     short: "N",
-    description: "O alinhamento daqueles que preferem se manter fora de questões morais e não tomam partido, fazendo o que parece melhor no momento. Lagartos, a maioria dos druidas e muitos humanos são neutros."
+    description: "O alinhamento daqueles que preferem ficar fora de questões morais e não tomam partido, fazendo o que parece melhor no momento. Druidas, muitos humanos e a maioria dos animais são neutros."
   },
   { 
     value: "chaotic-neutral", 
     label: "Caótico e Neutro", 
     short: "CN",
-    description: "Criaturas que seguem seus caprichos, mantendo sua liberdade pessoal acima de tudo. Muitos bárbaros e bardos, e alguns feiticeiros são caóticos e neutros."
+    description: "Criaturas que seguem seus caprichos, valorizando sua liberdade pessoal acima de tudo. Muitos bárbaros e ladinos, e alguns bardos, são caóticos e neutros."
   },
   { 
     value: "lawful-evil", 
     label: "Leal e Mau", 
     short: "LM",
-    description: "Criaturas que obtêm metodicamente o que querem, dentro dos limites de um código de tradição, lealdade ou ordem. Diabos, dragões azuis e hobgoblins são leais e maus."
+    description: "Criaturas que conseguem metodicamente tomar o que querem, dentro dos limites de um código de tradição, lealdade ou ordem. Diabos, dragões azuis e hobgoblins são leais e maus."
   },
   { 
     value: "neutral-evil", 
@@ -555,80 +563,38 @@ export const ABILITY_SCORE_ABBREVIATIONS: Record<keyof AbilityScores, string> = 
   charisma: "CAR",
 };
 
-export const SPELLCASTER_CLASSES = [
-  "wizard",
-  "sorcerer", 
-  "cleric",
-  "bard",
-  "druid",
-  "warlock",
-  "paladin",
-  "ranger",
-  "eldritch-knight", // Fighter subclass
-  "arcane-trickster", // Rogue subclass
-];
-
-export const HALF_SPELLCASTER_CLASSES = [
-  "paladin",
-  "ranger",
-];
-
-export const THIRD_SPELLCASTER_CLASSES = [
-  "eldritch-knight",
-  "arcane-trickster",
-];
-
 // ===========================
 // UTILITY FUNCTIONS
 // ===========================
 
 /**
- * Mapeia índices de habilidade da API para as chaves usadas internamente
- */
-export const mapAbilityIndex = (apiIndex: string): keyof AbilityScores | null => {
-  const mapping: Record<string, keyof AbilityScores> = {
-    'str': 'strength',
-    'dex': 'dexterity', 
-    'con': 'constitution',
-    'int': 'intelligence',
-    'wis': 'wisdom',
-    'cha': 'charisma',
-  };
-  return mapping[apiIndex] || null;
-};
-
-/**
- * Verifica se uma classe é conjuradora
- */
-export const isSpellcasterClass = (classIndex: string): boolean => {
-  return SPELLCASTER_CLASSES.includes(classIndex);
-};
-
-/**
- * Verifica se uma classe tem subclasses
+ * Verifica se uma classe pode ter subclasse
  */
 export const canHaveSubclass = (classIndex: string): boolean => {
-  // Todas as classes principais do D&D 5e têm subclasses
-  return true;
+  const classesWithSubclasses = [
+    'barbarian', 'bard', 'cleric', 'druid', 'fighter', 'monk',
+    'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard'
+  ];
+  return classesWithSubclasses.includes(classIndex);
 };
 
 /**
- * Retorna o nível em que a classe pode escolher subclasse
+ * Retorna o nível em que uma classe ganha subclasse
  */
 export const getSubclassLevel = (classIndex: string): number => {
   const subclassLevels: Record<string, number> = {
+    'barbarian': 3,
+    'bard': 3,
     'cleric': 1,
-    'sorcerer': 1,
-    'warlock': 1,
-    'wizard': 2,
     'druid': 2,
     'fighter': 3,
     'monk': 3,
     'paladin': 3,
     'ranger': 3,
     'rogue': 3,
-    'barbarian': 3,
-    'bard': 3,
+    'sorcerer': 1,
+    'warlock': 1,
+    'wizard': 2,
   };
   
   return subclassLevels[classIndex] || 1;

@@ -1,3 +1,8 @@
+// ===========================
+// CHARACTER CREATION PROGRESS - COMPONENTE CORRIGIDO
+// src/components/character-creation/CharacterCreationProgress.tsx
+// ===========================
+
 "use client";
 
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
@@ -31,7 +36,7 @@ export default function CharacterCreationProgress() {
     steps,
     goToStep,
     characterData,
-    getCombinedAbilityBonuses,
+    getCombinedAbilityBonuses, // ✅ CORRIGIDO: é um valor, não uma função
   } = useCharacterCreationContext();
 
   const getStepStatusIcon = (stepIndex: number) => {
@@ -64,66 +69,67 @@ export default function CharacterCreationProgress() {
     }
   };
 
-  // Get combined ability bonuses
-  const combinedBonuses = getCombinedAbilityBonuses();
+  // ✅ CORRIGIDO: Get combined ability bonuses (removido os parênteses)
+  const combinedBonuses = getCombinedAbilityBonuses;
 
   return (
     <div className="space-y-6">
       {/* Character Summary */}
       <Card className="bg-white/10 backdrop-blur-lg border-white/20">
         <CardHeader className="pb-3">
-          <CardTitle className="text-white text-lg">Seu Personagem</CardTitle>
+          <CardTitle className="text-lg text-white flex items-center space-x-2">
+            <Crown className="w-5 h-5 text-yellow-400" />
+            <span>Progresso do Personagem</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <p className="text-sm text-purple-200">Nome</p>
-            <p className="text-white font-medium">
-              {characterData.name || "Sem nome"}
-            </p>
-          </div>
-
+        <CardContent className="space-y-4">
+          {/* Character Basic Info */}
+          {characterData.name && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">Nome:</span>
+              <span className="text-white font-medium">{characterData.name}</span>
+            </div>
+          )}
+          
           {characterData.selectedRace && (
-            <div>
-              <p className="text-sm text-purple-200">Raça</p>
-              <div className="space-y-1">
-                <p className="text-white font-medium">
-                  {characterData.selectedRace.name}
-                </p>
-                {characterData.selectedSubrace && (
-                  <div className="flex items-center space-x-1">
-                    <Crown className="w-3 h-3 text-amber-400" />
-                    <p className="text-amber-200 text-sm">
-                      {characterData.selectedSubrace.name}
-                    </p>
-                  </div>
-                )}
-              </div>
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">Raça:</span>
+              <span className="text-white font-medium">
+                {characterData.selectedRace.name}
+                {characterData.selectedSubrace && ` (${characterData.selectedSubrace.name})`}
+              </span>
             </div>
           )}
-
+          
           {characterData.selectedClass && (
-            <div>
-              <p className="text-sm text-purple-200">Classe</p>
-              <p className="text-white font-medium">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">Classe:</span>
+              <span className="text-white font-medium">
                 {characterData.selectedClass.name}
-              </p>
+                {characterData.selectedSubclass && ` (${characterData.selectedSubclass.name})`}
+              </span>
+            </div>
+          )}
+          
+          {characterData.selectedBackground && (
+            <div className="flex items-center justify-between">
+              <span className="text-gray-300">Antecedente:</span>
+              <span className="text-white font-medium">{characterData.selectedBackground.name}</span>
             </div>
           )}
 
-          <div>
-            <p className="text-sm text-purple-200">Nível</p>
-            <p className="text-white font-medium">{characterData.level}</p>
-          </div>
-
-          {/* Racial Bonuses Summary */}
-          {combinedBonuses.length > 0 && (
-            <div>
-              <p className="text-sm text-purple-200">Bônus Raciais</p>
-              <div className="space-y-1">
-                {combinedBonuses.map((bonus, index) => (
-                  <div key={index} className="text-xs text-green-300">
-                    +{bonus.bonus} {bonus.ability_score.name}
-                  </div>
+          {/* Ability Bonuses Summary */}
+          {characterData.selectedRace && combinedBonuses && (
+            <div className="border-t border-white/10 pt-4">
+              <h4 className="text-sm font-medium text-gray-300 mb-2">Bônus Raciais de Atributos:</h4>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {Object.entries(combinedBonuses).map(([ability, bonus]) => (
+                  bonus > 0 && (
+                    <div key={ability} className="flex justify-between">
+                      <span className="text-gray-400 capitalize">{ability}:</span>
+                      <span className="text-green-400 font-medium">+{bonus}</span>
+                    </div>
+                  )
                 ))}
               </div>
             </div>
@@ -131,167 +137,107 @@ export default function CharacterCreationProgress() {
         </CardContent>
       </Card>
 
-      {/* Progress Steps */}
+      {/* Steps Progress */}
       <Card className="bg-white/10 backdrop-blur-lg border-white/20">
         <CardHeader className="pb-3">
-          <CardTitle className="text-white text-lg">Progresso</CardTitle>
+          <CardTitle className="text-lg text-white flex items-center space-x-2">
+            <Info className="w-5 h-5 text-blue-400" />
+            <span>Etapas de Criação</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {steps.map((step, index) => {
-            const StepIcon = STEP_ICONS[index];
-            const canNavigate = index <= currentStep;
-
-            return (
-              <div
-                key={step.id}
-                className={getStepClassName(index)}
-                onClick={() => canNavigate && goToStep(index)}
-              >
-                <div className="flex items-center justify-center w-10 h-10 bg-black/20 rounded-lg">
-                  <StepIcon className="w-5 h-5 text-white" />
+        <CardContent>
+          <div className="space-y-3">
+            {steps.map((step, index) => {
+              const StepIcon = STEP_ICONS[index] || Circle;
+              const isClickable = index <= currentStep || step.isCompleted;
+              
+              return (
+                <div
+                  key={step.id}
+                  className={getStepClassName(index)}
+                  onClick={() => isClickable && goToStep(index)}
+                  style={{ cursor: isClickable ? 'pointer' : 'not-allowed' }}
+                >
+                  <div className="flex items-center space-x-3 flex-1">
+                    <div className="flex-shrink-0">
+                      {getStepStatusIcon(index)}
+                    </div>
+                    <div className="flex items-center space-x-2 flex-1">
+                      <StepIcon className="w-4 h-4 text-gray-400" />
+                      <div>
+                        <div className="text-sm font-medium text-white">
+                          {step.title}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {step.description}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {index === currentStep && (
+                    <div className="text-xs text-purple-400 font-medium">
+                      Atual
+                    </div>
+                  )}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-white font-medium text-sm truncate">
-                    {step.title}
-                  </h3>
-                  <p className="text-purple-200 text-xs truncate">
-                    {step.description}
-                  </p>
-                </div>
-
-                <div className="flex-shrink-0">{getStepStatusIcon(index)}</div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
-
-      {/* Race & Subrace Details */}
-      {(characterData.selectedRace || characterData.selectedSubrace) && (
-        <Card className="bg-white/10 backdrop-blur-lg border-white/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-white text-lg">Ancestralidade</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {characterData.selectedRace && (
-              <div className="bg-purple-500/10 border border-purple-400/20 rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-2">
-                  <User className="w-4 h-4 text-purple-400" />
-                  <h4 className="text-purple-200 font-medium text-sm">
-                    {characterData.selectedRace.name}
-                  </h4>
-                </div>
-                <p className="text-purple-100 text-xs">
-                  Velocidade: {characterData.selectedRace.speed} pés
-                </p>
-                {characterData.selectedRace.ability_bonuses.length > 0 && (
-                  <p className="text-purple-100 text-xs">
-                    Bônus:{" "}
-                    {characterData.selectedRace.ability_bonuses
-                      .map((b) => `+${b.bonus} ${b.ability_score.name}`)
-                      .join(", ")}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {characterData.selectedSubrace && (
-              <div className="bg-amber-500/10 border border-amber-400/20 rounded-lg p-3">
-                <div className="flex items-center space-x-2 mb-2">
-                  <Crown className="w-4 h-4 text-amber-400" />
-                  <h4 className="text-amber-200 font-medium text-sm">
-                    {characterData.selectedSubrace.name}
-                  </h4>
-                </div>
-                {characterData.selectedSubrace.ability_bonuses.length > 0 && (
-                  <p className="text-amber-100 text-xs">
-                    Bônus:{" "}
-                    {characterData.selectedSubrace.ability_bonuses
-                      .map((b) => `+${b.bonus} ${b.ability_score.name}`)
-                      .join(", ")}
-                  </p>
-                )}
-                <p className="text-amber-100 text-xs mt-1 line-clamp-2">
-                  {characterData.selectedSubrace.desc.substring(0, 80)}...
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
 
       {/* Quick Stats */}
       {characterData.selectedClass && (
         <Card className="bg-white/10 backdrop-blur-lg border-white/20">
           <CardHeader className="pb-3">
-            <CardTitle className="text-white text-lg">Estatísticas</CardTitle>
+            <CardTitle className="text-lg text-white flex items-center space-x-2">
+              <Zap className="w-5 h-5 text-yellow-400" />
+              <span>Estatísticas Rápidas</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="bg-black/20 rounded-lg p-3">
-                <p className="text-2xl font-bold text-red-400">
-                  {characterData.hitPoints}
-                </p>
-                <p className="text-xs text-purple-200">HP</p>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-300">Nível:</span>
+                <span className="text-white font-medium">{characterData.level}</span>
               </div>
-
-              <div className="bg-black/20 rounded-lg p-3">
-                <p className="text-2xl font-bold text-blue-400">
-                  {characterData.armorClass}
-                </p>
-                <p className="text-xs text-purple-200">CA</p>
+              <div className="flex justify-between">
+                <span className="text-gray-300">PV:</span>
+                <span className="text-white font-medium">{characterData.hitPoints || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">CA:</span>
+                <span className="text-white font-medium">{characterData.armorClass || '—'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-300">Perícias:</span>
+                <span className="text-white font-medium">
+                  {characterData.selectedSkills?.length || 0} / {characterData.availableSkillChoices || 0}
+                </span>
               </div>
             </div>
-
+            
             {characterData.isSpellcaster && (
-              <div className="bg-purple-500/20 border border-purple-400/30 rounded-lg p-3 text-center">
-                <p className="text-purple-200 text-xs">Conjurador</p>
-                <p className="text-white font-medium">
-                  {characterData.selectedSpells.length} magias
-                </p>
+              <div className="border-t border-white/10 pt-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-300">Magias:</span>
+                  <span className="text-white font-medium">
+                    {characterData.selectedSpells?.length || 0} selecionadas
+                  </span>
+                </div>
+                {characterData.spellcastingAbility && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Atributo de Conjuração:</span>
+                    <span className="text-white font-medium capitalize">
+                      {characterData.spellcastingAbility}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       )}
-
-      {/* Warnings/Alerts */}
-      {characterData.selectedRace &&
-        characterData.selectedRace.subraces.length > 0 &&
-        !characterData.selectedSubrace && (
-          <Card className="bg-yellow-500/10 border-yellow-400/20">
-            <CardContent className="p-4">
-              <div className="flex items-start space-x-2">
-                <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-yellow-200 text-sm font-medium">
-                    Subraça Necessária
-                  </p>
-                  <p className="text-yellow-100 text-xs">
-                    Escolha uma subraça para {characterData.selectedRace.name}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-      {/* Tips */}
-      <Card className="bg-blue-500/10 border-blue-400/20">
-        <CardContent className="p-4">
-          <div className="flex items-start space-x-2">
-            <div className="w-2 h-2 bg-blue-400 rounded-full mt-2 flex-shrink-0"></div>
-            <div>
-              <p className="text-blue-200 text-sm font-medium">Dica</p>
-              <p className="text-blue-100 text-xs">
-                Você pode voltar aos passos anteriores para fazer ajustes a
-                qualquer momento.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
