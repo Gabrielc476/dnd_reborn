@@ -304,14 +304,16 @@ export interface CampaignCreationContextType {
   errors: CampaignFormErrors;
   setErrors: (errors: Partial<CampaignFormErrors>) => void;
   validateField: (field: keyof CampaignFormData, value: any) => string | null;
+  validateFieldRealTime: (field: keyof CampaignFormData, value: any) => string | null; // ✨ NOVO
   validateForm: () => boolean;
+  clearFieldError: (field: keyof CampaignFormData) => void; // ✨ NOVO
   
   // Steps Management
   currentStep: number;
   setCurrentStep: (step: number) => void;
   steps: CampaignFormStep[];
-  canProceedToNext: () => boolean;
-  canGoBack: () => boolean;
+  canProceedToNext: boolean; // ✨ MUDOU: de () => boolean para boolean
+  canGoBack: boolean; // ✨ MUDOU: de () => boolean para boolean
   
   // API Operations
   isLoading: boolean;

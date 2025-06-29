@@ -1,6 +1,6 @@
 // ===========================
-// USE CREATE CAMPAIGN HOOK
-// hooks/useCreateCampaign.ts
+// USE CREATE CAMPAIGN HOOK - VERSÃO COMPLETA ATUALIZADA
+// src/hooks/useCreateCampaign.tsx
 // ===========================
 "use client";
 
@@ -8,6 +8,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   createContext,
   useContext,
 } from "react";
@@ -153,16 +154,16 @@ const validateStep = (stepId: string, formData: CampaignFormData): boolean => {
   switch (stepId) {
     case "basic-info":
       return !validateField("name", formData.name) && 
-             !validateField("description", formData.description);
+             formData.name.length >= 2;
 
     case "world-setting":
       return !validateField("setting", formData.setting) && 
-             !validateField("world_name", formData.world_name) &&
-             !validateField("tags", formData.tags);
+             formData.setting.length > 0;
 
     case "players-config":
       return !validateField("max_players", formData.max_players) &&
-             !validateField("recruitment_message", formData.recruitment_message);
+             formData.max_players >= 1 && formData.max_players <= 10 &&
+             (!formData.is_public || !validateField("recruitment_message", formData.recruitment_message));
 
     case "additional-notes":
       return !validateField("gm_notes", formData.gm_notes);
@@ -238,13 +239,22 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
   const [isLoading, setIsLoading] = useState(false);
 
   // ===========================
-  // FORM DATA MANAGEMENT
+  // FORM DATA MANAGEMENT - MELHORADO
   // ===========================
 
   const setFormData = useCallback((data: Partial<CampaignFormData>) => {
     setFormDataState(prev => {
       const newData = { ...prev, ...data };
-      saveDraft(newData); // Auto-save
+      
+      // Auto-save apenas se há mudanças significativas
+      if (newData.name || newData.description || newData.setting) {
+        try {
+          saveDraft(newData);
+        } catch (error) {
+          console.warn("Erro ao salvar rascunho:", error);
+        }
+      }
+      
       return newData;
     });
   }, []);
@@ -254,12 +264,34 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
   }, []);
 
   // ===========================
-  // VALIDATION
+  // VALIDATION - MELHORADO
   // ===========================
 
   const validateFormField = useCallback((field: keyof CampaignFormData, value: any): string | null => {
     return validateField(field, value);
   }, []);
+
+  // ✨ NOVA FUNÇÃO: Validação em tempo real
+  const validateFieldRealTime = useCallback((field: keyof CampaignFormData, value: any): string | null => {
+    const error = validateField(field, value);
+    
+    // Atualizar erros em tempo real
+    setErrors(prev => ({
+      ...prev,
+      [field]: error
+    }));
+    
+    return error;
+  }, [setErrors]);
+
+  // ✨ NOVA FUNÇÃO: Limpar erros específicos
+  const clearFieldError = useCallback((field: keyof CampaignFormData) => {
+    setErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
+  }, [setErrors]);
 
   const validateForm = useCallback((): boolean => {
     const newErrors: CampaignFormErrors = {};
@@ -280,7 +312,7 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
   }, [formData, setErrors]);
 
   // ===========================
-  // STEPS MANAGEMENT
+  // STEPS MANAGEMENT - MELHORADO
   // ===========================
 
   const updateSteps = useCallback(() => {
@@ -292,12 +324,13 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     setSteps(updatedSteps);
   }, [formData, steps]);
 
-  const canProceedToNext = useCallback((): boolean => {
+  // ✨ MELHORADO: Agora são computed values em vez de funções
+  const canProceedToNext = useMemo((): boolean => {
     if (currentStep >= steps.length - 1) return false;
     return steps[currentStep]?.isValid || false;
   }, [currentStep, steps]);
 
-  const canGoBack = useCallback((): boolean => {
+  const canGoBack = useMemo((): boolean => {
     return currentStep > 0;
   }, [currentStep]);
 
@@ -412,7 +445,7 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
   }, [loadDraftData]);
 
   // ===========================
-  // RETURN CONTEXT VALUE
+  // RETURN CONTEXT VALUE - ATUALIZADO
   // ===========================
 
   return {
@@ -424,14 +457,16 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     errors,
     setErrors,
     validateField: validateFormField,
+    validateFieldRealTime, // ✨ NOVO
     validateForm,
+    clearFieldError, // ✨ NOVO
 
     // Steps Management
     currentStep,
     setCurrentStep,
     steps,
-    canProceedToNext,
-    canGoBack,
+    canProceedToNext, // ✨ Agora é computed value
+    canGoBack, // ✨ Agora é computed value
 
     // API Operations
     isLoading,
