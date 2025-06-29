@@ -1,5 +1,5 @@
 // ===========================
-// USE CREATE CAMPAIGN HOOK - VERSÃO COMPLETA ATUALIZADA
+// USE CREATE CAMPAIGN HOOK - VERSÃO COMPLETA COM AUTENTICAÇÃO
 // src/hooks/useCreateCampaign.tsx
 // ===========================
 "use client";
@@ -13,6 +13,7 @@ import {
   useContext,
 } from "react";
 import { campaignAPI } from "@/api/campaignAPI";
+import { useAuthContext } from "@/hooks/useAuth";
 import {
   CampaignFormData,
   CampaignFormErrors,
@@ -89,56 +90,50 @@ const validateField = (field: keyof CampaignFormData, value: any): string | null
         return "Nome deve ter pelo menos 2 caracteres";
       }
       if (value.length > 100) {
-        return "Nome não pode ter mais de 100 caracteres";
+        return "Nome deve ter no máximo 100 caracteres";
       }
       return null;
 
     case "description":
       if (value && value.length > 1000) {
-        return "Descrição não pode ter mais de 1000 caracteres";
+        return "Descrição deve ter no máximo 1000 caracteres";
       }
       return null;
 
     case "setting":
-      if (value && value.length > 100) {
-        return "Cenário não pode ter mais de 100 caracteres";
-      }
+      // Campo opcional, sem validação específica
       return null;
 
     case "world_name":
       if (value && value.length > 100) {
-        return "Nome do mundo não pode ter mais de 100 caracteres";
+        return "Nome do mundo deve ter no máximo 100 caracteres";
       }
       return null;
 
     case "max_players":
-      if (!value || value < 1 || value > 10) {
-        return "Número de jogadores deve estar entre 1 e 10";
+      if (!value || value < 1) {
+        return "Deve ter pelo menos 1 jogador";
+      }
+      if (value > 10) {
+        return "Máximo de 10 jogadores";
       }
       return null;
 
     case "tags":
-      if (!Array.isArray(value)) {
-        return "Tags devem ser uma lista";
-      }
-      if (value.length > 10) {
-        return "Máximo de 10 tags permitidas";
-      }
-      const invalidTags = value.filter(tag => !CAMPAIGN_TAGS.includes(tag as CampaignTag));
-      if (invalidTags.length > 0) {
-        return `Tags inválidas: ${invalidTags.join(", ")}`;
+      if (value && value.length > 5) {
+        return "Máximo de 5 tags";
       }
       return null;
 
     case "recruitment_message":
       if (value && value.length > 500) {
-        return "Mensagem de recrutamento não pode ter mais de 500 caracteres";
+        return "Mensagem deve ter no máximo 500 caracteres";
       }
       return null;
 
     case "gm_notes":
       if (value && value.length > 2000) {
-        return "Notas do GM não podem ter mais de 2000 caracteres";
+        return "Notas devem ter no máximo 2000 caracteres";
       }
       return null;
 
@@ -148,21 +143,20 @@ const validateField = (field: keyof CampaignFormData, value: any): string | null
 };
 
 /**
- * Valida se um step específico está válido
+ * Valida step específico
  */
 const validateStep = (stepId: string, formData: CampaignFormData): boolean => {
   switch (stepId) {
     case "basic-info":
       return !validateField("name", formData.name) && 
-             formData.name.length >= 2;
+             formData.name.length >= 3;
 
     case "world-setting":
-      return !validateField("setting", formData.setting) && 
-             formData.setting.length > 0;
+      return !!formData.setting;
 
     case "players-config":
-      return !validateField("max_players", formData.max_players) &&
-             formData.max_players >= 1 && formData.max_players <= 10 &&
+      return formData.max_players >= 1 && 
+             formData.max_players <= 10 &&
              (!formData.is_public || !validateField("recruitment_message", formData.recruitment_message));
 
     case "additional-notes":
@@ -232,6 +226,14 @@ const CreateCampaignContext = createContext<CampaignCreationContextType | null>(
 // ===========================
 
 export const useCreateCampaign = (): CampaignCreationContextType => {
+  // ===========================
+  // AUTHENTICATION INTEGRATION
+  // ===========================
+  const { user, isAuthenticated, token } = useAuthContext();
+
+  // ===========================
+  // STATE MANAGEMENT
+  // ===========================
   const [formData, setFormDataState] = useState<CampaignFormData>(INITIAL_FORM_DATA);
   const [errors, setErrorsState] = useState<CampaignFormErrors>({});
   const [currentStep, setCurrentStep] = useState(0);
@@ -307,9 +309,15 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
       }
     });
 
+    // Validações especiais para usuário autenticado
+    if (!isAuthenticated || !user) {
+      newErrors.general = "Usuário não autenticado";
+      isValid = false;
+    }
+
     setErrors(newErrors);
     return isValid;
-  }, [formData, setErrors]);
+  }, [formData, setErrors, isAuthenticated, user]);
 
   // ===========================
   // STEPS MANAGEMENT - MELHORADO
@@ -326,7 +334,11 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
 
   // ✨ MELHORADO: Agora são computed values em vez de funções
   const canProceedToNext = useMemo((): boolean => {
-    if (currentStep >= steps.length - 1) return false;
+    if (currentStep >= steps.length - 1) {
+      // No último step (review), verificar se TODOS os steps estão válidos
+      return steps.every(step => step.isValid);
+    }
+    // Nos outros steps, verificar apenas o atual
     return steps[currentStep]?.isValid || false;
   }, [currentStep, steps]);
 
@@ -335,7 +347,7 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
   }, [currentStep]);
 
   // ===========================
-  // API OPERATIONS
+  // API OPERATIONS COM AUTENTICAÇÃO
   // ===========================
 
   const createCampaign = useCallback(async (): Promise<CreateCampaignResponse> => {
@@ -343,12 +355,21 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     setErrors({});
 
     try {
+      // ===========================
+      // AUTHENTICATION CHECKS
+      // ===========================
+      if (!isAuthenticated || !user || !token) {
+        throw new Error("Usuário não autenticado");
+      }
+
       // Validação final
       if (!validateForm()) {
         throw new Error("Formulário contém erros");
       }
 
-      // Preparar dados para API
+      // ===========================
+      // PREPARAR DADOS PARA API COM AUTENTICAÇÃO
+      // ===========================
       const requestData: CreateCampaignRequest = {
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
@@ -359,20 +380,48 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
         is_public: formData.is_public,
         recruitment_message: formData.recruitment_message.trim() || undefined,
         gm_notes: formData.gm_notes.trim() || undefined,
+        // ✨ AUTOMATICAMENTE ADICIONAR DADOS DO USUÁRIO
+        game_master_id: user.id,
       };
 
-      // Chamar API
+      console.log("🎯 Criando campanha com dados:", {
+        ...requestData,
+        created_by: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        },
+        timestamp: new Date().toISOString(),
+      });
+
+      // ===========================
+      // CHAMAR API COM TOKEN DE AUTENTICAÇÃO
+      // ===========================
       const response = await campaignAPI.createCampaign(requestData);
 
       // Limpar rascunho se sucesso
       if (response.success) {
         clearDraft();
+        
+        console.log("✅ Campanha criada com sucesso:", {
+          campaignId: response.campaign?.id,
+          campaignName: response.campaign?.name,
+          gamemaster: user.username,
+          timestamp: new Date().toISOString(),
+        });
       }
 
       return response;
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Erro desconhecido";
+      
+      console.error("❌ Erro ao criar campanha:", {
+        error: errorMessage,
+        user: user?.username,
+        timestamp: new Date().toISOString(),
+      });
+      
       setErrors({ general: errorMessage });
       
       return {
@@ -382,7 +431,7 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     } finally {
       setIsLoading(false);
     }
-  }, [formData, validateForm, setErrors]);
+  }, [formData, validateForm, setErrors, isAuthenticated, user, token]);
 
   // ===========================
   // UTILITIES
@@ -400,19 +449,33 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     const draft = loadDraft();
     if (draft) {
       setFormDataState(draft);
+      console.log("📥 Rascunho carregado:", {
+        campaignName: draft.name,
+        user: user?.username,
+        timestamp: new Date().toISOString(),
+      });
     }
-  }, []);
+  }, [user]);
 
   const saveDraftData = useCallback(() => {
-    saveDraft(formData);
-  }, [formData]);
+    try {
+      saveDraft(formData);
+      console.log("💾 Rascunho salvo:", {
+        campaignName: formData.name,
+        user: user?.username,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("❌ Erro ao salvar rascunho:", error);
+    }
+  }, [formData, user]);
 
   const previewCampaign = useCallback((): CampaignResponse => {
     return {
       id: "preview",
       name: formData.name,
       description: formData.description,
-      game_master_id: "current_user",
+      game_master_id: user?.id || "unknown",
       players: [],
       max_players: formData.max_players,
       status: "recruiting",
@@ -428,7 +491,27 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
       recruitment_message: formData.recruitment_message,
       gm_notes: formData.gm_notes,
     };
-  }, [formData]);
+  }, [formData, user]);
+
+  // ===========================
+  // USER INFO HELPERS
+  // ===========================
+
+  const getUserInfo = useCallback(() => {
+    if (!user) return null;
+    
+    return {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      isAuthenticated,
+      hasValidToken: !!token,
+    };
+  }, [user, isAuthenticated, token]);
+
+  const isUserReady = useMemo(() => {
+    return isAuthenticated && !!user && !!token;
+  }, [isAuthenticated, user, token]);
 
   // ===========================
   // EFFECTS
@@ -439,13 +522,26 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     updateSteps();
   }, [formData]);
 
-  // Carregar rascunho na inicialização
+  // Carregar rascunho na inicialização (apenas se usuário estiver autenticado)
   useEffect(() => {
-    loadDraftData();
-  }, [loadDraftData]);
+    if (isUserReady) {
+      loadDraftData();
+    }
+  }, [loadDraftData, isUserReady]);
+
+  // Log de mudanças de autenticação
+  useEffect(() => {
+    console.log("🔐 Estado de autenticação mudou:", {
+      isAuthenticated,
+      hasUser: !!user,
+      hasToken: !!token,
+      username: user?.username,
+      timestamp: new Date().toISOString(),
+    });
+  }, [isAuthenticated, user, token]);
 
   // ===========================
-  // RETURN CONTEXT VALUE - ATUALIZADO
+  // RETURN CONTEXT VALUE - ATUALIZADO COM AUTENTICAÇÃO
   // ===========================
 
   return {
@@ -457,16 +553,16 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     errors,
     setErrors,
     validateField: validateFormField,
-    validateFieldRealTime, // ✨ NOVO
+    validateFieldRealTime,
     validateForm,
-    clearFieldError, // ✨ NOVO
+    clearFieldError,
 
     // Steps Management
     currentStep,
     setCurrentStep,
     steps,
-    canProceedToNext, // ✨ Agora é computed value
-    canGoBack, // ✨ Agora é computed value
+    canProceedToNext,
+    canGoBack,
 
     // API Operations
     isLoading,
@@ -477,6 +573,12 @@ export const useCreateCampaign = (): CampaignCreationContextType => {
     loadDraft: loadDraftData,
     saveDraft: saveDraftData,
     previewCampaign,
+
+    // ✨ NOVOS: Authentication Helpers
+    getUserInfo,
+    isUserReady,
+    user,
+    isAuthenticated,
   };
 };
 

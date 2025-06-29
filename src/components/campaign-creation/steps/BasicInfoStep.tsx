@@ -1,9 +1,12 @@
+// ===========================
+// BASIC INFO STEP - ATUALIZADO COM AUTENTICAÇÃO
 // src/components/campaign-creation/steps/BasicInfoStep.tsx
+// ===========================
 "use client";
 
 import React from 'react';
 import { useCreateCampaignContext } from '@/hooks/useCreateCampaign';
-import { AlertCircle, BookOpen, FileText } from 'lucide-react';
+import { AlertCircle, BookOpen, FileText, User, Crown } from 'lucide-react';
 
 const BasicInfoStep: React.FC = () => {
   const { 
@@ -11,7 +14,11 @@ const BasicInfoStep: React.FC = () => {
     setFormData, 
     errors, 
     validateFieldRealTime, 
-    clearFieldError 
+    clearFieldError,
+    // ✨ NOVOS: Dados de autenticação
+    user,
+    isAuthenticated,
+    getUserInfo
   } = useCreateCampaignContext();
 
   const handleInputChange = (field: keyof typeof formData, value: string) => {
@@ -29,15 +36,23 @@ const BasicInfoStep: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Header com dados do usuário */}
       <div className="text-center">
         <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4">
           <BookOpen className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-white mb-2">Informações Básicas</h2>
-        <p className="text-gray-400 text-lg">
+        <p className="text-gray-400 text-lg mb-4">
           Vamos começar com as informações essenciais da sua campanha épica
         </p>
+        
+        {/* Info do Game Master */}
+        <div className="inline-flex items-center space-x-3 px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl">
+          <Crown className="w-5 h-5 text-yellow-500" />
+          <span className="text-blue-300 text-sm">
+            <strong>{user?.username}</strong> será o Mestre desta campanha
+          </span>
+        </div>
       </div>
 
       {/* Form Fields */}
@@ -138,6 +153,16 @@ const BasicInfoStep: React.FC = () => {
                 <span className="text-sm font-medium">Nome precisa ter pelo menos 3 caracteres</span>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Debug Panel - Desenvolvimento */}
+        {process.env.NODE_ENV === 'development' && getUserInfo() && (
+          <div className="mt-6 p-4 bg-gray-800/30 rounded-lg border border-gray-700">
+            <h4 className="text-white font-semibold mb-2 text-sm">Debug - User Info</h4>
+            <pre className="text-gray-400 text-xs overflow-x-auto">
+              {JSON.stringify(getUserInfo(), null, 2)}
+            </pre>
           </div>
         )}
       </div>

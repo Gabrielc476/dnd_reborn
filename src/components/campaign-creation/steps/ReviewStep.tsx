@@ -1,4 +1,7 @@
+// ===========================
+// REVIEW STEP - ATUALIZADO COM AUTENTICAÇÃO
 // src/components/campaign-creation/steps/ReviewStep.tsx
+// ===========================
 "use client";
 
 import React from 'react';
@@ -17,11 +20,20 @@ import {
   Eye,
   EyeOff,
   MessageCircle,
-  Scroll
+  Scroll,
+  User,
+  Calendar,
+  Mail
 } from 'lucide-react';
 
 const ReviewStep: React.FC = () => {
-  const { formData, setCurrentStep } = useCreateCampaignContext();
+  const { 
+    formData, 
+    setCurrentStep, 
+    user,
+    isAuthenticated,
+    getUserInfo 
+  } = useCreateCampaignContext();
 
   const settingDisplayNames = {
     'forgotten-realms': 'Forgotten Realms',
@@ -77,9 +89,25 @@ const ReviewStep: React.FC = () => {
           <Crown className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-white mb-2">Revisão Final</h2>
-        <p className="text-gray-400 text-lg">
+        <p className="text-gray-400 text-lg mb-4">
           Revise todas as informações antes de criar sua campanha épica
         </p>
+        
+        {/* Game Master Card */}
+        <div className="inline-flex items-center space-x-4 px-6 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+          <div className="w-10 h-10 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-sm">
+              {user?.username?.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="text-left">
+            <div className="flex items-center space-x-2">
+              <Crown className="w-4 h-4 text-yellow-500" />
+              <span className="text-yellow-400 font-semibold">{user?.username}</span>
+            </div>
+            <p className="text-yellow-300 text-xs">Mestre da Campanha</p>
+          </div>
+        </div>
       </div>
 
       {/* Campaign Summary Card */}
@@ -218,47 +246,103 @@ const ReviewStep: React.FC = () => {
         {/* Tags Display */}
         {formData.tags && formData.tags.length > 0 && (
           <div className="mb-8">
-            <h4 className="text-white font-semibold text-lg flex items-center mb-4">
-              <Tag className="w-5 h-5 mr-2" />
+            <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
+              <Tag className="w-5 h-5 mr-2 text-orange-400" />
               Tags da Campanha
             </h4>
             <div className="flex flex-wrap gap-2">
-              {formData.tags.map((tag) => (
+              {formData.tags.map((tag, index) => (
                 <span
-                  key={tag}
-                  className="px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm font-medium border border-orange-500/30"
+                  key={index}
+                  className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-full text-orange-300 text-sm"
                 >
-                  {tag}
+                  {tag.charAt(0).toUpperCase() + tag.slice(1)}
                 </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* Recruitment Message */}
-        {formData.is_public && formData.recruitment_message && (
-          <div className="mb-8 p-6 bg-green-500/10 border border-green-500/20 rounded-xl">
-            <h4 className="text-green-400 font-semibold mb-3 flex items-center">
-              <MessageCircle className="w-5 h-5 mr-2" />
-              Mensagem de Recrutamento
-            </h4>
-            <p className="text-gray-300 leading-relaxed">{formData.recruitment_message}</p>
-          </div>
-        )}
-
-        {/* GM Notes */}
+        {/* GM Notes Preview */}
         {formData.gm_notes && (
-          <div className="mb-8 p-6 bg-purple-500/10 border border-purple-500/20 rounded-xl">
-            <h4 className="text-purple-400 font-semibold mb-3 flex items-center">
-              <Scroll className="w-5 h-5 mr-2" />
+          <div className="mb-8">
+            <h4 className="text-white font-semibold text-lg mb-4 flex items-center">
+              <Scroll className="w-5 h-5 mr-2 text-purple-400" />
               Notas do Mestre (Privadas)
             </h4>
-            <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{formData.gm_notes}</p>
+            <div className="p-4 bg-gray-800/50 rounded-lg border-l-4 border-purple-500">
+              <p className="text-gray-300 text-sm whitespace-pre-line line-clamp-3">
+                {formData.gm_notes}
+              </p>
+              {formData.gm_notes.length > 200 && (
+                <button
+                  onClick={() => setCurrentStep(3)}
+                  className="text-purple-400 hover:text-purple-300 text-sm mt-2 transition-colors"
+                >
+                  Ver notas completas →
+                </button>
+              )}
+            </div>
           </div>
         )}
+
+        {/* Campaign Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="text-center p-4 bg-gray-800/30 rounded-lg">
+            <div className="text-2xl font-bold text-blue-400">{formData.max_players + 1}</div>
+            <div className="text-gray-400 text-sm">Total na Mesa</div>
+          </div>
+          <div className="text-center p-4 bg-gray-800/30 rounded-lg">
+            <div className="text-2xl font-bold text-green-400">{formData.tags?.length || 0}</div>
+            <div className="text-gray-400 text-sm">Tags</div>
+          </div>
+          <div className="text-center p-4 bg-gray-800/30 rounded-lg">
+            <div className="text-2xl font-bold text-purple-400">
+              {formData.is_public ? 'Pública' : 'Privada'}
+            </div>
+            <div className="text-gray-400 text-sm">Visibilidade</div>
+          </div>
+          <div className="text-center p-4 bg-gray-800/30 rounded-lg">
+            <div className="text-2xl font-bold text-yellow-400">
+              {settingDisplayNames[formData.setting]?.split(' ')[0] || 'N/A'}
+            </div>
+            <div className="text-gray-400 text-sm">Cenário</div>
+          </div>
+        </div>
+
+        {/* Master Information */}
+        <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-6">
+          <h4 className="text-yellow-400 font-semibold text-lg mb-4 flex items-center">
+            <Crown className="w-5 h-5 mr-2" />
+            Informações do Mestre
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div className="flex items-center space-x-3">
+              <User className="w-5 h-5 text-blue-400" />
+              <div>
+                <div className="text-gray-400">Nome de usuário</div>
+                <div className="text-white font-medium">{user?.username}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Mail className="w-5 h-5 text-green-400" />
+              <div>
+                <div className="text-gray-400">Email</div>
+                <div className="text-white font-medium">{user?.email}</div>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <Calendar className="w-5 h-5 text-purple-400" />
+              <div>
+                <div className="text-gray-400">Data de criação</div>
+                <div className="text-white font-medium">{new Date().toLocaleDateString('pt-BR')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Status Indicator */}
+      {/* Validation Status */}
       <div className="text-center">
         {allComplete ? (
           <div className="inline-flex items-center space-x-3 px-6 py-4 bg-green-500/10 border border-green-500/20 rounded-xl text-green-400">
@@ -310,6 +394,27 @@ const ReviewStep: React.FC = () => {
           <span className="text-sm font-medium">Notas</span>
         </button>
       </div>
+
+      {/* Debug Panel - Development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="max-w-4xl mx-auto mt-8 p-4 bg-gray-800/30 rounded-lg border border-gray-700">
+          <h4 className="text-white font-semibold mb-2 text-sm">Debug - Review Data</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <p className="text-gray-400 mb-1">User Info:</p>
+              <pre className="text-gray-300 overflow-x-auto">
+                {JSON.stringify(getUserInfo(), null, 2)}
+              </pre>
+            </div>
+            <div>
+              <p className="text-gray-400 mb-1">Form Completeness:</p>
+              <pre className="text-gray-300 overflow-x-auto">
+                {JSON.stringify(sections, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

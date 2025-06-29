@@ -1,4 +1,7 @@
+// ===========================
+// WORLD SETTING STEP - ATUALIZADO
 // src/components/campaign-creation/steps/WorldSettingStep.tsx
+// ===========================
 "use client";
 
 import React from 'react';
@@ -12,7 +15,8 @@ import {
   Book, 
   MapPin,
   Sparkles,
-  AlertCircle 
+  AlertCircle,
+  User
 } from 'lucide-react';
 
 const WorldSettingStep: React.FC = () => {
@@ -21,7 +25,8 @@ const WorldSettingStep: React.FC = () => {
     setFormData, 
     errors, 
     validateFieldRealTime, 
-    clearFieldError 
+    clearFieldError,
+    user
   } = useCreateCampaignContext();
 
   const settingOptions = [
@@ -30,42 +35,48 @@ const WorldSettingStep: React.FC = () => {
       name: 'Forgotten Realms', 
       icon: Globe,
       description: 'O cenário clássico de D&D com Faerûn e suas nações épicas',
-      features: ['Rico em lore', 'Muitos recursos', 'Familiar aos jogadores']
+      features: ['Rico em lore', 'Muitos recursos', 'Familiar aos jogadores'],
+      difficulty: 'Iniciante'
     },
     { 
       id: 'homebrew', 
       name: 'Mundo Próprio', 
       icon: Star,
       description: 'Crie seu próprio universo único e personalizado',
-      features: ['Total liberdade criativa', 'Surpresas garantidas', 'Sua assinatura única']
+      features: ['Total liberdade criativa', 'Surpresas garantidas', 'Sua assinatura única'],
+      difficulty: 'Avançado'
     },
     { 
       id: 'eberron', 
       name: 'Eberron', 
       icon: Settings,
       description: 'Mundo de magia e tecnologia, noir e aventuras urbanas',
-      features: ['Magia industrial', 'Intriga política', 'Tom noir']
+      features: ['Magia industrial', 'Intriga política', 'Tom noir'],
+      difficulty: 'Intermediário'
     },
     { 
       id: 'ravenloft', 
       name: 'Ravenloft', 
       icon: Heart,
       description: 'Domínios de terror e horror gótico sombrio',
-      features: ['Horror psicológico', 'Atmosfera dark', 'Escolhas morais']
+      features: ['Horror psicológico', 'Atmosfera dark', 'Escolhas morais'],
+      difficulty: 'Avançado'
     },
     { 
       id: 'dark-sun', 
       name: 'Dark Sun', 
       icon: Shield,
       description: 'Mundo pós-apocalíptico brutal e desértico',
-      features: ['Sobrevivência extrema', 'Recursos escassos', 'Tom brutal']
+      features: ['Sobrevivência extrema', 'Recursos escassos', 'Tom brutal'],
+      difficulty: 'Avançado'
     },
     { 
       id: 'other', 
       name: 'Outro Cenário', 
       icon: Book,
       description: 'Cenário de terceiros ou sistema personalizado',
-      features: ['Flexibilidade total', 'Sistemas únicos', 'Adaptações criativas']
+      features: ['Flexibilidade total', 'Sistemas únicos', 'Adaptações criativas'],
+      difficulty: 'Variável'
     },
   ];
 
@@ -85,6 +96,15 @@ const WorldSettingStep: React.FC = () => {
     }
   };
 
+  const getDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Iniciante': return 'text-green-400';
+      case 'Intermediário': return 'text-yellow-400';
+      case 'Avançado': return 'text-red-400';
+      default: return 'text-gray-400';
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -93,9 +113,15 @@ const WorldSettingStep: React.FC = () => {
           <Globe className="w-8 h-8 text-white" />
         </div>
         <h2 className="text-3xl font-bold text-white mb-2">Mundo e Ambientação</h2>
-        <p className="text-gray-400 text-lg">
+        <p className="text-gray-400 text-lg mb-4">
           Escolha o cenário que melhor se adequa à sua visão épica
         </p>
+        
+        {/* User context */}
+        <div className="inline-flex items-center space-x-2 px-3 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-purple-300 text-sm">
+          <User className="w-4 h-4" />
+          <span>{user?.username} está criando o mundo</span>
+        </div>
       </div>
 
       {/* Setting Selection */}
@@ -133,6 +159,11 @@ const WorldSettingStep: React.FC = () => {
                     <p className="text-gray-400 text-sm mt-2 line-clamp-2">
                       {option.description}
                     </p>
+                    
+                    {/* Difficulty Badge */}
+                    <div className={`inline-block px-2 py-1 rounded-md text-xs font-medium mt-2 ${getDifficultyColor(option.difficulty)}`}>
+                      {option.difficulty}
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -177,6 +208,9 @@ const WorldSettingStep: React.FC = () => {
                   : 'border-gray-600/50 focus:border-blue-500'
               }`}
             />
+            <div className="absolute bottom-2 right-3 text-xs text-gray-400">
+              {formData.world_name.length}/100
+            </div>
           </div>
           {errors.world_name && (
             <div className="flex items-center space-x-2 text-red-400 text-sm">
@@ -206,13 +240,30 @@ const WorldSettingStep: React.FC = () => {
                       <p className="text-gray-300 mb-3">
                         {selectedSetting.description}
                       </p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                      
+                      {/* Features Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
                         {selectedSetting.features.map((feature, index) => (
                           <div key={index} className="flex items-center space-x-2">
                             <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
                             <span className="text-gray-400 text-sm">{feature}</span>
                           </div>
                         ))}
+                      </div>
+                      
+                      {/* Difficulty & Master Info */}
+                      <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-400">Dificuldade:</span>
+                          <span className={getDifficultyColor(selectedSetting.difficulty)}>
+                            {selectedSetting.difficulty}
+                          </span>
+                        </div>
+                        <div className="w-px h-4 bg-gray-600"></div>
+                        <div className="flex items-center space-x-2">
+                          <User className="w-4 h-4 text-blue-400" />
+                          <span className="text-blue-300">Mestre: {user?.username}</span>
+                        </div>
                       </div>
                     </div>
                   </div>

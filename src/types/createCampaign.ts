@@ -2,6 +2,8 @@
 // CAMPAIGN CREATION TYPES
 // types/createCampaign.ts
 // ===========================
+import { User } from "@/types/user";
+
 
 // ===========================
 // ENUMS & CONSTANTS
@@ -129,6 +131,8 @@ export interface CreateCampaignRequest {
   is_public?: boolean;
   recruitment_message?: string;
   gm_notes?: string;
+  // ✨ NOVO: Automaticamente preenchido pelo hook
+  game_master_id?: string;
 }
 
 export interface UpdateCampaignRequest {
@@ -304,16 +308,16 @@ export interface CampaignCreationContextType {
   errors: CampaignFormErrors;
   setErrors: (errors: Partial<CampaignFormErrors>) => void;
   validateField: (field: keyof CampaignFormData, value: any) => string | null;
-  validateFieldRealTime: (field: keyof CampaignFormData, value: any) => string | null; // ✨ NOVO
+  validateFieldRealTime: (field: keyof CampaignFormData, value: any) => string | null;
   validateForm: () => boolean;
-  clearFieldError: (field: keyof CampaignFormData) => void; // ✨ NOVO
+  clearFieldError: (field: keyof CampaignFormData) => void;
   
   // Steps Management
   currentStep: number;
   setCurrentStep: (step: number) => void;
   steps: CampaignFormStep[];
-  canProceedToNext: boolean; // ✨ MUDOU: de () => boolean para boolean
-  canGoBack: boolean; // ✨ MUDOU: de () => boolean para boolean
+  canProceedToNext: boolean;
+  canGoBack: boolean;
   
   // API Operations
   isLoading: boolean;
@@ -324,6 +328,24 @@ export interface CampaignCreationContextType {
   loadDraft: () => void;
   saveDraft: () => void;
   previewCampaign: () => CampaignResponse;
+
+  // ✨ NOVOS: Authentication Integration
+  getUserInfo: () => UserInfo | null;
+  isUserReady: boolean;
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+// ===========================
+// NOVOS TIPOS PARA AUTENTICAÇÃO
+// ===========================
+
+export interface UserInfo {
+  id: string;
+  username: string;
+  email: string;
+  isAuthenticated: boolean;
+  hasValidToken: boolean;
 }
 
 // ===========================
