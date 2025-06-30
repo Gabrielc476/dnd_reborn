@@ -147,7 +147,7 @@ const PartyOverview = () => {
           </div>
 
           <div className="flex items-center space-x-2">
-            {isGM() && (
+            {isGM && (
               <>
                 <button
                   onClick={handleAddPlayer}
@@ -285,7 +285,7 @@ const PartyOverview = () => {
                   <span>Ver</span>
                 </button>
 
-                {(isGM() || member.isGMControlled) && (
+                {(isGM || member.isGMControlled) && (
                   <button
                     onClick={() => handleManagePlayer(member.id)}
                     className="flex items-center space-x-1 px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs transition-colors"
@@ -310,7 +310,7 @@ const PartyOverview = () => {
         ))}
 
         {/* Add Player Card */}
-        {isGM() && partyMembers.length < (campaign?.max_players || 6) && (
+        {isGM && partyMembers.length < (campaign?.max_players || 6) && (
           <div className="bg-gray-700 border-2 border-dashed border-gray-500 rounded-lg p-8 flex flex-col items-center justify-center text-center">
             <UserPlus className="w-12 h-12 text-gray-400 mb-3" />
             <h3 className="text-lg font-medium text-gray-400 mb-2">Adicionar Jogador</h3>
@@ -328,7 +328,7 @@ const PartyOverview = () => {
       </div>
 
       {/* Group Actions */}
-      {isGM() && (
+      {isGM && (
         <div className="mt-6 pt-6 border-t border-gray-600">
           <h3 className="text-lg font-semibold text-white mb-4">Ações do Grupo</h3>
           

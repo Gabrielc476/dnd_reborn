@@ -1,3 +1,5 @@
+"use client"
+
 import React, { useState } from 'react';
 import { 
   Sword,
@@ -13,7 +15,8 @@ import {
   SkipForward,
   Minus,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Square
 } from 'lucide-react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 

@@ -1,6 +1,6 @@
 // ===========================
-// USE MANAGE CAMPAIGN HOOK
-// hooks/useManageCampaign.ts
+// USE MANAGE CAMPAIGN HOOK - VERSÃO FINAL CORRIGIDA
+// hooks/useManageCampaign.tsx
 // ===========================
 "use client";
 
@@ -10,6 +10,7 @@ import {
   useCallback,
   createContext,
   useContext,
+  useMemo,
 } from "react";
 import { campaignAPI } from "@/api/campaignAPI";
 import { useAuthContext } from "@/hooks/useAuth";
@@ -39,21 +40,93 @@ import {
 } from "@/types/manageCampaign";
 
 // ===========================
-// UTILITIES
+// TIPOS PARA API FLASK
+// ===========================
+
+interface FlaskCampaignResponse {
+  success: boolean;
+  campaign?: Campaign;
+  error?: string;
+}
+
+interface FlaskDashboardResponse {
+  success: boolean;
+  dashboard?: CampaignDashboard;
+  error?: string;
+}
+
+// ===========================
+// UTILITIES - CORRIGIDO
 // ===========================
 
 /**
- * Determina as permissões do usuário na campanha
+ * Normaliza dados da campanha vindos da API
+ */
+const normalizeCampaignData = (data: any): Campaign => {
+  console.log("🔍 DEBUGGING normalizeCampaignData - Input data:", data);
+  
+  // A API já mapeia _id para id no backend, então só precisamos garantir arrays
+  const normalized = { ...data };
+  
+  // Garantir que players é um array
+  if (!Array.isArray(normalized.players)) {
+    normalized.players = [];
+  }
+  
+  // Garantir que outros arrays existem
+  if (!Array.isArray(normalized.npcs)) {
+    normalized.npcs = [];
+  }
+  
+  if (!Array.isArray(normalized.encounters)) {
+    normalized.encounters = [];
+  }
+  
+  if (!Array.isArray(normalized.loot)) {
+    normalized.loot = [];
+  }
+  
+  if (!Array.isArray(normalized.tags)) {
+    normalized.tags = [];
+  }
+  
+  console.log("🔍 DEBUGGING normalizeCampaignData - Output data:", {
+    id: normalized.id,
+    name: normalized.name,
+    hasId: !!normalized.id,
+    idType: typeof normalized.id
+  });
+  
+  return normalized as Campaign;
+};
+
+/**
+ * Determina as permissões do usuário na campanha - VERSÃO CORRIGIDA
  */
 const calculatePermissions = (
   campaign: Campaign | null,
   userId: string | null
 ): CampaignPermissions | null => {
-  if (!campaign || !userId) return null;
+  // 🔥 CORREÇÃO: Verificações de segurança
+  if (!campaign || !userId) {
+    console.log("🔒 calculatePermissions: Missing campaign or userId");
+    return null;
+  }
+  
+  // Verificar se campaign tem as propriedades necessárias
+  if (!campaign.game_master_id) {
+    console.warn("🔒 Campaign is missing game_master_id:", campaign);
+    return null;
+  }
 
   const isGM = campaign.game_master_id === userId;
-  const isPlayer = campaign.players.some(p => p.user_id === userId);
-  const isPublic = campaign.is_public;
+  
+  // 🔥 CORREÇÃO PRINCIPAL: Verificação segura para players
+  const players = Array.isArray(campaign.players) ? campaign.players : [];
+  const isPlayer = players.some(p => p && p.user_id === userId);
+  
+  // Verificação segura para is_public
+  const isPublic = Boolean(campaign.is_public);
 
   let role: CampaignRole;
   if (isGM) {
@@ -63,8 +136,11 @@ const calculatePermissions = (
   } else if (isPublic) {
     role = CampaignRole.OBSERVER;
   } else {
+    console.log("🔒 No access to campaign for user:", userId);
     return null; // Sem acesso
   }
+
+  console.log("✅ Permissions calculated:", { userId, role, isGM, isPlayer, isPublic });
 
   return {
     user_id: userId,
@@ -105,7 +181,7 @@ const createEmptyCache = (): CampaignCache => ({
 const ManageCampaignContext = createContext<CampaignManagementContextType | null>(null);
 
 // ===========================
-// USE MANAGE CAMPAIGN HOOK
+// USE MANAGE CAMPAIGN HOOK - CORRIGIDO
 // ===========================
 
 export const useManageCampaign = (campaignId?: string): CampaignManagementContextType => {
@@ -119,12 +195,17 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
   const [cache, setCache] = useState<CampaignCache>(createEmptyCache());
 
   // ===========================
-  // CAMPAIGN OPERATIONS
+  // CAMPAIGN OPERATIONS - CORRIGIDO
   // ===========================
 
+  // 🔥 CORREÇÃO: Função de carregamento com proteção contra loops
   const loadCampaign = useCallback(async (id: string): Promise<void> => {
-    if (!id) return;
+    if (!id || isLoading) {
+      console.log("🚫 Skipping loadCampaign:", { id, isLoading });
+      return;
+    }
 
+    console.log("🚀 Loading campaign:", id);
     setIsLoading(true);
     
     try {
@@ -132,31 +213,114 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
       const now = Date.now();
       const cacheExpiry = 5 * 60 * 1000; // 5 minutos
       
-      if (cache.isValid && cache.campaign?.id === id && (now - cache.lastUpdated) < cacheExpiry) {
+      if (
+        cache.isValid && 
+        cache.campaign?.id === id && 
+        (now - cache.lastUpdated) < cacheExpiry
+      ) {
+        console.log("📦 Using cached data for campaign:", id);
         setCampaign(cache.campaign);
         setDashboard(cache.dashboard);
-        setPermissions(calculatePermissions(cache.campaign, user?.id || null));
+        
+        // Calcular permissões com verificação de segurança
+        const newPermissions = calculatePermissions(cache.campaign, user?.id || null);
+        setPermissions(newPermissions);
         setIsLoading(false);
         return;
       }
 
-      // Buscar dados da API
-      const [campaignResponse, dashboardResponse] = await Promise.all([
+      console.log("🌐 Fetching campaign data from API:", id);
+
+      // Buscar campanha com timeout
+      const campaignResponse = await Promise.race([
         campaignAPI.getCampaignById(id),
-        campaignAPI.getCampaignDashboard(id).catch(() => ({ success: false })),
-      ]);
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Campaign request timeout')), 10000)
+        )
+      ]) as FlaskCampaignResponse;
 
       if (!campaignResponse) {
         throw new Error("Campanha não encontrada");
       }
 
-      const campaignData = campaignResponse as Campaign;
-      const dashboardData = dashboardResponse.success ? dashboardResponse.dashboard : null;
+      console.log("📥 Raw campaign response:", campaignResponse);
+      console.log("📥 Raw campaign response type:", typeof campaignResponse);
+      console.log("📥 Raw campaign response keys:", Object.keys(campaignResponse));
+
+      // 🔥 CORREÇÃO: A API pode retornar diferentes formatos
+      let campaignDataFromAPI = null;
+      
+      // Formato 1: { success: true, campaign: {...} }
+      if (campaignResponse.success && campaignResponse.campaign) {
+        console.log("📦 Format 1: Flask response with success flag");
+        campaignDataFromAPI = campaignResponse.campaign;
+      }
+      // Formato 2: { campaign: {...} } (sem success)
+      else if (campaignResponse.campaign) {
+        console.log("📦 Format 2: Direct campaign response");
+        campaignDataFromAPI = campaignResponse.campaign;
+      }
+      // Formato 3: Dados diretos da campanha
+      else if (campaignResponse.id || campaignResponse._id) {
+        console.log("📦 Format 3: Campaign data directly");
+        campaignDataFromAPI = campaignResponse;
+      }
+      // Formato com erro
+      else if (campaignResponse.success === false) {
+        throw new Error(campaignResponse.error || "Resposta da API indica falha");
+      }
+      // Formato desconhecido
+      else {
+        console.error("❌ Unknown response format:", campaignResponse);
+        throw new Error("Formato de resposta da API não reconhecido");
+      }
+
+      if (!campaignDataFromAPI) {
+        throw new Error("Dados da campanha não encontrados na resposta da API");
+      }
+
+      console.log("📦 Campaign data from API:", campaignDataFromAPI);
+
+      // 🔥 CORREÇÃO: Usar campaignDataFromAPI (já com id mapeado pelo backend)
+      const campaignData = normalizeCampaignData(campaignDataFromAPI);
+      
+      console.log("🔄 Normalized campaign data:", { 
+        id: campaignData.id, 
+        name: campaignData.name,
+        hasPlayers: Array.isArray(campaignData.players),
+        playersCount: campaignData.players?.length || 0
+      });
+
+      // Validar dados essenciais (o backend já garante que id existe)
+      if (!campaignData.id) {
+        console.error("❌ Campaign data missing ID:", campaignData);
+        throw new Error("Backend não retornou ID da campanha");
+      }
+
+      // Buscar dashboard separadamente (não crítico)
+      let dashboardData = null;
+      try {
+        const dashboardResponse = await Promise.race([
+          campaignAPI.getCampaignDashboard(id),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Dashboard timeout')), 5000)
+          )
+        ]) as FlaskDashboardResponse;
+        
+        if (dashboardResponse && dashboardResponse.success) {
+          dashboardData = dashboardResponse.dashboard;
+        }
+      } catch (dashboardError) {
+        console.warn("⚠️ Failed to load dashboard (non-critical):", dashboardError);
+      }
 
       // Atualizar state
       setCampaign(campaignData);
       setDashboard(dashboardData || null);
-      setPermissions(calculatePermissions(campaignData, user?.id || null));
+      
+      // Calcular permissões
+      const newPermissions = calculatePermissions(campaignData, user?.id || null);
+      setPermissions(newPermissions);
 
       // Atualizar cache
       setCache({
@@ -166,8 +330,16 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
         isValid: true,
       });
 
+      console.log("✅ Campaign loaded successfully:", {
+        id: campaignData.id,
+        name: campaignData.name,
+        permissions: newPermissions?.role
+      });
+
     } catch (error) {
-      console.error("Erro ao carregar campanha:", error);
+      console.error("❌ Erro ao carregar campanha:", error);
+      
+      // Limpar state em caso de erro
       setCampaign(null);
       setDashboard(null);
       setPermissions(null);
@@ -175,7 +347,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     } finally {
       setIsLoading(false);
     }
-  }, [cache, user?.id]);
+  }, [user?.id]); // Apenas user?.id como dependência
 
   const updateCampaign = useCallback(async (data: Partial<Campaign>): Promise<boolean> => {
     if (!campaign?.id || !permissions?.can_edit_campaign) {
@@ -298,8 +470,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
 
     try {
-      // Nota: Esta função pode precisar ser implementada na API
-      // Por enquanto, simularemos atualizando localmente
+      // Atualizar localmente enquanto API não está implementada
       setCampaign(prev => {
         if (!prev) return null;
         
@@ -433,7 +604,15 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
 
     try {
-      const response = await campaignAPI.addEncounter(campaign.id, data);
+      const response = await campaignAPI.addEncounter(campaign.id, {
+        name: data.name,
+        description: data.description,
+        difficulty: data.difficulty,
+        enemies: data.enemies,
+        rewards: data.rewards,
+        location: data.location,
+        notes: data.notes,
+      });
 
       if (response.success) {
         await loadCampaign(campaign.id);
@@ -467,13 +646,13 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
   }, [campaign?.id, permissions?.can_manage_encounters, loadCampaign]);
 
-  const completeEncounter = useCallback(async (name: string, data: CompleteEncounterRequest): Promise<boolean> => {
+  const completeEncounter = useCallback(async (name: string, data?: CompleteEncounterRequest): Promise<boolean> => {
     if (!campaign?.id || !permissions?.can_manage_encounters) {
       return false;
     }
 
     try {
-      const response = await campaignAPI.completeEncounter(campaign.id, name, data);
+      const response = await campaignAPI.completeEncounter(campaign.id, name, data || {});
 
       if (response.success) {
         await loadCampaign(campaign.id);
@@ -558,7 +737,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
 
     try {
       const response = await campaignAPI.assignLoot(campaign.id, {
-        loot_item_name: itemName,
+        item_name: itemName,
         player_id: playerId,
       });
 
@@ -666,7 +845,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     if (!campaign?.id) return;
 
     try {
-      const response = await campaignAPI.getCampaignDashboard(campaign.id);
+      const response = await campaignAPI.getCampaignDashboard(campaign.id) as FlaskDashboardResponse;
       
       if (response.success && response.dashboard) {
         setDashboard(response.dashboard);
@@ -713,11 +892,12 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
   }, [campaign?.id]);
 
-  const isGM = useCallback((): boolean => {
+  // Memoized utility functions para evitar re-renders
+  const isGM = useMemo(() => {
     return permissions?.role === CampaignRole.GAME_MASTER || false;
   }, [permissions]);
 
-  const isPlayer = useCallback((): boolean => {
+  const isPlayer = useMemo(() => {
     return permissions?.role === CampaignRole.PLAYER || false;
   }, [permissions]);
 
@@ -725,6 +905,8 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     if (!permissions) return false;
 
     switch (action) {
+      case "view_campaign":
+        return permissions.can_view_campaign;
       case "edit_campaign":
         return permissions.can_edit_campaign;
       case "manage_players":
@@ -744,16 +926,25 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
   }, [permissions]);
 
-  // ===========================
-  // EFFECTS
-  // ===========================
-
-  // Carregar campanha quando ID mudar
+  // 🔥 CORREÇÃO: useEffect com proteção contra loops
   useEffect(() => {
-    if (campaignId && campaignId !== campaign?.id) {
-      loadCampaign(campaignId);
+    // Só carregar se:
+    // 1. Tem campaignId
+    // 2. campaignId é diferente do atual
+    // 3. Não está carregando
+    // 4. User está disponível
+    if (
+      campaignId && 
+      campaignId !== campaign?.id && 
+      !isLoading &&
+      user?.id
+    ) {
+      console.log("🔄 Effect triggered - loading campaign:", campaignId);
+      loadCampaign(campaignId).catch(error => {
+        console.error("Failed to load campaign in effect:", error);
+      });
     }
-  }, [campaignId, campaign?.id, loadCampaign]);
+  }, [campaignId, user?.id]); // Apenas dependências essenciais
 
   // ===========================
   // RETURN CONTEXT VALUE

@@ -71,7 +71,7 @@ const CampaignHeader = () => {
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-2">
-          {isGM() && (
+          {isGM && (
             <>
               <button
                 className="flex items-center space-x-2 px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
@@ -99,7 +99,7 @@ const CampaignHeader = () => {
             <span className="hidden md:inline">Dados</span>
           </button>
 
-          {isGM() && (
+          {isGM && (
             <>
               <button
                 className="flex items-center space-x-2 px-3 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
