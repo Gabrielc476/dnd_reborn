@@ -1,3 +1,8 @@
+// ===========================
+// PARTY OVERVIEW - UI CORRIGIDA E MODERNA
+// src/components/campaign-manage/PartyOverview.tsx
+// ===========================
+
 import React, { useState } from 'react';
 import { 
   Users,
@@ -7,14 +12,19 @@ import {
   Settings,
   RefreshCw,
   Mail,
-  Circle,
   Shield,
   Heart,
   Clock,
   UserPlus,
   BarChart3,
   Crown,
-  Sparkles
+  Sparkles,
+  ChevronUp,
+  ChevronDown,
+  Activity,
+  Zap,
+  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 
@@ -30,9 +40,10 @@ const PartyOverview = () => {
     refreshDashboard
   } = useManageCampaignContext();
 
+  const [isExpanded, setIsExpanded] = useState(false);
   const [showAddPlayer, setShowAddPlayer] = useState(false);
 
-  // Dados mockados para demonstração - em produção viriam do dashboard
+  // Dados dos membros do grupo - em produção viriam do dashboard
   const partyMembers = [
     {
       id: 1,
@@ -94,31 +105,38 @@ const PartyOverview = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Ready': return 'text-green-400';
-      case 'Resting': return 'text-yellow-400';
-      case 'Injured': return 'text-red-400';
-      case 'Unconscious': return 'text-red-600';
-      default: return 'text-gray-400';
+      case 'Ready':
+        return 'text-green-400';
+      case 'Resting':
+        return 'text-yellow-400';
+      case 'Injured':
+        return 'text-red-400';
+      case 'Unconscious':
+        return 'text-red-600';
+      default:
+        return 'text-gray-400';
     }
   };
 
-  const getHpBarColor = (hp: number, maxHp: number) => {
-    const percentage = (hp / maxHp) * 100;
-    if (percentage > 70) return 'bg-green-500';
-    if (percentage > 30) return 'bg-yellow-500';
+  const getHpBarColor = (current: number, max: number) => {
+    const percentage = (current / max) * 100;
+    if (percentage > 75) return 'bg-green-500';
+    if (percentage > 50) return 'bg-yellow-500';
+    if (percentage > 25) return 'bg-orange-500';
     return 'bg-red-500';
   };
 
-  const handleSendMessage = (playerId: number) => {
-    console.log(`Enviando mensagem para jogador ${playerId}`);
-  };
-
-  const handleManagePlayer = (playerId: number) => {
-    console.log(`Gerenciando jogador ${playerId}`);
-  };
-
-  const handleAddPlayer = () => {
-    setShowAddPlayer(true);
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Ready':
+        return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case 'Resting':
+        return <Clock className="w-4 h-4 text-yellow-400" />;
+      case 'Injured':
+        return <AlertCircle className="w-4 h-4 text-red-400" />;
+      default:
+        return <Activity className="w-4 h-4 text-gray-400" />;
+    }
   };
 
   const calculateAverageLevel = () => {
@@ -126,233 +144,265 @@ const PartyOverview = () => {
   };
 
   const calculateTotalHp = () => {
-    return {
-      current: partyMembers.reduce((sum, member) => sum + member.hp, 0),
-      max: partyMembers.reduce((sum, member) => sum + member.maxHp, 0)
-    };
+    const current = partyMembers.reduce((sum, member) => sum + member.hp, 0);
+    const max = partyMembers.reduce((sum, member) => sum + member.maxHp, 0);
+    return { current, max };
   };
 
   const totalHp = calculateTotalHp();
+  const onlineCount = partyMembers.filter(m => m.isOnline).length;
+  const readyCount = partyMembers.filter(m => m.status === 'Ready').length;
 
   return (
-    <div className="bg-gray-800 p-6">
-      <div className="mb-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <Users className="w-6 h-6 text-blue-400" />
-            <h2 className="text-xl font-bold text-white">
-              MEMBROS DO GRUPO ({partyMembers.length}/{campaign?.max_players || 6})
-            </h2>
+    <div className="bg-gray-800/80 backdrop-blur-sm border-t border-gray-700/50">
+      {/* Header Compacto */}
+      <div className="px-6 py-4">
+        <button 
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-between group hover:bg-gray-700/30 rounded-lg p-2 transition-all duration-200"
+        >
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <Users className="w-6 h-6 text-blue-400" />
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center space-x-2">
+                  <span>MEMBROS DO GRUPO ({partyMembers.length}/6)</span>
+                </h3>
+                <p className="text-sm text-gray-400">
+                  {onlineCount} online • {readyCount} prontos
+                </p>
+              </div>
+            </div>
+
+            {/* Stats rápidos */}
+            <div className="hidden md:flex items-center space-x-6">
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700/50 rounded-lg">
+                <Activity className="w-4 h-4 text-blue-400" />
+                <span className="text-sm text-white">Nível {calculateAverageLevel()}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700/50 rounded-lg">
+                <Heart className="w-4 h-4 text-red-400" />
+                <span className="text-sm text-white">{totalHp.current}/{totalHp.max}</span>
+              </div>
+
+              <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700/50 rounded-lg">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                <span className="text-sm text-green-400">{onlineCount} Online</span>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
             {isGM && (
-              <>
+              <div className="hidden md:flex items-center space-x-2">
                 <button
-                  onClick={handleAddPlayer}
-                  className="flex items-center space-x-2 px-3 py-2 bg-green-600 hover:bg-green-700 rounded transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAddPlayer(true);
+                  }}
+                  className="flex items-center space-x-1 px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors text-sm"
                 >
                   <UserPlus className="w-4 h-4" />
                   <span>Adicionar</span>
                 </button>
 
-                <button className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="flex items-center space-x-1 px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg transition-colors text-sm"
+                >
                   <Mail className="w-4 h-4" />
                   <span>Mensagem Grupo</span>
                 </button>
 
-                <button className="flex items-center space-x-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 rounded transition-colors">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="flex items-center space-x-1 px-3 py-1 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors text-sm"
+                >
                   <BarChart3 className="w-4 h-4" />
                   <span>Stats Grupo</span>
                 </button>
-              </>
+              </div>
             )}
 
             <button
-              onClick={refreshDashboard}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-600 hover:bg-gray-700 rounded transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                refreshDashboard?.();
+              }}
+              className="p-2 text-gray-400 hover:text-white hover:bg-gray-600/50 rounded-lg transition-all"
             >
               <RefreshCw className="w-4 h-4" />
-              <span>Atualizar</span>
             </button>
-          </div>
-        </div>
 
-        {/* Party Stats Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-gray-700 px-4 py-3 rounded-lg text-center">
-            <div className="text-lg font-bold text-white">{calculateAverageLevel()}</div>
-            <div className="text-sm text-gray-400">Nível Médio</div>
-          </div>
-          
-          <div className="bg-gray-700 px-4 py-3 rounded-lg text-center">
-            <div className="text-lg font-bold text-white">{totalHp.current}/{totalHp.max}</div>
-            <div className="text-sm text-gray-400">HP Total</div>
-          </div>
-          
-          <div className="bg-gray-700 px-4 py-3 rounded-lg text-center">
-            <div className="text-lg font-bold text-green-400">
-              {partyMembers.filter(m => m.isOnline).length}
-            </div>
-            <div className="text-sm text-gray-400">Online</div>
-          </div>
-          
-          <div className="bg-gray-700 px-4 py-3 rounded-lg text-center">
-            <div className="text-lg font-bold text-blue-400">
-              {partyMembers.filter(m => m.status === 'Ready').length}
-            </div>
-            <div className="text-sm text-gray-400">Prontos</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Party Members Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {partyMembers.map((member) => (
-          <div key={member.id} className="bg-gray-700 border border-gray-600 rounded-lg p-4">
-            {/* Member Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <Shield className="w-8 h-8 text-blue-400" />
-                  {member.isGMControlled && (
-                    <Crown className="w-4 h-4 text-yellow-400 absolute -top-1 -right-1" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-white">{member.name}</h3>
-                  <p className="text-sm text-gray-400">
-                    {member.isGMControlled ? member.player : `Jogador: ${member.player}`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${member.isOnline ? 'bg-green-400' : 'bg-gray-500'}`} />
-                <span className="text-xs text-gray-400">
-                  {member.isOnline ? 'Online' : 'Offline'}
-                </span>
-              </div>
-            </div>
-
-            {/* Character Info */}
-            <div className="grid grid-cols-3 gap-4 mb-3">
-              <div>
-                <span className="text-xs text-gray-400">Classe</span>
-                <div className="font-medium text-white">{member.class} {member.level}</div>
-              </div>
-              <div>
-                <span className="text-xs text-gray-400">CA</span>
-                <div className="font-medium text-white">{member.ac}</div>
-              </div>
-              <div>
-                <span className="text-xs text-gray-400">Status</span>
-                <div className={`font-medium ${getStatusColor(member.status)}`}>
-                  {member.status}
-                </div>
-              </div>
-            </div>
-
-            {/* HP Bar */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between text-sm mb-1">
-                <span className="text-gray-400">HP</span>
-                <span className="text-white">{member.hp}/{member.maxHp}</span>
-              </div>
-              <div className="w-full bg-gray-600 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full ${getHpBarColor(member.hp, member.maxHp)}`}
-                  style={{ width: `${(member.hp / member.maxHp) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Last Active */}
-            <div className="flex items-center space-x-2 mb-3 text-xs text-gray-400">
-              <Clock className="w-3 h-3" />
-              <span>Última atividade: {member.lastActive}</span>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {}}
-                  className="flex items-center space-x-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs transition-colors"
-                >
-                  <Eye className="w-3 h-3" />
-                  <span>Ver</span>
-                </button>
-
-                {(isGM || member.isGMControlled) && (
-                  <button
-                    onClick={() => handleManagePlayer(member.id)}
-                    className="flex items-center space-x-1 px-2 py-1 bg-green-600 hover:bg-green-700 rounded text-xs transition-colors"
-                  >
-                    <Edit className="w-3 h-3" />
-                    <span>Editar</span>
-                  </button>
-                )}
-              </div>
-
-              {!member.isGMControlled && (
-                <button
-                  onClick={() => handleSendMessage(member.id)}
-                  className="flex items-center space-x-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-xs transition-colors"
-                >
-                  <MessageSquare className="w-3 h-3" />
-                  <span>Mensagem</span>
-                </button>
+            <div className="text-gray-400 group-hover:text-white transition-colors">
+              {isExpanded ? (
+                <ChevronDown className="w-5 h-5" />
+              ) : (
+                <ChevronUp className="w-5 h-5" />
               )}
             </div>
           </div>
-        ))}
-
-        {/* Add Player Card */}
-        {isGM && partyMembers.length < (campaign?.max_players || 6) && (
-          <div className="bg-gray-700 border-2 border-dashed border-gray-500 rounded-lg p-8 flex flex-col items-center justify-center text-center">
-            <UserPlus className="w-12 h-12 text-gray-400 mb-3" />
-            <h3 className="text-lg font-medium text-gray-400 mb-2">Adicionar Jogador</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Convide novos jogadores para sua campanha
-            </p>
-            <button
-              onClick={handleAddPlayer}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded transition-colors text-white"
-            >
-              Convidar Jogador
-            </button>
-          </div>
-        )}
+        </button>
       </div>
 
-      {/* Group Actions */}
-      {isGM && (
-        <div className="mt-6 pt-6 border-t border-gray-600">
-          <h3 className="text-lg font-semibold text-white mb-4">Ações do Grupo</h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-green-600 hover:bg-green-700 rounded transition-colors">
-              <Sparkles className="w-4 h-4" />
-              <span>Dar XP</span>
-            </button>
-            
-            <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 rounded transition-colors">
-              <Heart className="w-4 h-4" />
-              <span>Curar Todos</span>
-            </button>
-            
-            <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-purple-600 hover:bg-purple-700 rounded transition-colors">
-              <Clock className="w-4 h-4" />
-              <span>Descanso Longo</span>
-            </button>
-            
-            <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-yellow-600 hover:bg-yellow-700 rounded transition-colors">
-              <Crown className="w-4 h-4" />
-              <span>Level Up</span>
-            </button>
+      {/* Conteúdo Expandido */}
+      {isExpanded && (
+        <div className="px-6 pb-6 space-y-6">
+          {/* Grid de Membros */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {partyMembers.map((member) => (
+              <div key={member.id} className="bg-gray-700/50 backdrop-blur-sm border border-gray-600/30 rounded-xl p-4 hover:bg-gray-700/70 transition-all duration-200">
+                {/* Header do membro */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <Shield className="w-8 h-8 text-blue-400" />
+                      {member.isGMControlled && (
+                        <Crown className="w-4 h-4 text-yellow-400 absolute -top-1 -right-1" />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-white">{member.name}</h4>
+                      <p className="text-sm text-gray-400">
+                        {member.isGMControlled ? member.player : `Jogador: ${member.player}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-3 h-3 rounded-full ${member.isOnline ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
+                    <span className="text-xs text-gray-400">
+                      {member.isOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Info do personagem */}
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400 mb-1">Classe</div>
+                    <div className="font-medium text-white text-sm">{member.class}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400 mb-1">Nível</div>
+                    <div className="font-bold text-blue-400">{member.level}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400 mb-1">CA</div>
+                    <div className="font-bold text-white">{member.ac}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400 mb-1">Status</div>
+                    <div className="flex items-center justify-center">
+                      {getStatusIcon(member.status)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Barra de HP */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-gray-400 flex items-center space-x-1">
+                      <Heart className="w-3 h-3" />
+                      <span>HP</span>
+                    </span>
+                    <span className="text-white font-medium">{member.hp}/{member.maxHp}</span>
+                  </div>
+                  <div className="w-full bg-gray-600 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-300 ${getHpBarColor(member.hp, member.maxHp)}`}
+                      style={{ width: `${Math.max((member.hp / member.maxHp) * 100, 0)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Última atividade */}
+                <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
+                  <div className="flex items-center space-x-1">
+                    <Clock className="w-3 h-3" />
+                    <span>Última atividade: {member.lastActive}</span>
+                  </div>
+                  <div className={`px-2 py-1 rounded-full text-xs ${getStatusColor(member.status)} bg-current/10`}>
+                    {member.status}
+                  </div>
+                </div>
+
+                {/* Botões de ação */}
+                <div className="flex items-center space-x-2">
+                  <button className="flex items-center space-x-1 px-3 py-1 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg transition-colors text-sm flex-1 justify-center">
+                    <Eye className="w-3 h-3" />
+                    <span>Ver</span>
+                  </button>
+                  
+                  {(isGM || member.isGMControlled) && (
+                    <button className="flex items-center space-x-1 px-3 py-1 bg-green-500/20 text-green-400 hover:bg-green-500/30 rounded-lg transition-colors text-sm flex-1 justify-center">
+                      <Edit className="w-3 h-3" />
+                      <span>Editar</span>
+                    </button>
+                  )}
+                  
+                  <button className="flex items-center space-x-1 px-3 py-1 bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded-lg transition-colors text-sm">
+                    <MessageSquare className="w-3 h-3" />
+                    <span>Mensagem</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
+
+          {/* Ações de Grupo (apenas para GM) */}
+          {isGM && (
+            <div className="bg-gray-700/30 backdrop-blur-sm rounded-xl p-4 border border-gray-600/20">
+              <h4 className="text-sm font-semibold text-white mb-3 flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-yellow-400" />
+                <span>Ações de Grupo</span>
+              </h4>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-green-500/20 to-green-600/20 border border-green-500/30 hover:from-green-500/30 hover:to-green-600/30 rounded-lg transition-all duration-200 text-green-400">
+                  <Sparkles className="w-4 h-4" />
+                  <span className="text-sm font-medium">Dar XP</span>
+                </button>
+                
+                <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-500/30 hover:from-red-500/30 hover:to-red-600/30 rounded-lg transition-all duration-200 text-red-400">
+                  <Heart className="w-4 h-4" />
+                  <span className="text-sm font-medium">Curar Todos</span>
+                </button>
+                
+                <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-purple-500/20 to-purple-600/20 border border-purple-500/30 hover:from-purple-500/30 hover:to-purple-600/30 rounded-lg transition-all duration-200 text-purple-400">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm font-medium">Descanso Longo</span>
+                </button>
+                
+                <button className="flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 border border-yellow-500/30 hover:from-yellow-500/30 hover:to-yellow-600/30 rounded-lg transition-all duration-200 text-yellow-400">
+                  <Crown className="w-4 h-4" />
+                  <span className="text-sm font-medium">Level Up</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Placeholder para grupo vazio */}
+          {partyMembers.length === 0 && (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-white mb-2">Nenhum membro no grupo</h3>
+              <p className="text-gray-400 mb-4">Convide jogadores para sua campanha</p>
+              {isGM && (
+                <button
+                  onClick={() => setShowAddPlayer(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-green-500/25"
+                >
+                  Convidar Primeiro Jogador
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
