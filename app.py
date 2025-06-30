@@ -83,7 +83,7 @@ def register_routes(app):
     # Registrar blueprints
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(character_bp, url_prefix='/characters')
-    app.register_blueprint(campaign_bp, url_prefix='/campaigns')
+    app.register_blueprint(campaign_bp, url_prefix='/campaign')
 
     # Rota de health check
     @app.route('/')
