@@ -4,12 +4,19 @@ import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { campaignAPI } from '@/api/campaignAPI';
 import { NPC, NPCType } from '@/types/manageCampaign';
 
+// Importar o modal que criamos
+import { NPCModal, NPCFormData } from './NPCModal';
+
 export const NPCsList: React.FC = () => {
   const { campaign, createNPC, updateNPC, deleteNPC, killNPC, reviveNPC, isGM } = useManageCampaignContext();
   const [npcs, setNpcs] = useState<NPC[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<NPCType | 'all'>('all');
+  
+  // Estados para o modal
+  const [showModal, setShowModal] = useState(false);
+  const [editingNPC, setEditingNPC] = useState<NPC | null>(null);
 
   useEffect(() => {
     loadNPCs();
@@ -31,22 +38,83 @@ export const NPCsList: React.FC = () => {
     }
   };
 
-  const handleCreateNPC = async () => {
-    const npcId = await createNPC({
-      name: 'Novo NPC',
-      description: 'Descrição do NPC',
-      npc_type: NPCType.NEUTRAL,
-      location: campaign?.world_name || 'Localização'
-    });
-    
-    if (npcId) {
-      await loadNPCs();
-    }
+  // Função para converter NPC para NPCFormData
+  const convertNPCToFormData = (npc: NPC): NPCFormData => {
+    return {
+      name: npc.name,
+      description: npc.description,
+      race: npc.race,
+      npc_class: npc.npc_class,
+      npc_type: npc.npc_type,
+      alignment: npc.alignment,
+      location: npc.location,
+      occupation: npc.occupation,
+      faction: npc.faction,
+      stats: npc.stats,
+      challenge_rating: npc.challenge_rating,
+      abilities: npc.abilities || [],
+      personality_traits: npc.personality_traits || [],
+      goals: npc.goals,
+      secrets: npc.secrets,
+      gm_notes: npc.gm_notes,
+      is_alive: npc.is_alive,
+      is_active: npc.is_active
+    };
+  };
+
+  // Função para converter NPCFormData para CreateNPCRequest
+  const convertFormDataToCreateRequest = (formData: NPCFormData) => {
+    return {
+      name: formData.name,
+      description: formData.description,
+      race: formData.race,
+      npc_class: formData.npc_class,
+      npc_type: formData.npc_type,
+      alignment: formData.alignment,
+      location: formData.location,
+      occupation: formData.occupation,
+      faction: formData.faction,
+      stats: formData.stats,
+      challenge_rating: formData.challenge_rating,
+      abilities: formData.abilities,
+      personality_traits: formData.personality_traits,
+      goals: formData.goals,
+      secrets: formData.secrets,
+      gm_notes: formData.gm_notes
+    };
+  };
+
+  const handleCreateNPC = () => {
+    setEditingNPC(null);
+    setShowModal(true);
   };
 
   const handleEditNPC = (npc: NPC) => {
-    console.log('Editar NPC:', npc.id);
-    // Abrir modal de edição
+    setEditingNPC(npc);
+    setShowModal(true);
+  };
+
+  const handleSaveNPC = async (formData: NPCFormData) => {
+    try {
+      if (editingNPC) {
+        // Atualizar NPC existente
+        const updateData = convertFormDataToCreateRequest(formData);
+        const success = await updateNPC(editingNPC.id!, updateData);
+        if (success) {
+          await loadNPCs();
+        }
+      } else {
+        // Criar novo NPC
+        const createData = convertFormDataToCreateRequest(formData);
+        const npcId = await createNPC(createData);
+        if (npcId) {
+          await loadNPCs();
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao salvar NPC:', error);
+      throw error; // Re-throw para que o modal possa mostrar erro
+    }
   };
 
   const handleDeleteNPC = async (npc: NPC) => {
@@ -79,10 +147,10 @@ export const NPCsList: React.FC = () => {
         return 'bg-red-500/10 text-red-400';
       case NPCType.MERCHANT:
         return 'bg-yellow-500/10 text-yellow-400';
-      case NPCType.BOSS:
-        return 'bg-purple-500/10 text-purple-400';
       case NPCType.QUEST_GIVER:
         return 'bg-blue-500/10 text-blue-400';
+      case NPCType.BACKGROUND:
+        return 'bg-purple-500/10 text-purple-400';
       default:
         return 'bg-gray-500/10 text-gray-400';
     }
@@ -119,85 +187,109 @@ export const NPCsList: React.FC = () => {
             placeholder="Buscar NPCs..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+            className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500"
           />
         </div>
         
         <select
           value={filterType}
           onChange={(e) => setFilterType(e.target.value as NPCType | 'all')}
-          className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"
+          className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
         >
-          <option value="all">Todos</option>
-          <option value={NPCType.ALLY}>Aliados</option>
-          <option value={NPCType.ENEMY}>Inimigos</option>
-          <option value={NPCType.NEUTRAL}>Neutros</option>
-          <option value={NPCType.MERCHANT}>Comerciantes</option>
-          <option value={NPCType.QUEST_GIVER}>Quest Givers</option>
-          <option value={NPCType.BOSS}>Bosses</option>
+          <option value="all">Todos os Tipos</option>
+          <option value="aliado">Aliados</option>
+          <option value="inimigo">Inimigos</option>
+          <option value="neutro">Neutros</option>
+          <option value="mercador">Mercadores</option>
+          <option value="missões">Doadores de Missões</option>
+          <option value="cenário">NPCs de Cenário</option>
         </select>
       </div>
 
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+        </div>
+      )}
+
       {/* Lista de NPCs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="space-y-4">
         {filteredNPCs.map((npc) => (
-          <div key={npc.id} className="bg-gray-700/30 rounded-xl p-4 border border-gray-600/20">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4 className="font-semibold text-white">{npc.name}</h4>
-                <p className="text-sm text-gray-400">{npc.race} • {npc.occupation}</p>
-                {npc.location && (
-                  <div className="flex items-center space-x-2 mt-1">
-                    <MapPin className="w-3 h-3 text-orange-400" />
-                    <span className="text-xs text-orange-400">{npc.location}</span>
+          <div
+            key={npc.id}
+            className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/50 hover:border-gray-500/50 transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center text-white font-bold">
+                  {npc.name[0]}
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-1">
+                    <h4 className="text-lg font-semibold text-white">{npc.name}</h4>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${getNPCTypeColor(npc.npc_type)}`}>
+                      {npc.npc_type.charAt(0).toUpperCase() + npc.npc_type.slice(1)}
+                    </span>
+                    
+                    {!npc.is_alive && (
+                      <span className="px-2 py-1 bg-red-500/10 text-red-400 rounded text-xs font-medium">
+                        Morto
+                      </span>
+                    )}
+                    
+                    {!npc.is_active && (
+                      <span className="px-2 py-1 bg-gray-500/10 text-gray-400 rounded text-xs font-medium">
+                        Inativo
+                      </span>
+                    )}
                   </div>
-                )}
+                  
+                  <div className="flex items-center space-x-4 text-sm text-gray-400">
+                    {npc.race && (
+                      <span>{npc.race}</span>
+                    )}
+                    {npc.npc_class && (
+                      <span>{npc.npc_class}</span>
+                    )}
+                    {npc.location && (
+                      <div className="flex items-center space-x-1">
+                        <MapPin className="w-3 h-3" />
+                        <span>{npc.location}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {npc.description && (
+                    <p className="text-gray-300 text-sm mt-2 line-clamp-2">
+                      {npc.description}
+                    </p>
+                  )}
+                </div>
               </div>
               
-              <div className="flex items-center space-x-1">
-                {npc.is_alive ? (
-                  <Heart className="w-4 h-4 text-green-400" />
-                ) : (
-                  <Skull className="w-4 h-4 text-red-400" />
-                )}
-              </div>
-            </div>
-
-            <p className="text-sm text-gray-300 mb-3 line-clamp-2">
-              {npc.description}
-            </p>
-
-            <div className="flex items-center justify-between">
-              <span className={`px-2 py-1 rounded-full text-xs ${getNPCTypeColor(npc.npc_type)}`}>
-                {npc.npc_type}
-              </span>
-
               {isGM && (
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   <button 
                     onClick={() => handleEditNPC(npc)}
-                    className="p-1 text-blue-400 hover:text-blue-300"
-                    title="Visualizar"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleEditNPC(npc)}
-                    className="p-1 text-yellow-400 hover:text-yellow-300"
+                    className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded transition-colors"
                     title="Editar"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => handleToggleLife(npc)}
-                    className={`p-1 ${npc.is_alive ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'}`}
+                    className={`p-2 hover:bg-gray-600/50 rounded transition-colors ${
+                      npc.is_alive ? 'text-red-400 hover:text-red-300' : 'text-green-400 hover:text-green-300'
+                    }`}
                     title={npc.is_alive ? 'Matar' : 'Reviver'}
                   >
                     {npc.is_alive ? <Skull className="w-4 h-4" /> : <Heart className="w-4 h-4" />}
                   </button>
                   <button 
                     onClick={() => handleDeleteNPC(npc)}
-                    className="p-1 text-red-400 hover:text-red-300"
+                    className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors"
                     title="Excluir"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -209,15 +301,42 @@ export const NPCsList: React.FC = () => {
         ))}
       </div>
 
+      {/* Estado vazio */}
       {filteredNPCs.length === 0 && !isLoading && (
         <div className="text-center py-12">
-          <Users className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">Nenhum NPC encontrado</h3>
-          <p className="text-gray-400">
-            {searchTerm ? 'Tente buscar com outros termos' : 'Crie seu primeiro NPC para a campanha'}
+          <Users className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">
+            {searchTerm || filterType !== 'all' ? 'Nenhum NPC encontrado' : 'Nenhum NPC criado'}
+          </h3>
+          <p className="text-gray-400 mb-6">
+            {searchTerm || filterType !== 'all' 
+              ? 'Tente ajustar os filtros de busca' 
+              : 'Crie seu primeiro NPC para começar a povoar o mundo da campanha'
+            }
           </p>
+          {isGM && !searchTerm && filterType === 'all' && (
+            <button
+              onClick={handleCreateNPC}
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Criar Primeiro NPC</span>
+            </button>
+          )}
         </div>
       )}
+
+      {/* Modal de Criação/Edição */}
+      <NPCModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingNPC(null);
+        }}
+        onSave={handleSaveNPC}
+        npc={editingNPC ? convertNPCToFormData(editingNPC) : null}
+        campaignId={campaign?.id || ''}
+      />
     </div>
   );
 };
