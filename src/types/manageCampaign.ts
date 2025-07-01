@@ -62,58 +62,76 @@ export interface NPCReference {
 }
 
 export enum NPCType {
-  ALLY = "ally",
-  ENEMY = "enemy", 
-  NEUTRAL = "neutral",
-  MERCHANT = "merchant",
-  QUEST_GIVER = "quest_giver",
-  BOSS = "boss",
-  MINION = "minion",
-  CIVILIAN = "civilian"
+  ALLY = "aliado",
+  ENEMY = "inimigo", 
+  NEUTRAL = "neutro",
+  MERCHANT = "mercador",
+  QUEST_GIVER = "missões",
+  BACKGROUND = "cenário"
 }
 
 export interface NPCStats {
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
   armor_class: number;
   hit_points: number;
-  speed: number;
+  speed: string; // string, não number
+  // Atributos opcionais
+  strength?: number;
+  dexterity?: number;
+  constitution?: number;
+  intelligence?: number;
+  wisdom?: number;
+  charisma?: number;
 }
 
 export interface NPCAbility {
   name: string;
   description: string;
-  type: "action" | "bonus_action" | "reaction" | "legendary" | "passive";
-  uses_per_day?: number;
-  recharge?: string;
+  usage?: string; // "1/dia", "recarga 5-6", etc.
 }
+
 
 export interface NPC {
   id?: string;
   campaign_id: string;
+  
+  // Informações básicas
   name: string;
   description?: string;
   race?: string;
-  npc_class?: string;
+  npc_class?: string; // "class" no backend vira "npc_class" no frontend
+  
+  // Tipo e comportamento
   npc_type: NPCType;
   alignment?: string;
+  
+  // Localização e contexto
   location?: string;
   occupation?: string;
   faction?: string;
-  personality_traits?: string[];
-  goals?: string[];
-  secrets?: string; // Apenas GM
-  gm_notes?: string; // Apenas GM
-  relationships?: Record<string, string>;
+  
+  // Estatísticas (opcional para NPCs narrativos)
   stats?: NPCStats;
-  challenge_rating?: number;
+  challenge_rating?: string; // "1/4", "1", "5", etc.
+  
+  // Habilidades especiais
   abilities: NPCAbility[];
+  
+  // Relacionamentos
+  relationships?: Record<string, string>; // {"player_name": "amigo", "outro_npc": "rival"}
+  
+  // Informações de roleplay
+  personality_traits: string[];
+  goals?: string;
+  secrets?: string; // Apenas GM
+  
+  // Status
   is_alive: boolean;
-  is_active: boolean;
+  is_active: boolean; // Se está ativo na campanha atual
+  
+  // Notas do mestre
+  gm_notes?: string; // Apenas GM
+  
+  // Metadados
   created_date: string;
   updated_date: string;
 }
@@ -128,12 +146,14 @@ export interface CreateNPCRequest {
   location?: string;
   occupation?: string;
   faction?: string;
+  stats?: NPCStats;
+  challenge_rating?: string;
+  abilities?: NPCAbility[];
+  relationships?: Record<string, string>;
   personality_traits?: string[];
-  goals?: string[];
+  goals?: string;
   secrets?: string;
   gm_notes?: string;
-  stats?: NPCStats;
-  challenge_rating?: number;
 }
 
 export interface UpdateNPCRequest {
@@ -146,14 +166,210 @@ export interface UpdateNPCRequest {
   location?: string;
   occupation?: string;
   faction?: string;
+  stats?: NPCStats;
+  challenge_rating?: string;
+  abilities?: NPCAbility[];
+  relationships?: Record<string, string>;
   personality_traits?: string[];
-  goals?: string[];
+  goals?: string;
   secrets?: string;
   gm_notes?: string;
-  stats?: NPCStats;
-  challenge_rating?: number;
   is_alive?: boolean;
   is_active?: boolean;
+}
+
+export interface NPCFormData {
+  name: string;
+  description?: string;
+  race?: string;
+  npc_class?: string;
+  npc_type: NPCType;
+  alignment?: string;
+  location?: string;
+  occupation?: string;
+  faction?: string;
+  stats?: NPCStats;
+  challenge_rating?: string;
+  abilities: NPCAbility[];
+  personality_traits: string[];
+  goals?: string;
+  secrets?: string;
+  gm_notes?: string;
+  is_alive: boolean;
+  is_active: boolean;
+}
+
+// Utilitários para conversão de dados
+export const NPCTypeLabels: Record<NPCType, string> = {
+  [NPCType.ALLY]: 'Aliado',
+  [NPCType.ENEMY]: 'Inimigo',
+  [NPCType.NEUTRAL]: 'Neutro',
+  [NPCType.MERCHANT]: 'Mercador',
+  [NPCType.QUEST_GIVER]: 'Doador de Missões',
+  [NPCType.BACKGROUND]: 'Cenário'
+};
+
+export const NPCTypeColors: Record<NPCType, string> = {
+  [NPCType.ALLY]: 'bg-green-500/10 text-green-400',
+  [NPCType.ENEMY]: 'bg-red-500/10 text-red-400',
+  [NPCType.NEUTRAL]: 'bg-gray-500/10 text-gray-400',
+  [NPCType.MERCHANT]: 'bg-yellow-500/10 text-yellow-400',
+  [NPCType.QUEST_GIVER]: 'bg-blue-500/10 text-blue-400',
+  [NPCType.BACKGROUND]: 'bg-purple-500/10 text-purple-400'
+};
+
+// Constantes para o formulário
+export const ALIGNMENT_OPTIONS = [
+  'Leal e Bom', 'Neutro e Bom', 'Caótico e Bom',
+  'Leal e Neutro', 'Verdadeiro Neutro', 'Caótico e Neutro',
+  'Leal e Mau', 'Neutro e Mau', 'Caótico e Mau'
+];
+
+export const CHALLENGE_RATING_OPTIONS = [
+  '0', '1/8', '1/4', '1/2', '1', '2', '3', '4', '5', 
+  '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', 
+  '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '30'
+];
+
+// Funções utilitárias
+export function convertNPCToFormData(npc: NPC): NPCFormData {
+  return {
+    name: npc.name,
+    description: npc.description,
+    race: npc.race,
+    npc_class: npc.npc_class,
+    npc_type: npc.npc_type,
+    alignment: npc.alignment,
+    location: npc.location,
+    occupation: npc.occupation,
+    faction: npc.faction,
+    stats: npc.stats,
+    challenge_rating: npc.challenge_rating,
+    abilities: npc.abilities || [],
+    personality_traits: npc.personality_traits || [],
+    goals: npc.goals,
+    secrets: npc.secrets,
+    gm_notes: npc.gm_notes,
+    is_alive: npc.is_alive,
+    is_active: npc.is_active
+  };
+}
+
+export function convertFormDataToCreateRequest(formData: NPCFormData): CreateNPCRequest {
+  return {
+    name: formData.name,
+    description: formData.description,
+    race: formData.race,
+    npc_class: formData.npc_class,
+    npc_type: formData.npc_type,
+    alignment: formData.alignment,
+    location: formData.location,
+    occupation: formData.occupation,
+    faction: formData.faction,
+    stats: formData.stats,
+    challenge_rating: formData.challenge_rating,
+    abilities: formData.abilities,
+    personality_traits: formData.personality_traits,
+    goals: formData.goals,
+    secrets: formData.secrets,
+    gm_notes: formData.gm_notes
+  };
+}
+
+export function convertFormDataToUpdateRequest(formData: NPCFormData): UpdateNPCRequest {
+  return {
+    name: formData.name,
+    description: formData.description,
+    race: formData.race,
+    npc_class: formData.npc_class,
+    npc_type: formData.npc_type,
+    alignment: formData.alignment,
+    location: formData.location,
+    occupation: formData.occupation,
+    faction: formData.faction,
+    stats: formData.stats,
+    challenge_rating: formData.challenge_rating,
+    abilities: formData.abilities,
+    personality_traits: formData.personality_traits,
+    goals: formData.goals,
+    secrets: formData.secrets,
+    gm_notes: formData.gm_notes,
+    is_alive: formData.is_alive,
+    is_active: formData.is_active
+  };
+}
+
+// Função de validação
+export function validateNPCData(data: NPCFormData): string[] {
+  const errors: string[] = [];
+  
+  // Nome obrigatório
+  if (!data.name.trim()) {
+    errors.push('Nome é obrigatório');
+  }
+  
+  if (data.name.length > 100) {
+    errors.push('Nome deve ter no máximo 100 caracteres');
+  }
+  
+  // Validar descrição
+  if (data.description && data.description.length > 500) {
+    errors.push('Descrição deve ter no máximo 500 caracteres');
+  }
+  
+  // Validar estatísticas se fornecidas
+  if (data.stats) {
+    if (data.stats.armor_class < 1 || data.stats.armor_class > 30) {
+      errors.push('Classe de Armadura deve estar entre 1 e 30');
+    }
+    
+    if (data.stats.hit_points < 1) {
+      errors.push('Pontos de Vida devem ser pelo menos 1');
+    }
+    
+    // Validar atributos se fornecidos
+    const attributes = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+    for (const attr of attributes) {
+      const value = data.stats[attr];
+      if (value !== undefined && (value < 1 || value > 30)) {
+        errors.push(`${attr} deve estar entre 1 e 30`);
+      }
+    }
+  }
+  
+  // Validar habilidades
+  for (let i = 0; i < data.abilities.length; i++) {
+    const ability = data.abilities[i];
+    if (!ability.name.trim()) {
+      errors.push(`Habilidade ${i + 1}: Nome é obrigatório`);
+    }
+    if (!ability.description.trim()) {
+      errors.push(`Habilidade ${i + 1}: Descrição é obrigatória`);
+    }
+    if (ability.name.length > 50) {
+      errors.push(`Habilidade ${i + 1}: Nome deve ter no máximo 50 caracteres`);
+    }
+    if (ability.description.length > 300) {
+      errors.push(`Habilidade ${i + 1}: Descrição deve ter no máximo 300 caracteres`);
+    }
+  }
+  
+  // Validar notas do GM
+  if (data.gm_notes && data.gm_notes.length > 1000) {
+    errors.push('Notas do GM devem ter no máximo 1000 caracteres');
+  }
+  
+  return errors;
+}
+
+// Função para obter cor do tipo de NPC
+export function getNPCTypeColor(type: NPCType): string {
+  return NPCTypeColors[type] || 'bg-gray-500/10 text-gray-400';
+}
+
+// Função para obter label do tipo de NPC
+export function getNPCTypeLabel(type: NPCType): string {
+  return NPCTypeLabels[type] || 'Desconhecido';
 }
 
 // ===========================

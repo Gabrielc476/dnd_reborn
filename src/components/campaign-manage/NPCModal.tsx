@@ -1,54 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, Dice6, Heart, Shield, Swords, Brain, Eye, Target, Plus, Trash2 } from 'lucide-react';
+import { X, Users, Dice6, Heart, Shield, Swords, Brain, Eye, Target, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
-// Enums e tipos (corrigindo inconsistências)
-export enum NPCType {
-  ALLY = "aliado",
-  ENEMY = "inimigo", 
-  NEUTRAL = "neutro",
-  MERCHANT = "mercador",
-  QUEST_GIVER = "missões",
-  BACKGROUND = "cenário"
-}
-
-export interface NPCStats {
-  armor_class: number;
-  hit_points: number;
-  speed: string;
-  strength?: number;
-  dexterity?: number;
-  constitution?: number;
-  intelligence?: number;
-  wisdom?: number;
-  charisma?: number;
-}
-
-export interface NPCAbility {
-  name: string;
-  description: string;
-  usage?: string;
-}
-
-export interface NPCFormData {
-  name: string;
-  description?: string;
-  race?: string;
-  npc_class?: string;
-  npc_type: NPCType;
-  alignment?: string;
-  location?: string;
-  occupation?: string;
-  faction?: string;
-  stats?: NPCStats;
-  challenge_rating?: string;
-  abilities: NPCAbility[];
-  personality_traits: string[];
-  goals?: string;
-  secrets?: string;
-  gm_notes?: string;
-  is_alive: boolean;
-  is_active: boolean;
-}
+// Importar tipos corrigidos
+import {
+  NPCType,
+  NPCStats,
+  NPCAbility,
+  NPCFormData,
+  NPCTypeLabels,
+  NPCTypeColors,
+  ALIGNMENT_OPTIONS,
+  CHALLENGE_RATING_OPTIONS,
+  validateNPCData,
+  getNPCTypeColor,
+  getNPCTypeLabel
+} from '@/types/manageCampaign';
 
 interface NPCModalProps {
   isOpen: boolean;
@@ -67,6 +33,8 @@ export const NPCModal: React.FC<NPCModalProps> = ({
 }) => {
   const [currentTab, setCurrentTab] = useState<'basic' | 'stats' | 'abilities' | 'roleplay'>('basic');
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [formData, setFormData] = useState<NPCFormData>({
     name: '',
     description: '',
@@ -130,6 +98,13 @@ export const NPCModal: React.FC<NPCModalProps> = ({
       ...prev,
       [field]: value
     }));
+    setHasUnsavedChanges(true);
+    
+    // Limpar erros de validação quando usuário começa a digitar
+    if (validationErrors.length > 0) {
+      const errors = validateNPCData({ ...formData, [field]: value });
+      setValidationErrors(errors);
+    }
   };
 
   const handleStatsChange = (statField: keyof NPCStats, value: any) => {
@@ -140,6 +115,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
         [statField]: value
       }
     }));
+    setHasUnsavedChanges(true);
   };
 
   const addAbility = () => {
@@ -147,6 +123,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
       ...prev,
       abilities: [...prev.abilities, { name: '', description: '', usage: '' }]
     }));
+    setHasUnsavedChanges(true);
   };
 
   const updateAbility = (index: number, field: keyof NPCAbility, value: string) => {
@@ -156,6 +133,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
         i === index ? { ...ability, [field]: value } : ability
       )
     }));
+    setHasUnsavedChanges(true);
   };
 
   const removeAbility = (index: number) => {
@@ -163,6 +141,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
       ...prev,
       abilities: prev.abilities.filter((_, i) => i !== index)
     }));
+    setHasUnsavedChanges(true);
   };
 
   const addPersonalityTrait = () => {
@@ -170,6 +149,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
       ...prev,
       personality_traits: [...prev.personality_traits, '']
     }));
+    setHasUnsavedChanges(true);
   };
 
   const updatePersonalityTrait = (index: number, value: string) => {
@@ -179,6 +159,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
         i === index ? value : trait
       )
     }));
+    setHasUnsavedChanges(true);
   };
 
   const removePersonalityTrait = (index: number) => {
@@ -186,6 +167,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
       ...prev,
       personality_traits: prev.personality_traits.filter((_, i) => i !== index)
     }));
+    setHasUnsavedChanges(true);
   };
 
   const handleSubmit = async () => {
@@ -209,24 +191,12 @@ export const NPCModal: React.FC<NPCModalProps> = ({
   if (!isOpen) return null;
 
   const npcTypeOptions = [
-    { value: NPCType.ALLY, label: 'Aliado', color: 'text-green-400' },
-    { value: NPCType.ENEMY, label: 'Inimigo', color: 'text-red-400' },
-    { value: NPCType.NEUTRAL, label: 'Neutro', color: 'text-gray-400' },
-    { value: NPCType.MERCHANT, label: 'Mercador', color: 'text-yellow-400' },
-    { value: NPCType.QUEST_GIVER, label: 'Doador de Missões', color: 'text-blue-400' },
-    { value: NPCType.BACKGROUND, label: 'Cenário', color: 'text-purple-400' }
-  ];
-
-  const alignmentOptions = [
-    'Leal e Bom', 'Neutro e Bom', 'Caótico e Bom',
-    'Leal e Neutro', 'Verdadeiro Neutro', 'Caótico e Neutro',
-    'Leal e Mau', 'Neutro e Mau', 'Caótico e Mau'
-  ];
-
-  const challengeRatingOptions = [
-    '0', '1/8', '1/4', '1/2', '1', '2', '3', '4', '5', 
-    '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', 
-    '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '30'
+    { value: NPCType.ALLY, label: getNPCTypeLabel(NPCType.ALLY), color: 'text-green-400' },
+    { value: NPCType.ENEMY, label: getNPCTypeLabel(NPCType.ENEMY), color: 'text-red-400' },
+    { value: NPCType.NEUTRAL, label: getNPCTypeLabel(NPCType.NEUTRAL), color: 'text-gray-400' },
+    { value: NPCType.MERCHANT, label: getNPCTypeLabel(NPCType.MERCHANT), color: 'text-yellow-400' },
+    { value: NPCType.QUEST_GIVER, label: getNPCTypeLabel(NPCType.QUEST_GIVER), color: 'text-blue-400' },
+    { value: NPCType.BACKGROUND, label: getNPCTypeLabel(NPCType.BACKGROUND), color: 'text-purple-400' }
   ];
 
   return (
@@ -252,12 +222,27 @@ export const NPCModal: React.FC<NPCModalProps> = ({
               
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 className="p-2 text-gray-400 hover:text-white transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
+
+            {/* Erros de Validação */}
+            {validationErrors.length > 0 && (
+              <div className="mt-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <div className="flex items-center space-x-2 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <h4 className="text-red-400 font-medium">Erros de Validação</h4>
+                </div>
+                <ul className="space-y-1 text-sm text-red-300">
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>• {error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="flex space-x-1 mt-6 bg-gray-700 rounded-lg p-1">
@@ -362,7 +347,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
                       className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Selecionar tendência</option>
-                      {alignmentOptions.map(alignment => (
+                      {ALIGNMENT_OPTIONS.map(alignment => (
                         <option key={alignment} value={alignment}>
                           {alignment}
                         </option>
@@ -525,7 +510,7 @@ export const NPCModal: React.FC<NPCModalProps> = ({
                       className="w-full max-w-xs px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Selecionar CR</option>
-                      {challengeRatingOptions.map(cr => (
+                      {CHALLENGE_RATING_OPTIONS.map(cr => (
                         <option key={cr} value={cr}>CR {cr}</option>
                       ))}
                     </select>
