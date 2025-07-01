@@ -1,6 +1,6 @@
 // ===========================
 // src/components/campaign-manage/DnDImportModal.tsx
-// MODAL COMPLETO DE IMPORTAÇÃO D&D 5e COM TODAS AS FUNCIONALIDADES
+// MODAL CORRIGIDO DE IMPORTAÇÃO D&D 5e
 // ===========================
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -131,7 +131,7 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [error, setError] = useState('');
   
-  // Estados para filtros
+  // Estados para filtros - CORREÇÃO: valor correto para showFilters
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     type: 'all',
@@ -337,72 +337,94 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
   const convertToNPCData = (monster: DnDMonster) => {
     // Determinar tipo de NPC baseado no alinhamento
     let npcType = 'neutral';
-    const alignment = monster.alignment.toLowerCase();
+    const alignment = String(monster.alignment || '').toLowerCase();
     if (alignment.includes('good')) npcType = 'ally';
     else if (alignment.includes('evil')) npcType = 'enemy';
     else if (monster.type === 'humanoid' && alignment.includes('neutral')) npcType = 'neutral';
     
     // Criar descrição rica
-    const sizeType = `${monster.size} ${monster.type}${monster.subtype ? ` (${monster.subtype})` : ''}`;
+    const sizeType = `${monster.size || 'Medium'} ${monster.type || 'creature'}${monster.subtype ? ` (${monster.subtype})` : ''}`;
     
-    // Converter habilidades especiais e ações
-    const abilities = [
-      ...(monster.special_abilities || []).map(ability => ({
-        name: ability.name,
-        description: ability.desc,
-        usage: 'Habilidade Especial'
-      })),
-      ...(monster.actions || []).slice(0, 4).map(action => ({
-        name: action.name,
-        description: action.desc,
-        usage: 'Ação'
-      })),
-      ...(monster.legendary_actions || []).slice(0, 2).map(action => ({
-        name: `${action.name} (Lendária)`,
-        description: action.desc,
-        usage: 'Ação Lendária'
-      }))
-    ];
-
-    // Converter velocidade para string legível
-    const speedEntries = Object.entries(monster.speed).filter(([_, value]) => value);
-    const speedString = speedEntries.map(([type, value]) => {
-      const speedType = type === 'walk' ? 'caminhada' : 
-                       type === 'fly' ? 'voo' :
-                       type === 'swim' ? 'natação' :
-                       type === 'climb' ? 'escalada' :
-                       type === 'burrow' ? 'escavação' : type;
-      return `${speedType}: ${value}`;
-    }).join(', ');
-
-    // Criar notas detalhadas do GM
-    const gmNotes = [
-      `Importado da API D&D 5e - ${monster.name}`,
-      `Atributos: FOR ${monster.strength}, DES ${monster.dexterity}, CON ${monster.constitution}, INT ${monster.intelligence}, SAB ${monster.wisdom}, CAR ${monster.charisma}`,
-      monster.damage_resistances?.length ? `Resistências: ${monster.damage_resistances.join(', ')}` : '',
-      monster.damage_immunities?.length ? `Imunidades: ${monster.damage_immunities.join(', ')}` : '',
-      monster.condition_immunities?.length ? `Imunidade a Condições: ${monster.condition_immunities.join(', ')}` : '',
-      monster.senses ? `Sentidos: ${Object.entries(monster.senses).map(([k,v]) => `${k} ${v}`).join(', ')}` : '',
-      monster.legendary_actions?.length ? `Possui ${monster.legendary_actions.length} ações lendárias` : ''
-    ].filter(Boolean).join('\n');
+    // Conversão de velocidade
+    let speedString = '30 ft';
+    if (monster.speed && typeof monster.speed === 'object') {
+      const speeds = Object.entries(monster.speed)
+        .filter(([key, value]) => value && value !== '' && typeof value === 'string')
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+      speedString = speeds || '30 ft';
+    }
+    
+    // Criar habilidades a partir das ações
+    const abilities: any[] = [];
+    if (monster.special_abilities && Array.isArray(monster.special_abilities)) {
+      monster.special_abilities.forEach(ability => {
+        if (ability && typeof ability === 'object') {
+          abilities.push({
+            name: String(ability.name || 'Habilidade Especial'),
+            description: String(ability.desc || 'Sem descrição'),
+            type: 'special'
+          });
+        }
+      });
+    }
+    
+    if (monster.actions && Array.isArray(monster.actions)) {
+      monster.actions.slice(0, 3).forEach(action => {
+        if (action && typeof action === 'object') {
+          abilities.push({
+            name: String(action.name || 'Ação'),
+            description: String(action.desc || 'Sem descrição'),
+            type: 'action'
+          });
+        }
+      });
+    }
+    
+    // Notas do GM
+    const languages = monster.languages ? String(monster.languages) : '';
+    const senses = monster.senses && typeof monster.senses === 'object' 
+      ? Object.entries(monster.senses)
+          .filter(([k, v]) => v && typeof v === 'string')
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ')
+      : '';
+    
+    const resistances = monster.damage_resistances && Array.isArray(monster.damage_resistances)
+      ? monster.damage_resistances.filter(Boolean).join(', ')
+      : '';
+    
+    const immunities = monster.damage_immunities && Array.isArray(monster.damage_immunities)
+      ? monster.damage_immunities.filter(Boolean).join(', ')
+      : '';
+    
+    const gmNotes = `Criatura importada da API D&D 5e.
+    
+Tipo: ${sizeType}
+Alinhamento: ${monster.alignment || 'Neutro'}
+${languages ? `Idiomas: ${languages}` : ''}
+${senses ? `Sentidos: ${senses}` : ''}
+${resistances ? `Resistências: ${resistances}` : ''}
+${immunities ? `Imunidades: ${immunities}` : ''}
+${monster.hit_dice ? `DV: ${monster.hit_dice}` : ''}`;
 
     return {
-      name: monster.name,
-      description: `${sizeType}, ${monster.alignment}. ${monster.languages ? `Idiomas: ${monster.languages}.` : 'Sem idiomas conhecidos.'} ${monster.hit_dice ? `DV: ${monster.hit_dice}.` : ''}`,
-      race: monster.type.charAt(0).toUpperCase() + monster.type.slice(1),
-      npc_class: monster.subtype || (monster.challenge_rating >= 5 ? 'Elite' : 'Comum'),
+      name: String(monster.name || 'Criatura Importada'),
+      description: `${sizeType}, ${monster.alignment || 'neutro'}. ${monster.hit_dice ? `DV: ${monster.hit_dice}.` : ''}`,
+      race: String(monster.type || 'creature').charAt(0).toUpperCase() + String(monster.type || 'creature').slice(1),
+      npc_class: String(monster.subtype || (Number(monster.challenge_rating) >= 5 ? 'Elite' : 'Comum')),
       npc_type: npcType,
-      alignment: monster.alignment,
+      alignment: String(monster.alignment || 'Neutro'),
       location: 'Importado da API D&D',
-      occupation: `${monster.type} CR ${monster.challenge_rating}${monster.legendary_actions?.length ? ' (Lendário)' : ''}`,
-      faction: monster.alignment.includes('evil') ? 'Hostil' : 
-               monster.alignment.includes('good') ? 'Amigável' : 'Neutro',
+      occupation: `${monster.type || 'creature'} CR ${monster.challenge_rating || 0}${monster.legendary_actions?.length ? ' (Lendário)' : ''}`,
+      faction: alignment.includes('evil') ? 'Hostil' : 
+               alignment.includes('good') ? 'Amigável' : 'Neutro',
       stats: {
-        armor_class: monster.armor_class,
-        hit_points: monster.hit_points,
-        speed: speedString || '30 ft'
+        armor_class: Number(monster.armor_class) || 10,
+        hit_points: Number(monster.hit_points) || 1,
+        speed: speedString
       },
-      challenge_rating: monster.challenge_rating.toString(),
+      challenge_rating: String(monster.challenge_rating || 0),
       abilities: abilities,
       personality_traits: [],
       goals: '',
@@ -413,7 +435,7 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
     };
   };
 
-  // Importar monster selecionado
+  // CORREÇÃO: Função separada para importar (não mais automática no clique)
   const handleImport = async () => {
     if (!selectedMonster) return;
     
@@ -548,36 +570,40 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
             </div>
           </div>
 
-          <div className="flex-1 flex overflow-hidden">
-            {/* Lista de Busca */}
-            <div className="w-1/2 border-r border-gray-700 flex flex-col bg-gray-900/30">
-              {/* Controles de Busca e Filtros */}
-              <div className="p-6 border-b border-gray-700 space-y-4">
-                {/* Busca Principal */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          {/* Conteúdo Principal */}
+          <div className="flex-1 flex min-h-0">
+            {/* Lista de Monsters */}
+            <div className="w-1/2 flex flex-col border-r border-gray-700">
+              {/* Busca e Filtros */}
+              <div className="p-4 border-b border-gray-700 bg-gray-800/30">
+                {/* Busca */}
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="text"
-                    placeholder="Buscar criaturas... (ex: goblin, dragon, orc)"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    placeholder="Buscar criaturas... (ex: goblin, dragon, orc)"
+                    className="w-full pl-11 pr-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   />
                 </div>
 
                 {/* Controles de Filtro e Ordenação */}
                 <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setShowFilters(!showFilters)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    <Filter className="w-4 h-4" />
-                    <span className="text-sm font-medium">Filtros</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    {/* Botão de Filtros */}
+                    <button
+                      onClick={() => setShowFilters(!showFilters)}
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
+                        showFilters ? 'bg-blue-600 text-white' : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+                      }`}
+                    >
+                      <Filter className="w-4 h-4" />
+                      <span>Filtros</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                    </button>
 
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs text-gray-400">Ordenar por:</span>
+                    {/* Ordenação */}
                     <button
                       onClick={() => setSortBy(sortBy === 'name' ? 'cr' : 'name')}
                       className="flex items-center space-x-1 px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
@@ -595,7 +621,7 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
 
                 {/* Painel de Filtros Expandível */}
                 {showFilters && (
-                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                  <div className="grid grid-cols-2 gap-4 p-4 bg-gray-700/30 rounded-lg border border-gray-600/30 mt-4">
                     <div>
                       <label className="block text-xs font-medium text-gray-300 mb-2">Tipo de Criatura</label>
                       <select
@@ -647,11 +673,33 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-sm text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+
+                    {/* Botão para limpar filtros */}
+                    <div className="col-span-2 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setSearchTerm('');
+                          setFilters({
+                            type: 'all',
+                            size: 'all',
+                            cr_min: '',
+                            cr_max: '',
+                            alignment: 'all',
+                            hasSpecialAbilities: false,
+                            hasActions: false,
+                            hasLegendaryActions: false
+                          });
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        Limpar Filtros
+                      </button>
+                    </div>
                   </div>
                 )}
 
                 {/* Contador de Resultados e Favoritos */}
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm mt-4">
                   <span className="text-gray-400">
                     {displayedMonsters.length} de {getFilteredMonsters().length} criaturas
                   </span>
@@ -664,10 +712,11 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                 </div>
               </div>
 
-              {/* Lista de Resultados com Scroll Infinito */}
+              {/* Lista de Resultados com Scroll Infinito - CORREÇÃO: CSS de scroll melhorado */}
               <div 
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-auto p-4"
+                style={{ maxHeight: 'calc(100vh - 400px)' }}
               >
                 {error && (
                   <div className="mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
@@ -682,45 +731,15 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                 )}
 
                 {isInitialLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <RefreshCw className="w-8 h-8 text-blue-400 animate-spin mb-3" />
-                    <span className="text-gray-400 text-lg font-medium">Carregando criaturas...</span>
-                    <span className="text-gray-500 text-sm mt-1">Conectando com a API D&D 5e</span>
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <RefreshCw className="w-10 h-10 text-blue-400 animate-spin mx-auto mb-4" />
+                      <div className="text-xl font-medium text-gray-300">Carregando criaturas...</div>
+                      <div className="text-gray-500">Conectando com a API D&D 5e</div>
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {/* Seção de Favoritos */}
-                    {favorites.length > 0 && searchTerm === '' && (
-                      <div className="mb-6">
-                        <h4 className="text-lg font-semibold text-yellow-400 mb-3 flex items-center space-x-2">
-                          <Star className="w-5 h-5" />
-                          <span>Favoritos</span>
-                        </h4>
-                        <div className="space-y-2">
-                          {allMonsters
-                            .filter(monster => favorites.includes(monster.index))
-                            .slice(0, 5)
-                            .map((result) => (
-                              <MonsterCard
-                                key={`fav-${result.index}`}
-                                monster={result}
-                                isFavorite={true}
-                                isRecentlyViewed={recentlyViewed.includes(result.index)}
-                                onSelect={() => loadMonsterDetails(result.url, result.index)}
-                                onToggleFavorite={() => toggleFavorite(result.index)}
-                                isSelected={selectedMonster?.index === result.index}
-                              />
-                            ))}
-                        </div>
-                        {favorites.length > 5 && (
-                          <p className="text-sm text-gray-500 mt-2 ml-2">
-                            +{favorites.length - 5} mais favoritos
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Resultados Principais */}
+                  <div className="space-y-2">
                     {displayedMonsters.map((result, index) => (
                       <div
                         key={result.index}
@@ -782,7 +801,7 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                           }}
                           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
                         >
-                          Limpar Filtros
+                          Limpar Busca
                         </button>
                       </div>
                     )}
@@ -807,72 +826,54 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                   <div className="p-6 border-b border-gray-700 bg-gradient-to-r from-gray-800 to-gray-700">
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h2 className="text-3xl font-bold text-white mb-2">{selectedMonster.name}</h2>
+                        <h2 className="text-3xl font-bold text-white mb-2">{String(selectedMonster.name || 'Criatura')}</h2>
                         <p className="text-gray-300 text-lg">
-                          {selectedMonster.size} {selectedMonster.type}
-                          {selectedMonster.subtype && ` (${selectedMonster.subtype})`}
+                          {String(selectedMonster.size || 'Medium')} {String(selectedMonster.type || 'creature')}
+                          {selectedMonster.subtype && ` (${String(selectedMonster.subtype)})`}
                         </p>
-                        <p className="text-gray-400">{selectedMonster.alignment}</p>
+                        <p className="text-gray-400">{String(selectedMonster.alignment || 'Neutro')}</p>
                       </div>
                       
                       <button
                         onClick={() => toggleFavorite(selectedMonster.index)}
                         className={`p-3 rounded-xl transition-all transform hover:scale-105 ${
                           favorites.includes(selectedMonster.index)
-                            ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                            : 'bg-gray-700/50 text-gray-400 hover:text-yellow-400 border border-gray-600/30'
+                            ? 'bg-yellow-500/20 border border-yellow-500/30 text-yellow-400'
+                            : 'bg-gray-700/50 border border-gray-600/30 text-gray-400 hover:text-yellow-400'
                         }`}
                       >
-                        <Star className="w-6 h-6" />
+                        <Star className={`w-5 h-5 ${favorites.includes(selectedMonster.index) ? 'fill-current' : ''}`} />
                       </button>
                     </div>
 
-                    {/* Badges */}
-                    <div className="flex items-center space-x-2">
-                      <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-sm rounded-full border border-blue-500/30">
-                        CR {selectedMonster.challenge_rating}
-                      </span>
-                      {selectedMonster.legendary_actions && (
-                        <span className="px-3 py-1 bg-purple-500/20 text-purple-400 text-sm rounded-full border border-purple-500/30 flex items-center space-x-1">
-                          <Crown className="w-3 h-3" />
-                          <span>Lendário</span>
-                        </span>
-                      )}
-                      {(selectedMonster.special_abilities?.length || 0) > 0 && (
-                        <span className="px-3 py-1 bg-green-500/20 text-green-400 text-sm rounded-full border border-green-500/30 flex items-center space-x-1">
-                          <Sparkles className="w-3 h-3" />
-                          <span>{selectedMonster.special_abilities?.length} Habilidades</span>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-6 space-y-6">
                     {/* Estatísticas Principais */}
                     <div className="grid grid-cols-3 gap-4">
                       <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 text-center">
                         <Shield className="w-6 h-6 text-blue-400 mx-auto mb-2" />
-                        <div className="text-2xl font-bold text-blue-400">{selectedMonster.armor_class}</div>
+                        <div className="text-2xl font-bold text-blue-400">{Number(selectedMonster.armor_class) || 10}</div>
                         <div className="text-sm text-gray-400">Classe de Armadura</div>
                       </div>
                       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center">
                         <Heart className="w-6 h-6 text-red-400 mx-auto mb-2" />
-                        <div className="text-2xl font-bold text-red-400">{selectedMonster.hit_points}</div>
+                        <div className="text-2xl font-bold text-red-400">{Number(selectedMonster.hit_points) || 1}</div>
                         <div className="text-sm text-gray-400">Pontos de Vida</div>
                         {selectedMonster.hit_dice && (
-                          <div className="text-xs text-gray-500 mt-1">({selectedMonster.hit_dice})</div>
+                          <div className="text-xs text-gray-500 mt-1">({String(selectedMonster.hit_dice)})</div>
                         )}
                       </div>
                       <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 text-center">
                         <Zap className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-                        <div className="text-2xl font-bold text-yellow-400">{selectedMonster.challenge_rating}</div>
+                        <div className="text-2xl font-bold text-yellow-400">{Number(selectedMonster.challenge_rating) || 0}</div>
                         <div className="text-sm text-gray-400">Challenge Rating</div>
                         <div className="text-xs text-gray-500 mt-1">
-                          Prof. +{selectedMonster.proficiency_bonus}
+                          Prof. +{Number(selectedMonster.proficiency_bonus) || 2}
                         </div>
                       </div>
                     </div>
+                  </div>
 
+                  {/* Conteúdo dos Detalhes */}
+                  <div className="p-6 space-y-6">
                     {/* Atributos */}
                     <div>
                       <h3 className="text-xl font-semibold text-white mb-4 flex items-center space-x-2">
@@ -881,12 +882,12 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                       </h3>
                       <div className="grid grid-cols-6 gap-3">
                         {[
-                          { label: 'FOR', value: selectedMonster.strength },
-                          { label: 'DES', value: selectedMonster.dexterity },
-                          { label: 'CON', value: selectedMonster.constitution },
-                          { label: 'INT', value: selectedMonster.intelligence },
-                          { label: 'SAB', value: selectedMonster.wisdom },
-                          { label: 'CAR', value: selectedMonster.charisma },
+                          { label: 'FOR', value: Number(selectedMonster.strength) || 10 },
+                          { label: 'DES', value: Number(selectedMonster.dexterity) || 10 },
+                          { label: 'CON', value: Number(selectedMonster.constitution) || 10 },
+                          { label: 'INT', value: Number(selectedMonster.intelligence) || 10 },
+                          { label: 'SAB', value: Number(selectedMonster.wisdom) || 10 },
+                          { label: 'CAR', value: Number(selectedMonster.charisma) || 10 },
                         ].map((attr) => {
                           const modifier = Math.floor((attr.value - 10) / 2);
                           return (
@@ -894,7 +895,7 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                               <div className="text-sm font-medium text-gray-400">{attr.label}</div>
                               <div className="text-xl font-bold text-white">{attr.value}</div>
                               <div className="text-xs text-gray-500">
-                                {modifier >= 0 ? '+' : ''}{modifier}
+                                {modifier >= 0 ? `+${modifier}` : modifier}
                               </div>
                             </div>
                           );
@@ -902,19 +903,65 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                       </div>
                     </div>
 
-                    {/* Velocidade */}
-                    <div>
-                      <h3 className="text-xl font-semibold text-white mb-3">Velocidade</h3>
-                      <div className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30">
-                        <div className="flex flex-wrap gap-3">
-                          {Object.entries(selectedMonster.speed).map(([type, value]) => (
-                            <span key={type} className="inline-flex items-center px-3 py-1 bg-gray-600/50 rounded-full text-sm text-gray-300">
-                              {type === 'walk' ? '🚶' : type === 'fly' ? '🦅' : type === 'swim' ? '🏊' : '⚡'} {type}: {value}
-                            </span>
-                          ))}
+                    {/* Velocidade e Sentidos */}
+                    {(selectedMonster.speed || selectedMonster.senses) && (
+                      <div>
+                        <h4 className="text-lg font-semibold text-white mb-3">Movimento & Sentidos</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {selectedMonster.speed && (
+                            <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
+                              <h5 className="text-gray-300 font-medium mb-2">Velocidade</h5>
+                              {Object.entries(selectedMonster.speed)
+                                .filter(([_, value]) => value && value !== '')
+                                .map(([type, value]) => (
+                                <div key={type} className="text-sm text-gray-300">
+                                  {type}: {String(value)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {selectedMonster.senses && (
+                            <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
+                              <h5 className="text-gray-300 font-medium mb-2">Sentidos</h5>
+                              {Object.entries(selectedMonster.senses)
+                                .filter(([_, value]) => value && value !== '')
+                                .map(([sense, value]) => (
+                                <div key={sense} className="text-sm text-gray-300">
+                                  {sense}: {String(value)}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    </div>
+                    )}
+
+                    {/* Resistências e Imunidades */}
+                    {(selectedMonster.damage_resistances?.length || selectedMonster.damage_immunities?.length || selectedMonster.condition_immunities?.length) && (
+                      <div>
+                        <h4 className="text-lg font-semibold text-white mb-3">Resistências & Imunidades</h4>
+                        <div className="space-y-2">
+                          {selectedMonster.damage_resistances?.length && (
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
+                              <span className="text-yellow-400 font-medium">Resistência a Dano: </span>
+                              <span className="text-gray-300">{selectedMonster.damage_resistances.filter(Boolean).join(', ')}</span>
+                            </div>
+                          )}
+                          {selectedMonster.damage_immunities?.length && (
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+                              <span className="text-blue-400 font-medium">Imunidade a Dano: </span>
+                              <span className="text-gray-300">{selectedMonster.damage_immunities.filter(Boolean).join(', ')}</span>
+                            </div>
+                          )}
+                          {selectedMonster.condition_immunities?.length && (
+                            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
+                              <span className="text-green-400 font-medium">Imunidade a Condições: </span>
+                              <span className="text-gray-300">{selectedMonster.condition_immunities.filter(Boolean).join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Habilidades Especiais */}
                     {selectedMonster.special_abilities && selectedMonster.special_abilities.length > 0 && (
@@ -924,19 +971,18 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                           <span>Habilidades Especiais</span>
                         </h3>
                         <div className="space-y-3">
-                          {selectedMonster.special_abilities.slice(0, 4).map((ability, index) => (
-                            <div key={index} className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                              <h4 className="font-semibold text-green-400 mb-2 flex items-center space-x-2">
-                                <Swords className="w-4 h-4" />
-                                <span>{ability.name}</span>
-                              </h4>
-                              <p className="text-sm text-gray-300 leading-relaxed">{ability.desc}</p>
+                          {selectedMonster.special_abilities.slice(0, 3).map((ability, index) => (
+                            <div key={index} className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
+                              <h4 className="font-semibold text-purple-400 mb-2">{ability.name || 'Habilidade'}</h4>
+                              <p className="text-sm text-gray-300 leading-relaxed">
+                                {typeof ability.desc === 'string' ? ability.desc : 'Descrição não disponível'}
+                              </p>
                             </div>
                           ))}
-                          {selectedMonster.special_abilities.length > 4 && (
+                          {selectedMonster.special_abilities.length > 3 && (
                             <div className="text-center p-3 bg-gray-700/30 rounded-lg border border-gray-600/30">
                               <span className="text-gray-400 text-sm">
-                                +{selectedMonster.special_abilities.length - 4} habilidades adicionais
+                                +{selectedMonster.special_abilities.length - 3} habilidades adicionais
                               </span>
                             </div>
                           )}
@@ -954,8 +1000,10 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                         <div className="space-y-3">
                           {selectedMonster.actions.slice(0, 3).map((action, index) => (
                             <div key={index} className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                              <h4 className="font-semibold text-red-400 mb-2">{action.name}</h4>
-                              <p className="text-sm text-gray-300 leading-relaxed">{action.desc}</p>
+                              <h4 className="font-semibold text-red-400 mb-2">{action.name || 'Ação'}</h4>
+                              <p className="text-sm text-gray-300 leading-relaxed">
+                                {typeof action.desc === 'string' ? action.desc : 'Descrição não disponível'}
+                              </p>
                             </div>
                           ))}
                           {selectedMonster.actions.length > 3 && (
@@ -978,104 +1026,26 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                         </h3>
                         <div className="space-y-3">
                           {selectedMonster.legendary_actions.map((action, index) => (
-                            <div key={index} className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-4">
-                              <h4 className="font-semibold text-purple-400 mb-2">{action.name}</h4>
-                              <p className="text-sm text-gray-300 leading-relaxed">{action.desc}</p>
+                            <div key={index} className="bg-gold-500/10 border border-yellow-500/20 rounded-lg p-4">
+                              <h4 className="font-semibold text-yellow-400 mb-2">{action.name || 'Ação Lendária'}</h4>
+                              <p className="text-sm text-gray-300 leading-relaxed">
+                                {typeof action.desc === 'string' ? action.desc : 'Descrição não disponível'}
+                              </p>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-
-                    {/* Informações Adicionais */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Idiomas */}
-                      {selectedMonster.languages && (
-                        <div>
-                          <h4 className="text-lg font-semibold text-white mb-2">Idiomas</h4>
-                          <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
-                            <span className="text-gray-300">{selectedMonster.languages}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Sentidos */}
-                      {selectedMonster.senses && (
-                        <div>
-                          <h4 className="text-lg font-semibold text-white mb-2">Sentidos</h4>
-                          <div className="bg-gray-700/30 rounded-lg p-3 border border-gray-600/30">
-                            <div className="space-y-1">
-                              {Object.entries(selectedMonster.senses).map(([sense, value]) => (
-                                <div key={sense} className="text-sm text-gray-300">
-                                  {sense}: {value}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Resistências e Imunidades */}
-                    {(selectedMonster.damage_resistances?.length || selectedMonster.damage_immunities?.length || selectedMonster.condition_immunities?.length) && (
-                      <div>
-                        <h4 className="text-lg font-semibold text-white mb-3">Resistências & Imunidades</h4>
-                        <div className="space-y-2">
-                          {selectedMonster.damage_resistances?.length && (
-                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-                              <span className="text-yellow-400 font-medium">Resistência a Dano: </span>
-                              <span className="text-gray-300">{selectedMonster.damage_resistances.join(', ')}</span>
-                            </div>
-                          )}
-                          {selectedMonster.damage_immunities?.length && (
-                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
-                              <span className="text-blue-400 font-medium">Imunidade a Dano: </span>
-                              <span className="text-gray-300">{selectedMonster.damage_immunities.join(', ')}</span>
-                            </div>
-                          )}
-                          {selectedMonster.condition_immunities?.length && (
-                            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-                              <span className="text-green-400 font-medium">Imunidade a Condições: </span>
-                              <span className="text-gray-300">{selectedMonster.condition_immunities.join(', ')}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center p-8">
-                  <div className="text-center">
-                    <User className="w-16 h-16 mx-auto mb-4 text-gray-500 opacity-50" />
-                    <div className="text-xl font-medium text-gray-400 mb-2">
-                      Selecione uma criatura
-                    </div>
-                    <div className="text-gray-500 max-w-md">
-                      Escolha uma criatura da lista para ver informações detalhadas e poder importá-la para sua campanha
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Footer com Ações */}
-              {selectedMonster && (
-                <div className="p-6 border-t border-gray-700 bg-gray-800/50">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-400">
-                      <div className="font-medium text-gray-300 mb-1">
-                        Converter para NPC
-                      </div>
-                      <div>
-                        Esta criatura será adaptada para o formato do seu sistema
-                      </div>
-                    </div>
+                  {/* Footer com Botão de Importação - CORREÇÃO: Importação manual */}
+                  <div className="p-6 border-t border-gray-700 bg-gray-800/50">
                     <button
                       onClick={handleImport}
-                      disabled={!!importingMonster}
-                      className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-3 font-medium"
+                      disabled={!selectedMonster || importingMonster === selectedMonster.index}
+                      className="w-full px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center space-x-3 font-medium"
                     >
-                      {importingMonster === selectedMonster.index ? (
+                      {importingMonster === selectedMonster?.index ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
                           <span>Importando...</span>
@@ -1087,6 +1057,18 @@ export const DnDImportModal: React.FC<DnDImportModalProps> = ({
                         </>
                       )}
                     </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <Eye className="w-16 h-16 text-gray-500 mx-auto mb-4 opacity-50" />
+                    <div className="text-xl font-medium text-gray-400 mb-2">
+                      Selecione uma criatura
+                    </div>
+                    <div className="text-gray-500">
+                      Clique em uma criatura da lista para ver seus detalhes
+                    </div>
                   </div>
                 </div>
               )}
@@ -1131,13 +1113,13 @@ const MonsterCard: React.FC<MonsterCardProps> = ({
         }`}
       >
         <div className="flex items-center justify-between">
-          {/* Área clicável principal */}
+          {/* CORREÇÃO: Área clicável apenas para seleção, não importação */}
           <div 
             onClick={onSelect}
             className="flex-1 flex items-center space-x-3 cursor-pointer"
           >
             <span className={`font-medium ${isSelected ? 'text-blue-300' : 'text-white'}`}>
-              {monster.name}
+              {String(monster.name || 'Criatura')}
             </span>
             <div className="flex items-center space-x-1">
               {isRecentlyViewed && (
@@ -1149,7 +1131,7 @@ const MonsterCard: React.FC<MonsterCardProps> = ({
             </div>
           </div>
           
-          {/* Botões de ação - fora do botão principal */}
+          {/* Botões de ação - fora da área de seleção */}
           <div className="flex items-center space-x-2">
             <button
               onClick={(e) => {
@@ -1158,19 +1140,12 @@ const MonsterCard: React.FC<MonsterCardProps> = ({
               }}
               className={`p-1 rounded transition-colors ${
                 isFavorite 
-                  ? 'text-yellow-400 hover:text-yellow-300' 
+                  ? 'text-yellow-400 hover:text-yellow-300'
                   : 'text-gray-500 hover:text-yellow-400'
               }`}
-              title={isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
             >
-              <Star className="w-4 h-4" />
+              <Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
-            <div 
-              onClick={onSelect}
-              className="cursor-pointer"
-            >
-              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-gray-300 transition-colors" />
-            </div>
           </div>
         </div>
       </div>
