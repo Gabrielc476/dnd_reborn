@@ -1,24 +1,46 @@
-// ===========================
-// CAMPAIGN MANAGER PAGE - UI APRIMORADA
-// src/app/campaign/[id]/page.tsx
-// ===========================
-
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import CampaignHeader from '@/components/campaign-manage/CampaignHeader';
 import GMSidebar from '@/components/campaign-manage/GMSidebar';
 import CombatTracker from '@/components/campaign-manage/CombatTracker';
 import CampaignOverview from '@/components/campaign-manage/CampaignOverview';
 import PartyOverview from '@/components/campaign-manage/PartyOverview';
+import { NPCsList } from '@/components/campaign-manage/NPCsList';
+import SessionsHistory from '@/components/campaign-manage/SessionsHistory';
 import { 
   Shield, 
   Sparkles, 
   Crown,
   AlertTriangle,
-  Loader2 
+  Loader2,
+  Home,
+  Users,
+  Sword,
+  Calendar,
+  Map,
+  Package
 } from 'lucide-react';
+
+// Definir as seções disponíveis
+export type CampaignSection = 
+  | 'overview' 
+  | 'npcs' 
+  | 'encounters' 
+  | 'sessions' 
+  | 'party' 
+  | 'loot' 
+  | 'world'
+  | 'combat';
+
+interface SectionConfig {
+  id: CampaignSection;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  component: React.ComponentType;
+  gmOnly?: boolean;
+}
 
 const CampaignManagerPage = () => {
   const {
@@ -30,15 +52,90 @@ const CampaignManagerPage = () => {
     canPerformAction
   } = useManageCampaignContext();
 
+  // Estado para controlar a seção atual
+  const [currentSection, setCurrentSection] = useState<CampaignSection>('overview');
+
+  // Configuração das seções
+  const sections: SectionConfig[] = [
+    {
+      id: 'overview',
+      label: 'Visão Geral',
+      icon: Home,
+      component: CampaignOverview
+    },
+    {
+      id: 'npcs',
+      label: 'NPCs',
+      icon: Users,
+      component: NPCsList,
+      gmOnly: true
+    },
+    {
+      id: 'encounters',
+      label: 'Encontros',
+      icon: Sword,
+      component: () => <div className="text-white">Seção de Encontros em desenvolvimento</div>,
+      gmOnly: true
+    },
+    {
+      id: 'sessions',
+      label: 'Sessões',
+      icon: Calendar,
+      component: SessionsHistory
+    },
+    {
+      id: 'party',
+      label: 'Grupo',
+      icon: Shield,
+      component: PartyOverview
+    },
+    {
+      id: 'loot',
+      label: 'Tesouro',
+      icon: Package,
+      component: () => <div className="text-white">Seção de Tesouro em desenvolvimento</div>,
+      gmOnly: true
+    },
+    {
+      id: 'world',
+      label: 'Mundo',
+      icon: Map,
+      component: () => <div className="text-white">Seção de Mundo em desenvolvimento</div>,
+      gmOnly: true
+    },
+    {
+      id: 'combat',
+      label: 'Combate',
+      icon: Sword,
+      component: CombatTracker,
+      gmOnly: true
+    }
+  ];
+
+  // Filtrar seções baseado nas permissões
+  const availableSections = sections.filter(section => 
+    !section.gmOnly || isGM
+  );
+
+  // Função para navegar entre seções
+  const navigateToSection = (sectionId: CampaignSection) => {
+    setCurrentSection(sectionId);
+  };
+
+  // Encontrar a seção atual
+  const currentSectionConfig = availableSections.find(s => s.id === currentSection);
+  const CurrentSectionComponent = currentSectionConfig?.component ?? CampaignOverview;
+
   console.log("🎯 CampaignManagerPage render:", {
     campaign: !!campaign,
     campaignId: campaign?.id,
     campaignName: campaign?.name,
     isLoading,
-    permissions: !permissions
+    currentSection,
+    availableSections: availableSections.map(s => s.id)
   });
 
-  // Loading State - Seguindo o padrão das outras páginas
+  // Loading State
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
@@ -73,28 +170,17 @@ const CampaignManagerPage = () => {
     );
   }
 
-  // Error State - Seguindo o padrão das outras páginas
+  // Error State
   if (!campaign) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-red-900 to-gray-900 flex items-center justify-center">
-        <div className="max-w-md mx-auto text-center p-6">
-          <div className="relative inline-block mb-6">
-            <div className="absolute -top-4 -left-4 w-8 h-8 bg-red-500 rounded-full animate-pulse opacity-60"></div>
-            <div className="absolute -bottom-4 -right-4 w-6 h-6 bg-orange-500 rounded-full animate-pulse opacity-60"></div>
-            <AlertTriangle className="w-16 h-16 text-red-400 mx-auto" />
-          </div>
-          
-          <div className="space-y-4">
-            <h2 className="text-3xl font-bold text-white">Campanha Não Encontrada</h2>
-            <p className="text-gray-400 text-lg">
-              A campanha solicitada não existe ou você não tem permissão para acessá-la
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mb-6">
+            <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+            <h2 className="text-3xl font-bold text-white mb-4">Campanha não encontrada</h2>
+            <p className="text-gray-300 text-lg">
+              A campanha solicitada não existe ou você não tem permissão para acessá-la.
             </p>
-            <button
-              onClick={() => window.history.back()}
-              className="w-full px-6 py-3 bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-red-500/25"
-            >
-              Voltar
-            </button>
           </div>
         </div>
       </div>
@@ -102,107 +188,54 @@ const CampaignManagerPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Background Effects - Similar ao character creation */}
-      <div className="fixed inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-10" />
-      <div className="fixed top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob" />
-      <div className="fixed top-0 -right-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000" />
-      <div className="fixed -bottom-8 left-20 w-72 h-72 bg-green-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-4000" />
-
-      {/* Header - Seguindo o padrão estabelecido */}
-      <CampaignHeader />
-      
-      <div className="relative z-10 flex">
-        {/* Sidebar do GM - Seguindo o padrão das outras páginas */}
-        {isGM && (
-          <div className="w-80 min-h-screen bg-gray-900/80 backdrop-blur-sm border-r border-gray-700/50">
-            <GMSidebar />
-          </div>
-        )}
-        
-        {/* Área de conteúdo principal */}
-        <div className="flex-1 min-h-screen flex flex-col bg-gray-900/50 backdrop-blur-sm">
-          {/* Combat Tracker ou Campaign Overview */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            <div className="max-w-7xl mx-auto">
-              {/* Hero Section personalizada - Similar ao campaign/new */}
-              <section className="relative mb-8">
-                <div className="text-center space-y-4">
-                  <div className="relative inline-block">
-                    <div className="absolute -top-4 -left-4 w-8 h-8 bg-purple-500 rounded-full animate-pulse opacity-60"></div>
-                    <div className="absolute -bottom-4 -right-4 w-6 h-6 bg-yellow-500 rounded-full animate-pulse opacity-60"></div>
-                    <Crown className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                  </div>
-                  
-                  <h1 className="text-3xl md:text-4xl font-bold text-white">
-                    Mesa de {campaign.name}
-                  </h1>
-                  
-                  <p className="text-lg text-gray-300 max-w-2xl mx-auto">
-                    {isGM ? 'Gerencie sua campanha com controle total' : 'Bem-vindo à aventura'}
-                  </p>
-
-                  {/* Status da campanha */}
-                  <div className="inline-flex items-center space-x-4 px-6 py-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                    <div className="flex items-center space-x-2">
-                      <Shield className="w-5 h-5 text-blue-400" />
-                      <span className="text-blue-300 text-sm">
-                        Status: <strong>{campaign.status || 'Ativo'}</strong>
-                      </span>
-                    </div>
-                    <div className="w-px h-4 bg-blue-500/30"></div>
-                    <div className="text-blue-300 text-sm">
-                      {isGM ? 'Mestre' : 'Jogador'}
-                    </div>
-                  </div>
-
-                  {/* Indicadores de qualidade */}
-                  <div className="flex items-center justify-center space-x-8 text-sm text-gray-400 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <Sparkles className="w-5 h-5 text-blue-400" />
-                      <span>Sistema Avançado</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Shield className="w-5 h-5 text-green-400" />
-                      <span>Controles Inteligentes</span>
-                    </div>
-                    {isGM && (
-                      <div className="flex items-center space-x-2">
-                        <Crown className="w-5 h-5 text-yellow-400" />
-                        <span>Ferramentas do Mestre</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              {/* Conteúdo principal */}
-              {/* Se estiver em combate, mostra o Combat Tracker */}
-              {/* Caso contrário, mostra o Campaign Overview */}
-              <CampaignOverview />
-            </div>
-          </div>
-          
-          {/* Party Overview - Agora colapsável e não fixado */}
-          <PartyOverview />
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+      {/* Background decorativo */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000" />
       </div>
 
-      {/* Footer inspiracional - Similar ao campaign/new */}
-      <footer className="relative z-10 border-t border-gray-700/50 bg-gray-900/80 backdrop-blur-sm py-6">
-        <div className="max-w-4xl mx-auto text-center px-6">
-          <p className="text-gray-400 text-sm mb-2">
-            "Cada sessão é uma nova página na história que vocês estão escrevendo juntos."
-          </p>
-          <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
-            <span>Campanha: <strong className="text-gray-400">{campaign.name}</strong></span>
-            <span>•</span>
-            <span>{isGM ? 'Mesa do Mestre' : 'Área do Jogador'}</span>
-            <span>•</span>
-            <span>D&D Manager v2.0</span>
+      <div className="relative z-10 flex h-screen">
+        {/* Sidebar */}
+        <div className="w-80 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700/50 flex flex-col">
+          <GMSidebar onNavigate={navigateToSection} currentSection={currentSection} />
+        </div>
+
+        {/* Conteúdo Principal */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header */}
+          <div className="bg-gray-800/30 backdrop-blur-sm border-b border-gray-700/50">
+            <CampaignHeader />
+            
+            {/* Navegação por Tabs */}
+            <div className="px-6 py-4">
+              <div className="flex space-x-1 bg-gray-800/50 rounded-lg p-1">
+                {availableSections.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => navigateToSection(section.id)}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+                      currentSection === section.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <section.icon className="w-4 h-4" />
+                    <span className="text-sm font-medium">{section.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Conteúdo da Seção */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6">
+              <CurrentSectionComponent />
+            </div>
           </div>
         </div>
-      </footer>
+      </div>
     </div>
   );
 };

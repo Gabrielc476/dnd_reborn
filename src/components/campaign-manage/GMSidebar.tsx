@@ -1,46 +1,58 @@
 // ===========================
-// GM SIDEBAR - USANDO AÇÕES REAIS DA API
 // src/components/campaign-manage/GMSidebar.tsx
+// SIDEBAR COMPLETO COM SISTEMA DE NAVEGAÇÃO
 // ===========================
 
 import React, { useState } from 'react';
 import { 
-  Dice6,
-  Sword,
-  Users,
-  BookOpen,
+  Users, 
+  Plus, 
+  Dice6, 
+  Heart, 
+  Shield as ShieldIcon,
   MapPin,
-  Clock,
-  Bed,
-  Zap,
-  Plus,
-  Gift,
   Map,
-  Eye,
+  Clock,
   Target,
-  Crown,
   Sparkles,
-  FileText,
+  User,
   Settings,
   ChevronDown,
   ChevronRight,
-  Activity,
-  Heart,
-  Brain,
-  Shield as ShieldIcon,
-  Coins,
-  Play,
-  Pause,
-  Square,
-  Volume2,
-  BarChart3,
+  Crown,
+  Sword,
+  Home,
   Calendar,
-  MessageCircle,
-  Archive,
+  Package,
+  FileText,
+  Activity,
   Download,
-  Share2
+  Upload,
+  BarChart3,
+  Zap,
+  Eye,
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
+
+// Tipo para as seções de navegação
+export type CampaignSection = 
+  | 'overview' 
+  | 'npcs' 
+  | 'encounters' 
+  | 'sessions' 
+  | 'party' 
+  | 'loot' 
+  | 'world'
+  | 'combat';
+
+interface GMSidebarProps {
+  onNavigate: (section: CampaignSection) => void;
+  currentSection: CampaignSection;
+}
 
 interface SidebarSection {
   id: string;
@@ -59,9 +71,10 @@ interface SidebarItem {
   icon?: React.ComponentType<{ className?: string }>;
   badge?: string | number;
   disabled?: boolean;
+  highlight?: boolean;
 }
 
-const GMSidebar = () => {
+const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => {
   const {
     campaign,
     dashboard,
@@ -71,11 +84,14 @@ const GMSidebar = () => {
     createSession,
     updateCampaign,
     exportCampaignData,
-    canPerformAction
+    canPerformAction,
+    isGM,
+    isPlayer
   } = useManageCampaignContext();
 
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [isCreatingContent, setIsCreatingContent] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
 
   const toggleSection = (sectionId: string) => {
     const newCollapsed = new Set(collapsedSections);
@@ -96,13 +112,11 @@ const GMSidebar = () => {
     
     setIsCreatingContent(true);
     try {
-      const npcCount = campaign?.npcs?.length || 0;
-      await createNPC({
-        name: `NPC Rápido ${npcCount + 1}`,
-        description: 'NPC criado rapidamente durante a sessão',
-        npc_type: 'neutral',
-        location: campaign?.world_name || 'Localização desconhecida'
-      });
+      // Navegar para seção NPCs e disparar evento para criar NPC
+      onNavigate('npcs');
+      setTimeout(() => {
+        document.dispatchEvent(new CustomEvent('create-npc-modal'));
+      }, 200);
     } catch (error) {
       console.error('Erro ao criar NPC:', error);
     } finally {
@@ -115,12 +129,8 @@ const GMSidebar = () => {
     
     setIsCreatingContent(true);
     try {
-      const encounterCount = campaign?.encounters?.length || 0;
-      await createEncounter({
-        name: `Encontro ${encounterCount + 1}`,
-        description: 'Encontro criado durante a sessão',
-        difficulty: 'medium'
-      });
+      onNavigate('encounters');
+      // Aqui você pode adicionar lógica para criar encontro
     } catch (error) {
       console.error('Erro ao criar encontro:', error);
     } finally {
@@ -128,61 +138,29 @@ const GMSidebar = () => {
     }
   };
 
-  const handleAddQuickLoot = async () => {
-    if (!canPerformAction('assign_loot')) return;
-    
-    setIsCreatingContent(true);
-    try {
-      await addLoot({
-        name: 'Tesouro Encontrado',
-        description: 'Item adicionado rapidamente durante a sessão',
-        item_type: 'misc',
-        value: Math.floor(Math.random() * 100) + 10,
-        quantity: 1,
-        rarity: 'common'
-      });
-    } catch (error) {
-      console.error('Erro ao adicionar loot:', error);
-    } finally {
-      setIsCreatingContent(false);
-    }
-  };
-
-  const handleStartNewSession = async () => {
-    if (!canPerformAction('manage_sessions')) return;
-    
-    setIsCreatingContent(true);
-    try {
-      const sessionNumber = (dashboard?.total_sessions || 0) + 1;
-      await createSession({
-        title: `Sessão ${sessionNumber}`,
-        summary: `Sessão iniciada em ${new Date().toLocaleDateString('pt-BR')}`,
-        date: new Date().toISOString(),
-        duration_minutes: 0
-      });
-    } catch (error) {
-      console.error('Erro ao iniciar sessão:', error);
-    } finally {
-      setIsCreatingContent(false);
-    }
-  };
-
   const handleQuickDiceRoll = () => {
-    const result = Math.floor(Math.random() * 20) + 1;
-    // Em uma implementação real, isso poderia abrir um modal ou enviar para um chat
-    alert(`🎲 Rolagem: ${result}`);
+    // Implementar sistema de rolagem rápida
+    const diceResults = {
+      d20: Math.floor(Math.random() * 20) + 1,
+      d12: Math.floor(Math.random() * 12) + 1,
+      d10: Math.floor(Math.random() * 10) + 1,
+      d8: Math.floor(Math.random() * 8) + 1,
+      d6: Math.floor(Math.random() * 6) + 1,
+      d4: Math.floor(Math.random() * 4) + 1
+    };
+    
+    console.log('🎲 Rolagem rápida:', diceResults);
+    // Aqui você pode mostrar um toast ou modal com os resultados
   };
 
   const handleExportCampaign = async () => {
     try {
-      const blob = await exportCampaignData();
-      const url = URL.createObjectURL(blob);
+      const data = await exportCampaignData();
+      const url = URL.createObjectURL(data);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${campaign?.name || 'campaign'}-export.json`;
-      document.body.appendChild(a);
+      a.download = `${campaign?.name || 'campanha'}_export.json`;
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erro ao exportar campanha:', error);
@@ -190,48 +168,156 @@ const GMSidebar = () => {
   };
 
   // ===========================
-  // CONFIGURAÇÃO DAS SEÇÕES COM AÇÕES REAIS
+  // CONFIGURAÇÃO DAS SEÇÕES
   // ===========================
 
   const sidebarSections: SidebarSection[] = [
+    // NAVEGAÇÃO PRINCIPAL
+    {
+      id: 'navigation',
+      title: 'NAVEGAÇÃO',
+      icon: Home,
+      color: 'text-blue-400',
+      isCollapsible: true,
+      items: [
+        { 
+          label: 'Visão Geral', 
+          action: () => onNavigate('overview'), 
+          icon: Home,
+          highlight: currentSection === 'overview'
+        },
+        { 
+          label: 'Lista de NPCs', 
+          action: () => onNavigate('npcs'), 
+          icon: Users, 
+          badge: dashboard?.total_npcs || 0,
+          highlight: currentSection === 'npcs'
+        },
+        { 
+          label: 'Encontros', 
+          action: () => onNavigate('encounters'), 
+          icon: Sword, 
+          badge: dashboard?.total_encounters || 0,
+          highlight: currentSection === 'encounters',
+          disabled: !isGM
+        },
+        { 
+          label: 'Histórico de Sessões', 
+          action: () => onNavigate('sessions'), 
+          icon: Calendar,
+          badge: dashboard?.total_sessions || 0,
+          highlight: currentSection === 'sessions'
+        },
+        { 
+          label: 'Grupo de Aventureiros', 
+          action: () => onNavigate('party'), 
+          icon: ShieldIcon,
+          badge: campaign?.players?.length || 0,
+          highlight: currentSection === 'party'
+        },
+        { 
+          label: 'Tesouro & Loot', 
+          action: () => onNavigate('loot'), 
+          icon: Package,
+          highlight: currentSection === 'loot',
+          disabled: !isGM
+        },
+        { 
+          label: 'Mundo & Locais', 
+          action: () => onNavigate('world'), 
+          icon: Map,
+          highlight: currentSection === 'world',
+          disabled: !isGM
+        }
+      ].filter(item => !item.disabled) // Filtrar items desabilitados
+    },
+
+    // AÇÕES RÁPIDAS
+    {
+      id: 'quick_actions',
+      title: 'AÇÕES RÁPIDAS',
+      icon: Zap,
+      color: 'text-green-400',
+      isCollapsible: true,
+      items: [
+        { 
+          label: 'Criar NPC', 
+          action: handleCreateQuickNPC, 
+          icon: Users,
+          disabled: isCreatingContent || !isGM,
+          bg: 'hover:bg-green-600/20'
+        },
+        { 
+          label: 'Novo Encontro', 
+          action: handleCreateQuickEncounter, 
+          icon: Sword,
+          disabled: isCreatingContent || !isGM,
+          bg: 'hover:bg-red-600/20'
+        },
+        { 
+          label: 'Registrar Sessão', 
+          action: () => onNavigate('sessions'), 
+          icon: Calendar,
+          disabled: isCreatingContent || !isGM,
+          bg: 'hover:bg-blue-600/20'
+        },
+        { 
+          label: 'Anotação Rápida', 
+          action: () => {
+            // Implementar modal de anotação rápida
+            console.log('Abrir modal de anotação');
+          }, 
+          icon: FileText,
+          bg: 'hover:bg-purple-600/20'
+        }
+      ].filter(item => !item.disabled) // Filtrar items desabilitados
+    },
+
+    // COMBATE E SESSÃO ATIVA
     {
       id: 'combat',
-      title: 'COMBATE',
+      title: 'COMBATE & SESSÃO',
       icon: Sword,
       color: 'text-red-400',
       isCollapsible: true,
       items: [
         { 
-          label: 'Iniciar Combate', 
-          action: handleCreateQuickEncounter,
+          label: 'Tracker de Combate', 
+          action: () => onNavigate('combat'), 
           icon: Sword, 
           badge: dashboard?.active_encounters?.length || 0,
-          disabled: isCreatingContent
-        },
-        { 
-          label: 'Adicionar Inimigo', 
-          action: handleCreateQuickNPC, 
-          icon: Plus,
-          disabled: isCreatingContent
+          disabled: isCreatingContent,
+          highlight: currentSection === 'combat'
         },
         { 
           label: 'Rolagem Rápida', 
           action: handleQuickDiceRoll, 
-          icon: Dice6 
+          icon: Dice6,
+          bg: 'hover:bg-yellow-600/20'
         },
         { 
           label: 'Condições de Status', 
-          action: () => console.log('Abrir painel de condições'), 
-          icon: Heart 
+          action: () => {
+            console.log('Abrir painel de condições');
+            // Implementar modal de condições
+          }, 
+          icon: Heart,
+          bg: 'hover:bg-pink-600/20'
         },
         { 
           label: 'Finalizar Combate', 
-          action: () => console.log('Finalizar combate ativo'), 
-          icon: ShieldIcon,
-          disabled: !dashboard?.active_encounters?.length
+          action: () => {
+            console.log('Finalizar combate ativo');
+            // Implementar finalização de combate
+          }, 
+          icon: CheckCircle,
+          disabled: !dashboard?.active_encounters?.length,
+          bg: 'hover:bg-green-600/20'
         }
       ]
     },
+
+    // MUNDO E EXPLORAÇÃO
     {
       id: 'world',
       title: 'MUNDO & EXPLORAÇÃO',
@@ -241,194 +327,122 @@ const GMSidebar = () => {
       items: [
         { 
           label: 'Navegar Mapa', 
-          action: () => console.log('Abrir mapa interativo'), 
-          icon: Map 
+          action: () => onNavigate('world'), 
+          icon: Map,
+          highlight: currentSection === 'world'
         },
         { 
           label: 'Tempo & Clima', 
-          action: () => console.log('Controles de tempo e clima'), 
-          icon: Clock 
+          action: () => {
+            console.log('Controles de tempo e clima');
+            // Implementar controles de tempo
+          }, 
+          icon: Clock,
+          bg: 'hover:bg-blue-600/20'
         },
         { 
           label: 'Locais de Interesse', 
-          action: () => console.log('Gerenciar locais'), 
-          icon: Target 
+          action: () => {
+            console.log('Gerenciar locais');
+            // Implementar gestão de locais
+          }, 
+          icon: Target,
+          bg: 'hover:bg-purple-600/20'
         },
         { 
           label: 'Viagem Rápida', 
-          action: () => console.log('Sistema de viagem'), 
-          icon: MapPin 
+          action: () => {
+            console.log('Sistema de viagem');
+            // Implementar viagem rápida
+          }, 
+          icon: MapPin,
+          bg: 'hover:bg-indigo-600/20'
         },
         { 
           label: 'Eventos Aleatórios', 
-          action: () => console.log('Gerar evento aleatório'), 
-          icon: Sparkles 
+          action: () => {
+            console.log('Gerar evento aleatório');
+            // Implementar eventos aleatórios
+          }, 
+          icon: Sparkles,
+          bg: 'hover:bg-yellow-600/20'
         }
       ]
     },
+
+    // GESTÃO E ADMINISTRAÇÃO
     {
-      id: 'npcs',
-      title: 'NPCs & SOCIAL',
-      icon: Users,
-      color: 'text-blue-400',
-      isCollapsible: true,
-      items: [
-        { 
-          label: 'Lista de NPCs', 
-          action: () => console.log('Abrir lista de NPCs'), 
-          icon: Users, 
-          badge: dashboard?.total_npcs || 0
-        },
-        { 
-          label: 'Criar NPC Rápido', 
-          action: handleCreateQuickNPC, 
-          icon: Plus,
-          disabled: isCreatingContent
-        },
-        { 
-          label: 'Gerador de Nomes', 
-          action: () => console.log('Gerador de nomes'), 
-          icon: Brain 
-        },
-        { 
-          label: 'Relações & Facções', 
-          action: () => console.log('Gerenciar relações'), 
-          icon: MessageCircle 
-        },
-        { 
-          label: 'Diálogos Rápidos', 
-          action: () => console.log('Templates de diálogo'), 
-          icon: Volume2 
-        }
-      ]
-    },
-    {
-      id: 'loot',
-      title: 'TESOURO & ECONOMIA',
-      icon: Gift,
-      color: 'text-yellow-400',
-      isCollapsible: true,
-      items: [
-        { 
-          label: 'Adicionar Tesouro', 
-          action: handleAddQuickLoot, 
-          icon: Gift,
-          disabled: isCreatingContent
-        },
-        { 
-          label: 'Distribuir Loot', 
-          action: () => console.log('Distribuir loot'), 
-          icon: Share2 
-        },
-        { 
-          label: 'Gerador de Itens', 
-          action: () => console.log('Gerar itens mágicos'), 
-          icon: Sparkles 
-        },
-        { 
-          label: 'Economia & Preços', 
-          action: () => console.log('Tabelas de preços'), 
-          icon: Coins 
-        },
-        { 
-          label: 'Inventário do Grupo', 
-          action: () => console.log('Ver inventário'), 
-          icon: Archive 
-        }
-      ]
-    },
-    {
-      id: 'session',
-      title: 'GESTÃO DE SESSÃO',
-      icon: Calendar,
+      id: 'management',
+      title: 'GESTÃO & ADMIN',
+      icon: Settings,
       color: 'text-purple-400',
       isCollapsible: true,
       items: [
         { 
-          label: 'Nova Sessão', 
-          action: handleStartNewSession, 
-          icon: Play,
-          disabled: isCreatingContent
-        },
-        { 
-          label: 'Pausar Sessão', 
-          action: () => console.log('Pausar sessão atual'), 
-          icon: Pause 
-        },
-        { 
-          label: 'Finalizar Sessão', 
-          action: () => console.log('Finalizar sessão'), 
-          icon: Square 
-        },
-        { 
-          label: 'Notas da Sessão', 
-          action: () => console.log('Abrir notas'), 
-          icon: FileText 
-        },
-        { 
           label: 'Estatísticas', 
-          action: () => console.log('Ver estatísticas'), 
-          icon: BarChart3 
-        }
-      ]
-    },
-    {
-      id: 'tools',
-      title: 'FERRAMENTAS',
-      icon: Settings,
-      color: 'text-gray-400',
-      isCollapsible: true,
-      items: [
+          action: () => {
+            console.log('Ver estatísticas da campanha');
+            // Implementar dashboard de estatísticas
+          }, 
+          icon: BarChart3,
+          bg: 'hover:bg-indigo-600/20'
+        },
         { 
-          label: 'Exportar Campanha', 
+          label: 'Exportar Dados', 
           action: handleExportCampaign, 
-          icon: Download 
+          icon: Download,
+          bg: 'hover:bg-green-600/20'
+        },
+        { 
+          label: 'Importar Conteúdo', 
+          action: () => {
+            console.log('Importar conteúdo');
+            // Implementar importação
+          }, 
+          icon: Upload,
+          bg: 'hover:bg-blue-600/20'
         },
         { 
           label: 'Configurações', 
-          action: () => console.log('Configurações da campanha'), 
-          icon: Settings 
-        },
-        { 
-          label: 'Backup Automático', 
-          action: () => console.log('Configurar backup'), 
-          icon: Archive 
+          action: () => {
+            console.log('Configurações da campanha');
+            // Implementar configurações
+          }, 
+          icon: Settings,
+          bg: 'hover:bg-gray-600/20'
         }
       ]
     }
   ];
 
+  // Filtrar seções baseado nas permissões
+  const visibleSections = sidebarSections.filter(section => {
+    // Se não é GM, esconder seções que requerem permissões GM
+    if (!isGM && ['quick_actions', 'combat', 'world', 'management'].includes(section.id)) {
+      return false;
+    }
+    return true;
+  });
+
   return (
-    <div className="h-full overflow-y-auto bg-gray-900/80 backdrop-blur-sm">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-700/50">
-        <div className="flex items-center space-x-3">
-          <Crown className="w-6 h-6 text-yellow-400" />
-          <div>
-            <h2 className="font-bold text-white">Mesa do Mestre</h2>
-            <p className="text-sm text-gray-400">Controles da Sessão</p>
+    <div className="h-full flex flex-col bg-gray-800/30 backdrop-blur-sm">
+      {/* Header da Campanha */}
+      <div className="p-6 border-b border-gray-700/50">
+        <div className="flex items-center space-x-3 mb-4">
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center">
+            <Crown className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-bold text-white truncate">
+              {campaign?.name || 'Campanha'}
+            </h2>
+            <p className="text-sm text-gray-400 truncate">
+              {isGM ? 'Mesa do Mestre' : 'Aventureiro'}
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Status da Campanha */}
-      <div className="p-4 border-b border-gray-700/50">
-        <div className="bg-gray-800/50 rounded-lg p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">Status</span>
-            <Activity className="w-4 h-4 text-green-400" />
-          </div>
-          <div className="text-lg font-semibold text-white capitalize">
-            {campaign?.status || 'Ativa'}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
-            Sessão {(dashboard?.total_sessions || 0) + 1}
-          </div>
-        </div>
-      </div>
-
-      {/* Estatísticas Rápidas */}
-      <div className="p-4 border-b border-gray-700/50">
+        {/* Stats rápidas */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-gray-800/30 rounded-lg p-3 text-center">
             <div className="text-lg font-bold text-blue-400">
@@ -455,11 +469,26 @@ const GMSidebar = () => {
             <div className="text-xs text-gray-400">Sessões</div>
           </div>
         </div>
+
+        {/* Status da Sessão Ativa */}
+        {dashboard?.active_encounters && dashboard.active_encounters.length > 0 && (
+          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <Activity className="w-4 h-4 text-red-400 animate-pulse" />
+              <span className="text-sm font-medium text-red-400">
+                Combate Ativo
+              </span>
+            </div>
+            <p className="text-xs text-red-300 mt-1">
+              {dashboard.active_encounters.length} encontro(s) em andamento
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Seções de Ferramentas */}
-      <div className="p-4 space-y-4">
-        {sidebarSections.map((section) => (
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {visibleSections.map((section) => (
           <div key={section.id} className="bg-gray-800/30 rounded-lg overflow-hidden">
             {/* Header da Seção */}
             <button
@@ -493,15 +522,27 @@ const GMSidebar = () => {
                     className={`w-full p-2 rounded text-left text-sm transition-colors flex items-center justify-between group ${
                       item.disabled 
                         ? 'text-gray-500 cursor-not-allowed' 
-                        : 'text-gray-300 hover:text-white hover:bg-gray-700/40'
+                        : item.highlight 
+                        ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
+                        : `text-gray-300 hover:text-white ${item.bg || 'hover:bg-gray-700/50'}`
                     }`}
                   >
-                    <div className="flex items-center space-x-2">
-                      {item.icon && <item.icon className="w-4 h-4" />}
-                      <span>{item.label}</span>
+                    <div className="flex items-center space-x-3">
+                      {item.icon && (
+                        <item.icon className={`w-4 h-4 ${
+                          item.highlight ? 'text-blue-400' : ''
+                        }`} />
+                      )}
+                      <span className={item.highlight ? 'font-medium' : ''}>
+                        {item.label}
+                      </span>
                     </div>
-                    {item.badge && (
-                      <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                    {item.badge !== undefined && (
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        item.highlight 
+                          ? 'bg-blue-500 text-white' 
+                          : 'bg-gray-600 text-gray-300'
+                      }`}>
                         {item.badge}
                       </span>
                     )}
@@ -513,13 +554,24 @@ const GMSidebar = () => {
         ))}
       </div>
 
-      {/* Indicador de Ação */}
-      {isCreatingContent && (
-        <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm">Criando conteúdo...</span>
+      {/* Footer com informações da sessão */}
+      <div className="p-4 border-t border-gray-700/50">
+        {isCreatingContent && (
+          <div className="mb-3 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+            <div className="flex items-center space-x-2">
+              <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
+              <span className="text-xs text-blue-400">Criando conteúdo...</span>
+            </div>
+          </div>
+        )}
+        
+        <div className="text-center text-xs text-gray-500">
+          <p>Sessão ativa: {dashboard?.current_session || 'Nenhuma'}</p>
+          <p className="mt-1">
+            Última atualização: {new Date().toLocaleTimeString('pt-BR')}
+          </p>
         </div>
-      )}
+      </div>
     </div>
   );
 };
