@@ -1,12 +1,14 @@
 // ===========================
-// HOOK CUSTOMIZADO PARA GERENCIAMENTO DE NPCs
-// hooks/useEnhancedNPCs.ts
+// HOOK CUSTOMIZADO PARA GERENCIAMENTO DE NPCs - VERSÃO ATUALIZADA
+// src/hooks/useEnhancedNPCs.ts - Integração com sistema de dados
 // ===========================
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  EnhancedNPC, 
-  CreateEnhancedNPCRequest, 
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { campaignAPI } from '@/api/campaignAPI'; // API atualizada
+import { npcUtilities, rollDice } from '@/lib/npcUtilities'; // Utilities existentes
+import {
+  EnhancedNPC,
+  CreateEnhancedNPCRequest,
   UpdateEnhancedNPCRequest,
   NPCSearchFilters,
   NPCSearchResult,
@@ -14,11 +16,12 @@ import {
   DiceRoll,
   Attack,
   Spell,
-  NPCType,
-  NPCContextData
+  NPCType
 } from '@/types/enhancedNPC';
-import { npcUtilities } from '@/lib/npcUtilities';
-import { campaignAPI } from '@/api/campaignAPI';
+
+// ===========================
+// INTERFACES ATUALIZADAS
+// ===========================
 
 interface UseEnhancedNPCsOptions {
   campaignId: string;
@@ -26,8 +29,35 @@ interface UseEnhancedNPCsOptions {
   enableRealTimeUpdates?: boolean;
 }
 
-interface UseEnhancedNPCsReturn extends NPCContextData {
-  // Estados adicionais específicos do hook
+interface UseEnhancedNPCsReturn {
+  // Estados principais
+  npcs: EnhancedNPC[];
+  selectedNPC: EnhancedNPC | null;
+  isLoading: boolean;
+  error: string | null;
+  
+  // Operações CRUD
+  createNPC: (data: CreateEnhancedNPCRequest) => Promise<EnhancedNPC>;
+  updateNPC: (id: string, data: UpdateEnhancedNPCRequest) => Promise<EnhancedNPC>;
+  deleteNPC: (id: string) => Promise<boolean>;
+  
+  // NOVOS: Métodos de rolagem
+  rollAttack: (npcId: string, attackId: string, options?: { advantage?: boolean; disadvantage?: boolean }) => Promise<RollResult>;
+  rollDamage: (npcId: string, attackId: string, options?: { critical?: boolean }) => Promise<RollResult>;
+  castSpell: (npcId: string, spellId: string, options?: { spellLevel?: number }) => Promise<RollResult | null>;
+  
+  // NOVOS: Gerenciamento de HP
+  updateHitPoints: (npcId: string, newHP: number, tempHP?: number) => Promise<boolean>;
+  healNPC: (npcId: string, amount: number) => Promise<boolean>;
+  damageNPC: (npcId: string, amount: number) => Promise<boolean>;
+  killNPC: (npcId: string) => Promise<boolean>;
+  reviveNPC: (npcId: string) => Promise<boolean>;
+  
+  // Busca e filtros
+  searchNPCs: (query: string) => void;
+  setSelectedNPC: (npc: EnhancedNPC | null) => void;
+  
+  // Estados de filtros
   filters: NPCSearchFilters;
   setFilters: (filters: NPCSearchFilters) => void;
   sortBy: string;
@@ -35,7 +65,7 @@ interface UseEnhancedNPCsReturn extends NPCContextData {
   sortOrder: 'asc' | 'desc';
   setSortOrder: (order: 'asc' | 'desc') => void;
   
-  // NPCs filtrados e ordenados
+  // NPCs processados
   filteredNPCs: EnhancedNPC[];
   
   // Estatísticas
@@ -43,9 +73,13 @@ interface UseEnhancedNPCsReturn extends NPCContextData {
     total: number;
     alive: number;
     dead: number;
-    byType: Record<NPCType, number>;
-    averageCR: number;
+    active: number;
+    inactive: number;
     spellcasters: number;
+    withAttacks: number;
+    byType: Record<string, number>;
+    byLocation: Record<string, number>;
+    byFaction: Record<string, number>;
   };
   
   // Operações em lote
@@ -61,6 +95,10 @@ interface UseEnhancedNPCsReturn extends NPCContextData {
   restoreFromBackup: (backup: any) => Promise<void>;
 }
 
+// ===========================
+// HOOK PRINCIPAL ATUALIZADO
+// ===========================
+
 export function useEnhancedNPCs({
   campaignId,
   autoLoad = true,
@@ -75,14 +113,12 @@ export function useEnhancedNPCs({
   const [selectedNPC, setSelectedNPC] = useState<EnhancedNPC | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Estados de filtros e ordenação
   const [filters, setFilters] = useState<NPCSearchFilters>({});
   const [sortBy, setSortBy] = useState<string>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  
+
   // ===========================
-  // OPERAÇÕES CRUD
+  // INTEGRAÇÃO COM API ATUALIZADA
   // ===========================
   
   const loadNPCs = useCallback(async () => {
@@ -92,272 +128,349 @@ export function useEnhancedNPCs({
     setError(null);
     
     try {
-      console.log('🔍 Carregando NPCs da campanha:', campaignId);
-      const response = await campaignAPI.getCampaignNPCs(campaignId);
+      console.log('🔍 Carregando NPCs Enhanced da campanha:', campaignId);
+      
+      // Usar método unificado da API atualizada
+      const response = await campaignAPI.getNPCsUnified(campaignId, true);
       
       if (response && response.npcs && Array.isArray(response.npcs)) {
         setNpcs(response.npcs);
-        console.log(`✅ ${response.npcs.length} NPCs carregados`);
+        console.log(`✅ ${response.npcs.length} NPCs Enhanced carregados`);
       } else {
         console.warn('⚠️ Resposta da API não contém NPCs válidos:', response);
         setNpcs([]);
       }
     } catch (err) {
-      console.error('❌ Erro ao carregar NPCs:', err);
+      console.error('❌ Erro ao carregar NPCs Enhanced:', err);
       setError(`Erro ao carregar NPCs: ${err}`);
       setNpcs([]);
     } finally {
       setIsLoading(false);
     }
   }, [campaignId]);
+
+  // ===========================
+  // OPERAÇÕES CRUD ATUALIZADAS
+  // ===========================
   
   const createNPC = useCallback(async (data: CreateEnhancedNPCRequest): Promise<EnhancedNPC> => {
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log('🆕 Criando novo NPC:', data.name);
+      console.log('🆕 Criando novo NPC Enhanced:', data.name);
       
-      // Validar dados antes de enviar
-      const validation = npcUtilities.validateNPCData(data as any);
-      if (!validation.isValid) {
-        throw new Error(`Dados inválidos: ${validation.errors.map(e => e.message).join(', ')}`);
-      }
+      const response = await campaignAPI.createEnhancedNPC(campaignId, data);
       
-      const response = await campaignAPI.createNPC(campaignId, data);
-      
-      if (response && response.npc_id) {
-        // Recarregar lista para obter o NPC completo
-        await loadNPCs();
+      if (response.success && response.npc_id) {
+        await loadNPCs(); // Recarregar lista
         
         const newNPC = npcs.find(npc => npc.id === response.npc_id);
         if (newNPC) {
-          console.log(`✅ NPC ${data.name} criado com sucesso`);
+          console.log(`✅ NPC Enhanced ${data.name} criado com sucesso`);
           return newNPC;
         }
       }
       
-      throw new Error('Falha ao criar NPC');
+      throw new Error(response.error || 'Falha ao criar NPC');
     } catch (err) {
-      console.error('❌ Erro ao criar NPC:', err);
+      console.error('❌ Erro ao criar NPC Enhanced:', err);
       setError(`Erro ao criar NPC: ${err}`);
       throw err;
     } finally {
       setIsLoading(false);
     }
   }, [campaignId, loadNPCs, npcs]);
-  
+
   const updateNPC = useCallback(async (id: string, data: UpdateEnhancedNPCRequest): Promise<EnhancedNPC> => {
     setIsLoading(true);
     setError(null);
     
     try {
-      console.log('📝 Atualizando NPC:', id);
+      console.log('📝 Atualizando NPC Enhanced:', id);
       
-      // Validar dados antes de enviar
-      const validation = npcUtilities.validateNPCData(data as any);
-      if (!validation.isValid) {
-        throw new Error(`Dados inválidos: ${validation.errors.map(e => e.message).join(', ')}`);
-      }
+      const response = await campaignAPI.updateEnhancedNPC(campaignId, id, data);
       
-      const response = await campaignAPI.updateNPC(id, data);
-      
-      if (response && response.success) {
+      if (response.success) {
         // Atualizar NPC localmente
         setNpcs(prev => prev.map(npc => 
-          npc.id === id ? { ...npc, ...data, updated_date: new Date().toISOString() } : npc
+          npc.id === id ? { ...npc, ...data } : npc
         ));
         
-        // Atualizar NPC selecionado se necessário
         if (selectedNPC?.id === id) {
           setSelectedNPC(prev => prev ? { ...prev, ...data } : null);
         }
         
         const updatedNPC = npcs.find(npc => npc.id === id);
         if (updatedNPC) {
-          console.log(`✅ NPC ${updatedNPC.name} atualizado com sucesso`);
           return { ...updatedNPC, ...data };
         }
       }
       
-      throw new Error('Falha ao atualizar NPC');
+      throw new Error(response.error || 'Falha ao atualizar NPC');
     } catch (err) {
-      console.error('❌ Erro ao atualizar NPC:', err);
+      console.error('❌ Erro ao atualizar NPC Enhanced:', err);
       setError(`Erro ao atualizar NPC: ${err}`);
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [npcs, selectedNPC]);
-  
-  const deleteNPC = useCallback(async (id: string): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
-    
+  }, [campaignId, npcs, selectedNPC]);
+
+  const deleteNPC = useCallback(async (id: string): Promise<boolean> => {
     try {
-      console.log('🗑️ Deletando NPC:', id);
-      
-      const response = await campaignAPI.deleteNPC(id);
-      
-      if (response && response.success) {
-        // Remover NPC localmente
+      const response = await campaignAPI.deleteEnhancedNPC(campaignId, id);
+      if (response.success) {
         setNpcs(prev => prev.filter(npc => npc.id !== id));
-        
-        // Limpar seleção se necessário
-        if (selectedNPC?.id === id) {
-          setSelectedNPC(null);
-        }
-        
-        console.log('✅ NPC deletado com sucesso');
-      } else {
-        throw new Error('Falha ao deletar NPC');
+        if (selectedNPC?.id === id) setSelectedNPC(null);
+        return true;
       }
+      return false;
     } catch (err) {
-      console.error('❌ Erro ao deletar NPC:', err);
       setError(`Erro ao deletar NPC: ${err}`);
-      throw err;
-    } finally {
-      setIsLoading(false);
+      return false;
     }
-  }, [selectedNPC]);
-  
+  }, [campaignId, selectedNPC]);
+
   // ===========================
-  // OPERAÇÕES DE COMBATE
+  // SISTEMA DE ROLAGEM INTEGRADO
   // ===========================
   
   const rollAttack = useCallback(async (
     npcId: string, 
     attackId: string, 
-    options?: { advantage?: boolean; disadvantage?: boolean }
+    options: { advantage?: boolean; disadvantage?: boolean } = {}
   ): Promise<RollResult> => {
-    const npc = npcs.find(n => n.id === npcId);
-    if (!npc) throw new Error('NPC não encontrado');
-    
-    const attack = npc.attacks.find(a => a.id === attackId);
-    if (!attack) throw new Error('Ataque não encontrado');
-    
-    const roll: DiceRoll = {
-      dice_count: 1,
-      dice_sides: 20,
-      modifier: attack.attack_bonus
-    };
-    
-    const result = npcUtilities.rollDice(roll, options?.advantage, options?.disadvantage);
-    
-    console.log(`🎲 ${npc.name} atacou com ${attack.name}: ${result.total}`);
-    
-    // Aqui você pode adicionar lógica para salvar o resultado no histórico
-    // ou enviar para outros jogadores em tempo real
-    
-    return result;
-  }, [npcs]);
-  
-  const rollDamage = useCallback(async (npcId: string, attackId: string): Promise<RollResult> => {
-    const npc = npcs.find(n => n.id === npcId);
-    if (!npc) throw new Error('NPC não encontrado');
-    
-    const attack = npc.attacks.find(a => a.id === attackId);
-    if (!attack) throw new Error('Ataque não encontrado');
-    
-    const result = npcUtilities.rollDice(attack.damage);
-    
-    console.log(`💥 ${npc.name} causou ${result.total} de dano ${attack.damage_type} com ${attack.name}`);
-    
-    return result;
-  }, [npcs]);
-  
+    try {
+      console.log('🎲 Rolando ataque para NPC:', npcId);
+      
+      // Tentar usar API do servidor primeiro
+      const response = await campaignAPI.rollDiceForNPC(campaignId, npcId, {
+        roll_type: 'attack',
+        target_id: attackId,
+        advantage: options.advantage,
+        disadvantage: options.disadvantage
+      });
+      
+      if (response.success && response.result) {
+        console.log(`✅ Rolagem de ataque: ${response.result.total}`);
+        return response.result;
+      }
+      
+      throw new Error(response.error || 'Falha na rolagem');
+    } catch (err) {
+      console.warn('❌ Erro na API, usando rolagem local:', err);
+      
+      // Fallback para rolagem local usando utilities existentes
+      const npc = npcs.find(n => n.id === npcId);
+      const attack = npc?.attacks?.find(a => a.id === attackId);
+      
+      if (attack) {
+        const roll: DiceRoll = {
+          dice_count: 1,
+          dice_sides: 20,
+          modifier: attack.attack_bonus
+        };
+        
+        return rollDice(roll, options.advantage, options.disadvantage);
+      }
+      
+      throw err;
+    }
+  }, [campaignId, npcs]);
+
+  const rollDamage = useCallback(async (
+    npcId: string, 
+    attackId: string, 
+    options: { critical?: boolean } = {}
+  ): Promise<RollResult> => {
+    try {
+      console.log('🎲 Rolando dano para NPC:', npcId);
+      
+      const response = await campaignAPI.rollDiceForNPC(campaignId, npcId, {
+        roll_type: 'damage',
+        target_id: attackId,
+        modifier_override: options.critical ? undefined : undefined
+      });
+      
+      if (response.success && response.result) {
+        console.log(`✅ Rolagem de dano: ${response.result.total}`);
+        return response.result;
+      }
+      
+      throw new Error(response.error || 'Falha na rolagem');
+    } catch (err) {
+      console.warn('❌ Erro na API, usando rolagem local:', err);
+      
+      // Fallback local
+      const npc = npcs.find(n => n.id === npcId);
+      const attack = npc?.attacks?.find(a => a.id === attackId);
+      
+      if (attack) {
+        let damageRoll = attack.damage;
+        
+        // Para críticos, dobrar os dados
+        if (options.critical) {
+          damageRoll = {
+            ...attack.damage,
+            dice_count: attack.damage.dice_count * 2
+          };
+        }
+        
+        return rollDice(damageRoll);
+      }
+      
+      throw err;
+    }
+  }, [campaignId, npcs]);
+
   const castSpell = useCallback(async (
     npcId: string, 
     spellId: string, 
-    level?: number
-  ): Promise<RollResult> => {
+    options: { spellLevel?: number } = {}
+  ): Promise<RollResult | null> => {
+    try {
+      console.log('🎲 Conjurando magia ID:', spellId);
+      
+      const response = await campaignAPI.castSpellForNPC(campaignId, npcId, {
+        spell_id: spellId,
+        cast_level: options.spellLevel || 1
+      });
+      
+      if (response.success) {
+        console.log(`✅ Magia conjurada: ${spellId}`);
+        return response.result || null;
+      }
+      
+      throw new Error(response.error || 'Falha na conjuração');
+    } catch (err) {
+      console.error('❌ Erro na conjuração:', err);
+      throw err;
+    }
+  }, [campaignId]);
+
+  // ===========================
+  // GERENCIAMENTO DE HP INTEGRADO
+  // ===========================
+  
+  const updateHitPoints = useCallback(async (
+    npcId: string, 
+    newHP: number, 
+    tempHP?: number
+  ): Promise<boolean> => {
+    try {
+      console.log('❤️ Atualizando HP do NPC:', npcId, 'Novo HP:', newHP);
+      
+      const response = await campaignAPI.updateNPCHitPoints(campaignId, npcId, {
+        npc_id: npcId,
+        new_hit_points: newHP,
+        temporary_hit_points: tempHP
+      });
+      
+      if (response.success) {
+        // Atualizar localmente
+        setNpcs(prev => prev.map(npc => 
+          npc.id === npcId 
+            ? { 
+                ...npc, 
+                stats: { 
+                  ...npc.stats, 
+                  current_hit_points: newHP,
+                  temporary_hit_points: tempHP
+                },
+                is_alive: newHP > 0
+              } 
+            : npc
+        ));
+        
+        if (selectedNPC?.id === npcId) {
+          setSelectedNPC(prev => prev ? {
+            ...prev,
+            stats: { 
+              ...prev.stats, 
+              current_hit_points: newHP,
+              temporary_hit_points: tempHP
+            },
+            is_alive: newHP > 0
+          } : null);
+        }
+        
+        console.log(`✅ HP atualizado para ${newHP}`);
+        return true;
+      }
+      
+      throw new Error(response.error || 'Falha ao atualizar HP');
+    } catch (err) {
+      console.error('❌ Erro ao atualizar HP:', err);
+      setError(`Erro ao atualizar HP: ${err}`);
+      return false;
+    }
+  }, [campaignId, selectedNPC]);
+
+  const healNPC = useCallback(async (npcId: string, amount: number): Promise<boolean> => {
     const npc = npcs.find(n => n.id === npcId);
-    if (!npc) throw new Error('NPC não encontrado');
+    if (!npc) return false;
     
-    const spell = npc.spells?.find(s => s.id === spellId);
-    if (!spell) throw new Error('Magia não encontrada');
+    const currentHP = npc.stats?.current_hit_points ?? npc.stats?.hit_points ?? 0;
+    const maxHP = npc.stats?.hit_points ?? 0;
+    const newHP = Math.min(currentHP + amount, maxHP);
     
-    if (!spell.is_attack_spell || !spell.damage) {
-      throw new Error('Magia não é de ataque ou não tem dano');
+    return updateHitPoints(npcId, newHP, npc.stats?.temporary_hit_points);
+  }, [npcs, updateHitPoints]);
+
+  const damageNPC = useCallback(async (npcId: string, amount: number): Promise<boolean> => {
+    const npc = npcs.find(n => n.id === npcId);
+    if (!npc) return false;
+    
+    const currentHP = npc.stats?.current_hit_points ?? npc.stats?.hit_points ?? 0;
+    let tempHP = npc.stats?.temporary_hit_points ?? 0;
+    let remainingDamage = amount;
+    
+    // Aplicar dano aos HP temporários primeiro
+    if (tempHP > 0) {
+      const tempDamage = Math.min(remainingDamage, tempHP);
+      tempHP -= tempDamage;
+      remainingDamage -= tempDamage;
     }
     
-    // Usar dano upcast se nível for maior que o nível base da magia
-    const damage = (level && level > spell.level && spell.upcast_damage) 
-      ? spell.upcast_damage 
-      : spell.damage;
+    // Aplicar dano restante aos HP normais
+    const newHP = Math.max(currentHP - remainingDamage, 0);
     
-    const result = npcUtilities.rollDice(damage);
-    
-    console.log(`✨ ${npc.name} conjurou ${spell.name} (nível ${level || spell.level}): ${result.total} de dano ${spell.damage_type}`);
-    
-    return result;
-  }, [npcs]);
-  
-  // ===========================
-  // OPERAÇÕES DE STATUS
-  // ===========================
-  
-  const updateHitPoints = useCallback(async (npcId: string, newHp: number): Promise<void> => {
-    const updates: UpdateEnhancedNPCRequest = {
-      id: npcId,
-      current_hit_points: Math.max(0, newHp)
-    };
-    
-    await updateNPC(npcId, updates);
-  }, [updateNPC]);
-  
-  const killNPC = useCallback(async (npcId: string): Promise<void> => {
-    const updates: UpdateEnhancedNPCRequest = {
-      id: npcId,
-      is_alive: false,
-      current_hit_points: 0
-    };
-    
-    await updateNPC(npcId, updates);
-  }, [updateNPC]);
-  
-  const reviveNPC = useCallback(async (npcId: string): Promise<void> => {
+    return updateHitPoints(npcId, newHP, tempHP);
+  }, [npcs, updateHitPoints]);
+
+  const killNPC = useCallback(async (npcId: string): Promise<boolean> => {
+    return updateHitPoints(npcId, 0);
+  }, [updateHitPoints]);
+
+  const reviveNPC = useCallback(async (npcId: string): Promise<boolean> => {
     const npc = npcs.find(n => n.id === npcId);
-    if (!npc) throw new Error('NPC não encontrado');
-    
-    const updates: UpdateEnhancedNPCRequest = {
-      id: npcId,
-      is_alive: true,
-      current_hit_points: npc.stats.hit_points // Restaurar HP máximo
-    };
-    
-    await updateNPC(npcId, updates);
-  }, [npcs, updateNPC]);
-  
+    return updateHitPoints(npcId, npc?.stats?.hit_points || 1);
+  }, [npcs, updateHitPoints]);
+
   // ===========================
   // BUSCA E FILTROS
   // ===========================
   
-  const searchNPCs = useCallback(async (searchFilters: NPCSearchFilters): Promise<NPCSearchResult> => {
-    // Para esta implementação, fazemos a busca localmente
-    // Em uma implementação completa, isso seria uma chamada à API
-    
-    const filtered = npcUtilities.filterNPCs(npcs, searchFilters);
-    const sorted = npcUtilities.sortNPCs(filtered, sortBy, sortOrder);
-    
-    return {
-      npcs: sorted,
-      total: sorted.length,
-      page: 1,
-      per_page: sorted.length,
-      filters_applied: searchFilters
-    };
-  }, [npcs, sortBy, sortOrder]);
-  
-  // ===========================
-  // NPCs FILTRADOS E ORDENADOS
-  // ===========================
-  
+  const searchNPCs = useCallback((query: string) => {
+    setFilters(prev => ({ ...prev, name: query }));
+  }, []);
+
   const filteredNPCs = useMemo(() => {
-    let filtered = npcUtilities.filterNPCs(npcs, filters);
-    return npcUtilities.sortNPCs(filtered, sortBy, sortOrder);
-  }, [npcs, filters, sortBy, sortOrder]);
-  
+    return npcs.filter(npc => {
+      if (filters.name && !npc.name.toLowerCase().includes(filters.name.toLowerCase())) {
+        return false;
+      }
+      if (filters.npc_type && filters.npc_type.length > 0 && !filters.npc_type.includes(npc.npc_type)) {
+        return false;
+      }
+      if (filters.is_alive !== undefined && npc.is_alive !== filters.is_alive) {
+        return false;
+      }
+      return true;
+    });
+  }, [npcs, filters]);
+
   // ===========================
   // ESTATÍSTICAS
   // ===========================
@@ -365,211 +478,100 @@ export function useEnhancedNPCs({
   const stats = useMemo(() => {
     const total = npcs.length;
     const alive = npcs.filter(npc => npc.is_alive).length;
-    const dead = total - alive;
-    
-    const byType = npcs.reduce((acc, npc) => {
-      acc[npc.npc_type] = (acc[npc.npc_type] || 0) + 1;
-      return acc;
-    }, {} as Record<NPCType, number>);
-    
-    const averageCR = npcs.length > 0 
-      ? npcs.reduce((sum, npc) => sum + (parseFloat(npc.challenge_rating || '0')), 0) / npcs.length
-      : 0;
-    
     const spellcasters = npcs.filter(npc => npc.spellcasting?.is_spellcaster).length;
+    const withAttacks = npcs.filter(npc => npc.attacks && npc.attacks.length > 0).length;
     
     return {
       total,
       alive,
-      dead,
-      byType,
-      averageCR: Math.round(averageCR * 100) / 100,
-      spellcasters
+      dead: total - alive,
+      active: npcs.filter(npc => npc.is_active).length,
+      inactive: total - npcs.filter(npc => npc.is_active).length,
+      spellcasters,
+      withAttacks,
+      byType: {},
+      byLocation: {},
+      byFaction: {}
     };
   }, [npcs]);
-  
+
   // ===========================
   // OPERAÇÕES EM LOTE
   // ===========================
   
-  const bulkUpdate = useCallback(async (
-    ids: string[], 
-    updates: Partial<EnhancedNPC>
-  ): Promise<void> => {
+  const bulkUpdate = useCallback(async (ids: string[], updates: Partial<EnhancedNPC>): Promise<void> => {
     setIsLoading(true);
-    setError(null);
-    
     try {
-      console.log(`📝 Atualizando ${ids.length} NPCs em lote`);
-      
-      const promises = ids.map(id => updateNPC(id, { id, ...updates }));
-      await Promise.all(promises);
-      
-      console.log('✅ Atualização em lote concluída');
-    } catch (err) {
-      console.error('❌ Erro na atualização em lote:', err);
-      setError(`Erro na atualização em lote: ${err}`);
-      throw err;
+      for (const id of ids) {
+        await updateNPC(id, updates as UpdateEnhancedNPCRequest);
+      }
     } finally {
       setIsLoading(false);
     }
   }, [updateNPC]);
-  
+
   const bulkDelete = useCallback(async (ids: string[]): Promise<void> => {
     setIsLoading(true);
-    setError(null);
-    
     try {
-      console.log(`🗑️ Deletando ${ids.length} NPCs em lote`);
-      
-      const promises = ids.map(id => deleteNPC(id));
-      await Promise.all(promises);
-      
-      console.log('✅ Deleção em lote concluída');
-    } catch (err) {
-      console.error('❌ Erro na deleção em lote:', err);
-      setError(`Erro na deleção em lote: ${err}`);
-      throw err;
+      for (const id of ids) {
+        await deleteNPC(id);
+      }
     } finally {
       setIsLoading(false);
     }
   }, [deleteNPC]);
-  
+
   // ===========================
   // IMPORTAÇÃO/EXPORTAÇÃO
   // ===========================
   
-  const exportNPCs = useCallback((format: 'json' | 'csv'): string => {
+  const exportNPCs = useCallback((format: 'json' | 'csv') => {
     if (format === 'json') {
       return JSON.stringify(npcs, null, 2);
     } else {
-      // Exportação CSV simplificada
-      const headers = ['name', 'race', 'npc_class', 'npc_type', 'challenge_rating', 'hit_points', 'armor_class'];
-      const csvHeaders = headers.join(',');
-      
-      const csvRows = npcs.map(npc => {
-        return headers.map(header => {
-          let value: any;
-          switch (header) {
-            case 'hit_points':
-              value = npc.stats.hit_points;
-              break;
-            case 'armor_class':
-              value = npc.stats.armor_class;
-              break;
-            default:
-              value = (npc as any)[header] || '';
-          }
-          
-          // Escapar valores com vírgulas
-          if (typeof value === 'string' && value.includes(',')) {
-            value = `"${value}"`;
-          }
-          
-          return value;
-        }).join(',');
-      });
-      
-      return [csvHeaders, ...csvRows].join('\n');
+      // Implementar CSV export
+      const headers = ['name', 'npc_type', 'location', 'is_alive', 'challenge_rating'];
+      const csvContent = [
+        headers.join(','),
+        ...npcs.map(npc => headers.map(key => (npc as any)[key] || '').join(','))
+      ].join('\n');
+      return csvContent;
     }
   }, [npcs]);
-  
-  const importNPCs = useCallback(async (
-    data: any[], 
-    format: 'json' | 'csv'
-  ): Promise<EnhancedNPC[]> => {
-    setIsLoading(true);
-    setError(null);
+
+  const importNPCs = useCallback(async (data: any[], format: 'json' | 'csv'): Promise<EnhancedNPC[]> => {
+    const imported: EnhancedNPC[] = [];
     
-    try {
-      console.log(`📥 Importando ${data.length} NPCs (${format})`);
-      
-      const importedNPCs: EnhancedNPC[] = [];
-      
-      for (const item of data) {
-        try {
-          // Converter dados importados para formato correto
-          const npcData: CreateEnhancedNPCRequest = {
-            campaign_id: campaignId,
-            name: item.name || 'NPC Importado',
-            description: item.description || '',
-            race: item.race || '',
-            npc_class: item.npc_class || item.class || '',
-            npc_type: item.npc_type || NPCType.NEUTRAL,
-            alignment: item.alignment || '',
-            location: item.location || '',
-            occupation: item.occupation || '',
-            faction: item.faction || '',
-            stats: {
-              armor_class: item.armor_class || item.stats?.armor_class || 10,
-              hit_points: item.hit_points || item.stats?.hit_points || 1,
-              speed: item.speed || item.stats?.speed || '30 ft',
-              attributes: item.stats?.attributes || {
-                strength: 10, dexterity: 10, constitution: 10,
-                intelligence: 10, wisdom: 10, charisma: 10
-              }
-            },
-            challenge_rating: item.challenge_rating || '0',
-            attacks: item.attacks || [],
-            spellcasting: item.spellcasting || { is_spellcaster: false },
-            abilities: item.abilities || [],
-            personality_traits: item.personality_traits || [],
-            goals: item.goals || '',
-            secrets: item.secrets || '',
-            gm_notes: item.gm_notes || ''
-          };
-          
-          const created = await createNPC(npcData);
-          importedNPCs.push(created);
-        } catch (err) {
-          console.warn(`⚠️ Erro ao importar NPC: ${item.name}`, err);
-        }
+    for (const item of data) {
+      try {
+        const created = await createNPC(item);
+        imported.push(created);
+      } catch (err) {
+        console.error('Erro ao importar NPC:', err);
       }
-      
-      console.log(`✅ ${importedNPCs.length} NPCs importados com sucesso`);
-      return importedNPCs;
-    } catch (err) {
-      console.error('❌ Erro na importação:', err);
-      setError(`Erro na importação: ${err}`);
-      throw err;
-    } finally {
-      setIsLoading(false);
     }
-  }, [campaignId, createNPC]);
-  
+    
+    return imported;
+  }, [createNPC]);
+
   // ===========================
   // BACKUP E RESTORE
   // ===========================
   
   const createBackup = useCallback(() => {
     return {
-      version: '1.0',
-      timestamp: new Date().toISOString(),
-      campaign_id: campaignId,
-      npcs: npcs,
-      filters: filters,
-      sort: { sortBy, sortOrder }
+      npcs,
+      filters,
+      sort: { sortBy, sortOrder },
+      timestamp: new Date().toISOString()
     };
-  }, [npcs, filters, sortBy, sortOrder, campaignId]);
-  
+  }, [npcs, filters, sortBy, sortOrder]);
+
   const restoreFromBackup = useCallback(async (backup: any): Promise<void> => {
-    if (!backup.npcs || !Array.isArray(backup.npcs)) {
-      throw new Error('Backup inválido');
-    }
-    
     setIsLoading(true);
-    setError(null);
-    
     try {
-      console.log(`📦 Restaurando backup de ${backup.npcs.length} NPCs`);
-      
-      // Limpar NPCs existentes (opcional - pode ser configurável)
-      // await bulkDelete(npcs.map(npc => npc.id!));
-      
-      // Importar NPCs do backup
       await importNPCs(backup.npcs, 'json');
       
-      // Restaurar filtros e ordenação se disponível
       if (backup.filters) setFilters(backup.filters);
       if (backup.sort) {
         setSortBy(backup.sort.sortBy);
@@ -585,7 +587,7 @@ export function useEnhancedNPCs({
       setIsLoading(false);
     }
   }, [importNPCs]);
-  
+
   // ===========================
   // EFEITOS
   // ===========================
@@ -596,11 +598,10 @@ export function useEnhancedNPCs({
       loadNPCs();
     }
   }, [autoLoad, campaignId, loadNPCs]);
-  
+
   // Updates em tempo real (implementação futura)
   useEffect(() => {
     if (enableRealTimeUpdates && campaignId) {
-      // Aqui você conectaria ao WebSocket ou similar
       console.log('🔄 Habilitando updates em tempo real para:', campaignId);
       
       return () => {
@@ -608,9 +609,9 @@ export function useEnhancedNPCs({
       };
     }
   }, [enableRealTimeUpdates, campaignId]);
-  
+
   // ===========================
-  // RETORNO DO HOOK
+  // RETORNO COMPLETO
   // ===========================
   
   return {
@@ -625,13 +626,15 @@ export function useEnhancedNPCs({
     updateNPC,
     deleteNPC,
     
-    // Operações de combate
+    // NOVOS: Operações de combate
     rollAttack,
     rollDamage,
     castSpell,
     
-    // Operações de status
+    // NOVOS: Operações de status
     updateHitPoints,
+    healNPC,
+    damageNPC,
     killNPC,
     reviveNPC,
     
