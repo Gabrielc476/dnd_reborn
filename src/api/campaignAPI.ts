@@ -123,17 +123,17 @@ class CampaignAPI {
   }
 
   /**
-   * Buscar campanhas do GM
+   * Buscar campanhas do GM - CORRIGIDO
    */
   async getGMCampaigns(): Promise<CampaignListResponse> {
-    return this.request<CampaignListResponse>("/campaign/gm");
+    return this.request<CampaignListResponse>("/campaign/my");
   }
 
   /**
-   * Buscar campanhas do jogador
+   * Buscar campanhas do jogador - CORRIGIDO
    */
   async getPlayerCampaigns(): Promise<CampaignListResponse> {
-    return this.request<CampaignListResponse>("/campaign/player");
+    return this.request<CampaignListResponse>("/campaign/joined");
   }
 
   /**
@@ -311,135 +311,6 @@ class CampaignAPI {
   }
 
   // ===========================
-  // MÉTODOS ENHANCED NPCs
-  // ===========================
-
-  /**
-   * Criar NPC Enhanced
-   */
-  async createEnhancedNPC(campaignId: string, data: CreateEnhancedNPCRequest): Promise<{ 
-    success: boolean; 
-    npc_id?: string; 
-    message?: string; 
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced`, {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  /**
-   * Buscar NPCs Enhanced
-   */
-  async getEnhancedNPCs(campaignId: string, filters?: NPCSearchFilters): Promise<{ 
-    success: boolean; 
-    npcs?: EnhancedNPC[]; 
-    total?: number;
-    error?: string 
-  }> {
-    let url = `/campaign/${campaignId}/npcs/enhanced`;
-    
-    if (filters) {
-      const params = new URLSearchParams();
-      if (filters.name) params.append('name', filters.name);
-      if (filters.npc_type) filters.npc_type.forEach(type => params.append('npc_type', type));
-      if (filters.is_alive !== undefined) params.append('is_alive', filters.is_alive.toString());
-      if (filters.is_active !== undefined) params.append('is_active', filters.is_active.toString());
-      
-      const queryString = params.toString();
-      if (queryString) url += `?${queryString}`;
-    }
-
-    return this.request(url);
-  }
-
-  /**
-   * Buscar NPC Enhanced por ID
-   */
-  async getEnhancedNPCById(campaignId: string, npcId: string): Promise<{ 
-    success: boolean; 
-    npc?: EnhancedNPC; 
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`);
-  }
-
-  /**
-   * Atualizar NPC Enhanced
-   */
-  async updateEnhancedNPC(campaignId: string, npcId: string, data: UpdateEnhancedNPCRequest): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`, {
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  }
-
-  /**
-   * Deletar NPC Enhanced
-   */
-  async deleteEnhancedNPC(campaignId: string, npcId: string): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`, {
-      method: "DELETE",
-    });
-  }
-
-  // ===========================
-  // SISTEMA DE ROLAGEM
-  // ===========================
-
-  /**
-   * Executar rolagem para NPC
-   */
-  async rollDiceForNPC(campaignId: string, npcId: string, rollData: DiceRollRequest): Promise<{ 
-    success: boolean; 
-    result?: RollResult; 
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/roll`, {
-      method: "POST",
-      body: JSON.stringify(rollData),
-    });
-  }
-
-  /**
-   * Conjurar magia
-   */
-  async castSpellForNPC(campaignId: string, npcId: string, spellData: CastSpellRequest): Promise<{ 
-    success: boolean; 
-    result?: RollResult; 
-    message?: string;
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/cast-spell`, {
-      method: "POST",
-      body: JSON.stringify(spellData),
-    });
-  }
-
-  /**
-   * Atualizar pontos de vida
-   */
-  async updateNPCHitPoints(campaignId: string, npcId: string, hpData: UpdateHitPointsRequest): Promise<{ 
-    success: boolean; 
-    message?: string; 
-    error?: string 
-  }> {
-    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/hit-points`, {
-      method: "PUT",
-      body: JSON.stringify(hpData),
-    });
-  }
-
-  // ===========================
   // ADAPTER METHODS (para transição suave)
   // ===========================
 
@@ -473,63 +344,191 @@ class CampaignAPI {
   }
 
   // ===========================
-  // ENCOUNTER MANAGEMENT - PLACEHOLDERS
+  // ENHANCED NPC METHODS
   // ===========================
 
-  async addEncounter(campaignId: string, data: AddEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+  /**
+   * Criar Enhanced NPC
+   */
+  async createEnhancedNPC(campaignId: string, data: CreateEnhancedNPCRequest): Promise<{ success: boolean; npc_id?: string; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Buscar Enhanced NPCs da campanha
+   */
+  async getEnhancedNPCs(
+    campaignId: string, 
+    filters?: NPCSearchFilters, 
+    page: number = 1, 
+    perPage: number = 50
+  ): Promise<{ success: boolean; npcs?: EnhancedNPC[]; total?: number; page?: number; per_page?: number; error?: string }> {
+    const queryParams = new URLSearchParams();
+    queryParams.append('page', page.toString());
+    queryParams.append('per_page', perPage.toString());
+    
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          if (Array.isArray(value)) {
+            value.forEach(v => queryParams.append(key, v.toString()));
+          } else {
+            queryParams.append(key, value.toString());
+          }
+        }
+      });
+    }
+
+    const queryString = queryParams.toString();
+    const endpoint = queryString ? `/campaign/${campaignId}/npcs/enhanced?${queryString}` : `/campaign/${campaignId}/npcs/enhanced`;
+    
+    return this.request(endpoint);
+  }
+
+  /**
+   * Buscar Enhanced NPC por ID
+   */
+  async getEnhancedNPCById(campaignId: string, npcId: string): Promise<{ success: boolean; npc?: EnhancedNPC; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`);
+  }
+
+  /**
+   * Atualizar Enhanced NPC
+   */
+  async updateEnhancedNPC(campaignId: string, npcId: string, data: UpdateEnhancedNPCRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Deletar Enhanced NPC
+   */
+  async deleteEnhancedNPC(campaignId: string, npcId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`, {
+      method: "DELETE",
+    });
+  }
+
+  /**
+   * Executar rolagem de dados para NPC
+   */
+  async rollDiceForNPC(campaignId: string, npcId: string, rollRequest: DiceRollRequest): Promise<{ success: boolean; result?: RollResult; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/roll`, {
+      method: "POST",
+      body: JSON.stringify(rollRequest),
+    });
+  }
+
+  /**
+   * Conjurar magia para NPC
+   */
+  async castSpellForNPC(campaignId: string, npcId: string, spellRequest: CastSpellRequest): Promise<{ success: boolean; result?: RollResult; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/cast-spell`, {
+      method: "POST",
+      body: JSON.stringify(spellRequest),
+    });
+  }
+
+  /**
+   * Atualizar pontos de vida do NPC
+   */
+  async updateNPCHitPoints(campaignId: string, npcId: string, hpRequest: UpdateHitPointsRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/hit-points`, {
+      method: "PUT",
+      body: JSON.stringify(hpRequest),
+    });
+  }
+
+  // ===========================
+  // ENCOUNTER MANAGEMENT
+  // ===========================
+
+  /**
+   * Adicionar encontro à campanha
+   */
+  async addEncounter(id: string, data: AddEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${id}/encounters`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Atualizar encontro
+   */
+  async updateEncounter(campaignId: string, encounterId: string, data: UpdateEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     console.warn("⚠️ Encounter endpoints não implementados");
     return Promise.resolve({ success: false, error: "Encounter endpoints não implementados" });
   }
 
-  async updateEncounter(campaignId: string, encounterName: string, data: UpdateEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Encounter endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Encounter endpoints não implementados" });
-  }
-
-  async completeEncounter(campaignId: string, encounterName: string, data: CompleteEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Encounter endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Encounter endpoints não implementados" });
-  }
-
-  async deleteEncounter(campaignId: string, encounterName: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  /**
+   * Completar encontro
+   */
+  async completeEncounter(campaignId: string, encounterId: string, data: CompleteEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     console.warn("⚠️ Encounter endpoints não implementados");
     return Promise.resolve({ success: false, error: "Encounter endpoints não implementados" });
   }
 
   // ===========================
-  // LOOT MANAGEMENT - PLACEHOLDERS
+  // LOOT MANAGEMENT
   // ===========================
 
-  async addLoot(campaignId: string, data: AddLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Loot endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Loot endpoints não implementados" });
+  /**
+   * Adicionar loot à campanha
+   */
+  async addLoot(id: string, data: AddLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${id}/loot`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
-  async updateLoot(campaignId: string, itemName: string, data: UpdateLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Loot endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Loot endpoints não implementados" });
+  /**
+   * Atribuir loot a jogador
+   */
+  async assignLoot(id: string, lootName: string, playerId: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${id}/loot/${lootName}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ player_id: playerId }),
+    });
   }
 
-  async assignLoot(campaignId: string, data: AssignLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Loot endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Loot endpoints não implementados" });
-  }
-
-  async removeLoot(campaignId: string, itemName: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Loot endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Loot endpoints não implementados" });
+  /**
+   * Atualizar item de loot
+   */
+  async updateLoot(campaignId: string, lootId: string, data: UpdateLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+    console.warn("⚠️ Loot update endpoints não implementados");
+    return Promise.resolve({ success: false, error: "Loot update endpoints não implementados" });
   }
 
   // ===========================
   // SESSION MANAGEMENT - PLACEHOLDERS
   // ===========================
 
+  /**
+   * PLACEHOLDER - Session endpoints não implementados no backend
+   */
   async createSession(campaignId: string, data: CreateSessionRequest): Promise<{ success: boolean; session_id?: string; message?: string; error?: string }> {
     console.warn("⚠️ Session endpoints não implementados");
     return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
   }
 
   async updateSession(campaignId: string, sessionId: string, data: UpdateSessionRequest): Promise<{ success: boolean; message?: string; error?: string }> {
+    console.warn("⚠️ Session endpoints não implementados");
+    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+  }
+
+  async getSessions(campaignId: string): Promise<{ success: boolean; sessions?: GameSession[]; error?: string }> {
+    console.warn("⚠️ Session endpoints não implementados");
+    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+  }
+
+  async deleteSession(campaignId: string, sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     console.warn("⚠️ Session endpoints não implementados");
     return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
   }

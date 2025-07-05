@@ -3,6 +3,9 @@
 // types/enhancedNPC.ts
 // ===========================
 
+// Importar NPCType do arquivo manageCampaign para evitar duplicação
+import { NPCType, NPCAbility } from './manageCampaign';
+
 // ===========================
 // TIPOS DE DADOS E ROLAGENS
 // ===========================
@@ -90,6 +93,36 @@ export enum SpellSchool {
 }
 
 // ===========================
+// TIPOS ESPECÍFICOS PARA ENHANCED NPCs
+// ===========================
+
+export enum NPCSize {
+  TINY = "Minúsculo",
+  SMALL = "Pequeno", 
+  MEDIUM = "Médio",
+  LARGE = "Grande",
+  HUGE = "Enorme",
+  GARGANTUAN = "Colossal"
+}
+
+export enum NPCCreatureType {
+  ABERRATION = "Aberração",
+  BEAST = "Besta",
+  CELESTIAL = "Celestial",
+  CONSTRUCT = "Constructo",
+  DRAGON = "Dragão",
+  ELEMENTAL = "Elemental",
+  FEY = "Feérico",
+  FIEND = "Demônio",
+  GIANT = "Gigante",
+  HUMANOID = "Humanoide",
+  MONSTROSITY = "Monstrosidade",
+  OOZE = "Gosma",
+  PLANT = "Planta",
+  UNDEAD = "Morto-vivo"
+}
+
+// ===========================
 // ATRIBUTOS E ESTATÍSTICAS
 // ===========================
 
@@ -134,19 +167,8 @@ export interface NPCSavingThrows {
 }
 
 // ===========================
-// HABILIDADES E TRAÇOS
+// HABILIDADES E TRAÇOS (Extended)
 // ===========================
-
-export interface NPCAbility {
-  id?: string;
-  name: string;
-  description: string;
-  usage?: string; // "1/dia", "recarga 5-6", "à vontade", etc.
-  usage_type?: 'per_day' | 'recharge' | 'at_will' | 'per_short_rest' | 'per_long_rest';
-  max_uses?: number;
-  current_uses?: number;
-  recharge_on?: number[]; // Para habilidades de recarga (ex: [5, 6])
-}
 
 export interface NPCLegendaryAction {
   name: string;
@@ -193,46 +215,7 @@ export interface NPCSpellcasting {
 }
 
 // ===========================
-// TIPOS PRINCIPAIS DO NPC
-// ===========================
-
-export enum NPCType {
-  ALLY = "aliado",
-  ENEMY = "inimigo", 
-  NEUTRAL = "neutro",
-  MERCHANT = "mercador",
-  QUEST_GIVER = "missões",
-  BACKGROUND = "cenário"
-}
-
-export enum NPCSize {
-  TINY = "Minúsculo",
-  SMALL = "Pequeno", 
-  MEDIUM = "Médio",
-  LARGE = "Grande",
-  HUGE = "Enorme",
-  GARGANTUAN = "Colossal"
-}
-
-export enum NPCCreatureType {
-  ABERRATION = "Aberração",
-  BEAST = "Besta",
-  CELESTIAL = "Celestial",
-  CONSTRUCT = "Constructo",
-  DRAGON = "Dragão",
-  ELEMENTAL = "Elemental",
-  FEY = "Feérico",
-  FIEND = "Demônio",
-  GIANT = "Gigante",
-  HUMANOID = "Humanoide",
-  MONSTROSITY = "Monstrosidade",
-  OOZE = "Gosma",
-  PLANT = "Planta",
-  UNDEAD = "Morto-vivo"
-}
-
-// ===========================
-// INTERFACE PRINCIPAL DO NPC
+// INTERFACE PRINCIPAL DO NPC ENHANCED
 // ===========================
 
 export interface EnhancedNPC {
@@ -386,6 +369,29 @@ export interface NPCValidationResult {
 // ===========================
 // TIPOS PARA OPERAÇÕES DE DADOS
 // ===========================
+
+export interface DiceRollRequest {
+  npc_id: string;
+  roll_type: 'attack' | 'damage' | 'spell_attack' | 'spell_damage' | 'ability_check' | 'saving_throw';
+  target_id?: string; // ID do ataque/magia específica
+  advantage?: boolean;
+  disadvantage?: boolean;
+  modifier_override?: number;
+}
+
+export interface CastSpellRequest {
+  npc_id: string;
+  spell_id: string;
+  cast_level?: number;
+  use_spell_slot?: boolean;
+}
+
+export interface UpdateHitPointsRequest {
+  npc_id: string;
+  new_hit_points: number;
+  temporary_hit_points?: number;
+  max_hit_points?: number;
+}
 
 export interface DiceRollOperation {
   type: 'attack' | 'damage' | 'spell_attack' | 'spell_damage' | 'ability_check' | 'saving_throw';
@@ -541,32 +547,3 @@ export const ABILITY_LABELS = {
 // EXPORT PRINCIPAL
 // ===========================
 
-export type {
-  DiceRoll,
-  RollResult,
-  Attack,
-  Spell,
-  NPCAttributes,
-  NPCStats,
-  NPCAbility,
-  EnhancedNPC,
-  NPCFormData,
-  CreateEnhancedNPCRequest,
-  UpdateEnhancedNPCRequest,
-  NPCValidationResult,
-  DiceRollerProps,
-  NPCContextData,
-  NPCUtilities
-};
-
-export {
-  NPCType,
-  NPCSize,
-  NPCCreatureType,
-  DamageType,
-  SpellSchool,
-  DICE_SIDES,
-  CHALLENGE_RATINGS,
-  ABILITY_SCORES,
-  ABILITY_LABELS
-};
