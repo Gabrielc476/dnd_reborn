@@ -1,3 +1,4 @@
+from bson import ObjectId
 from flask import request, jsonify, Blueprint
 from middleware.auth import token_required, get_current_user_id
 from services.campaign import (
@@ -31,6 +32,25 @@ from services.npc import (
     add_npc_ability_service,
     get_npc_stats_service,
     get_npcs_filtered_service
+)
+
+from database.repositories.enhanced_npc import (
+    create_enhanced_npc,
+    get_enhanced_npc_by_id,
+    update_enhanced_npc,
+    delete_enhanced_npc,
+    get_enhanced_npcs_by_campaign,
+    execute_npc_dice_roll,
+    cast_npc_spell,
+    update_npc_hit_points
+)
+from database.schemas.enhanced_npc import (
+    EnhancedNPCCreate,
+    EnhancedNPCUpdate,
+    DiceRollRequest,
+    CastSpellRequest,
+    UpdateHitPointsRequest,
+    NPCSearchFilters
 )
 
 campaign_bp = Blueprint('campaign', __name__)
@@ -682,3 +702,375 @@ def get_npc_stats(campaign_id):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ===========================
+# ROTAS ENHANCED NPCs
+# ===========================
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced', methods=['POST'])
+@token_required
+def create_enhanced_npc_route(campaign_id):
+    """Criar NPC Enhanced"""
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "Dados não fornecidos"}), 400
+
+        # Verificar se usuário é GM da campanha (usar sua função existente)
+        # Assumindo que você já tem uma função similar
+        if not user_is_gm_of_campaign(user_id, campaign_id):
+            return jsonify({"error": "Apenas GMs podem criar NPCs"}), 403
+
+        # Garantir que o campaign_id seja usado
+        data['campaign_id'] = campaign_id
+
+        # Validar e criar NPC
+        try:
+            npc_data = EnhancedNPCCreate(**data)
+            npc_id = create_enhanced_npc(npc_data, ObjectId(user_id))
+
+            return jsonify({
+                "success": True,
+                "message": f"NPC {data.get('name')} criado com sucesso",
+                "npc_id": npc_id
+            }), 201
+
+        except ValueError as e:
+            return jsonify({"error": f"Dados inválidos: {str(e)}"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced', methods=['GET'])
+@token_required
+def get_enhanced_npcs_route(campaign_id):
+    """Buscar NPCs Enhanced com filtros"""
+    try:
+        user_id = get_current_user_id()
+
+        # Verificar acesso à campanha (usar sua função existente)
+        if not user_has_access_to_campaign(user_id, campaign_id):
+            return jsonify({"error": "Acesso negado à campanha"}), 403
+
+        # Extrair parâmetros da query
+        page = int(request.args.get('page', 1))
+        per_page = min(int(request.args.get('per_page', 50)), 100)
+
+        # Construir filtros
+        filters = NPCSearchFilters()
+
+        if request.args.get('name'):
+            filters.name = request.args.get('name')
+
+        if request.args.getlist('npc_type'):
+            from database.schemas.enhanced_npc import NPCType
+            filters.npc_type = [NPCType(t) for t in request.args.getlist('npc_type')]
+
+        if request.args.get('is_alive'):
+            filters.is_alive = request.args.get('is_alive').lower() == 'true'
+
+        if request.args.get('is_active'):
+            filters.is_active = request.args.get('is_active').lower() == 'true'
+
+        # Executar busca
+        result = get_enhanced_npcs_by_campaign(campaign_id, filters, page, per_page)
+
+        return jsonify({
+            "success": True,
+            "npcs": [npc.dict() for npc in result.npcs],
+            "total": result.total,
+            "page": result.page,
+            "per_page": result.per_page
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced/<npc_id>', methods=['GET'])
+@token_required
+def get_enhanced_npc_route(campaign_id, npc_id):
+    """Buscar NPC Enhanced por ID"""
+    try:
+        user_id = get_current_user_id()
+
+        # Verificar acesso à campanha
+        if not user_has_access_to_campaign(user_id, campaign_id):
+            return jsonify({"error": "Acesso negado à campanha"}), 403
+
+        npc = get_enhanced_npc_by_id(npc_id)
+
+        if not npc:
+            return jsonify({"error": "NPC não encontrado"}), 404
+
+        if str(npc.campaign_id) != campaign_id:
+            return jsonify({"error": "NPC não pertence a esta campanha"}), 403
+
+        return jsonify({
+            "success": True,
+            "npc": npc.dict()
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced/<npc_id>', methods=['PUT'])
+@token_required
+def update_enhanced_npc_route(campaign_id, npc_id):
+    """Atualizar NPC Enhanced"""
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "Dados não fornecidos"}), 400
+
+        # Verificar se é GM
+        if not user_is_gm_of_campaign(user_id, campaign_id):
+            return jsonify({"error": "Apenas GMs podem editar NPCs"}), 403
+
+        # Verificar se NPC existe e pertence à campanha
+        npc = get_enhanced_npc_by_id(npc_id)
+        if not npc:
+            return jsonify({"error": "NPC não encontrado"}), 404
+
+        if str(npc.campaign_id) != campaign_id:
+            return jsonify({"error": "NPC não pertence a esta campanha"}), 403
+
+        # Validar e atualizar
+        try:
+            updates = EnhancedNPCUpdate(**data)
+            success = update_enhanced_npc(npc_id, updates)
+
+            if success:
+                return jsonify({
+                    "success": True,
+                    "message": "NPC atualizado com sucesso"
+                }), 200
+            else:
+                return jsonify({"error": "Falha ao atualizar NPC"}), 500
+
+        except ValueError as e:
+            return jsonify({"error": f"Dados inválidos: {str(e)}"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced/<npc_id>', methods=['DELETE'])
+@token_required
+def delete_enhanced_npc_route(campaign_id, npc_id):
+    """Deletar NPC Enhanced"""
+    try:
+        user_id = get_current_user_id()
+
+        # Verificar se é GM
+        if not user_is_gm_of_campaign(user_id, campaign_id):
+            return jsonify({"error": "Apenas GMs podem deletar NPCs"}), 403
+
+        # Verificar se NPC existe e pertence à campanha
+        npc = get_enhanced_npc_by_id(npc_id)
+        if not npc:
+            return jsonify({"error": "NPC não encontrado"}), 404
+
+        if str(npc.campaign_id) != campaign_id:
+            return jsonify({"error": "NPC não pertence a esta campanha"}), 403
+
+        success = delete_enhanced_npc(npc_id)
+
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "NPC removido com sucesso"
+            }), 200
+        else:
+            return jsonify({"error": "Falha ao remover NPC"}), 500
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+# ===========================
+# ROTAS DE ROLAGEM DE DADOS
+# ===========================
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced/<npc_id>/roll', methods=['POST'])
+@token_required
+def roll_dice_for_npc_route(campaign_id, npc_id):
+    """Executar rolagem de dados para NPC"""
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "Dados da rolagem não fornecidos"}), 400
+
+        # Verificar acesso à campanha
+        if not user_has_access_to_campaign(user_id, campaign_id):
+            return jsonify({"error": "Acesso negado à campanha"}), 403
+
+        # Verificar se NPC existe e pertence à campanha
+        npc = get_enhanced_npc_by_id(npc_id)
+        if not npc:
+            return jsonify({"error": "NPC não encontrado"}), 404
+
+        if str(npc.campaign_id) != campaign_id:
+            return jsonify({"error": "NPC não pertence a esta campanha"}), 403
+
+        # Executar rolagem
+        try:
+            roll_request = DiceRollRequest(**data)
+            result = execute_npc_dice_roll(npc_id, roll_request)
+
+            if result:
+                return jsonify({
+                    "success": True,
+                    "result": result.dict()
+                }), 200
+            else:
+                return jsonify({"error": "Falha ao executar rolagem"}), 500
+
+        except ValueError as e:
+            return jsonify({"error": f"Dados de rolagem inválidos: {str(e)}"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced/<npc_id>/cast-spell', methods=['POST'])
+@token_required
+def cast_spell_route(campaign_id, npc_id):
+    """Conjurar magia"""
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "Dados da magia não fornecidos"}), 400
+
+        # Verificar acesso à campanha
+        if not user_has_access_to_campaign(user_id, campaign_id):
+            return jsonify({"error": "Acesso negado à campanha"}), 403
+
+        # Verificar se NPC existe
+        npc = get_enhanced_npc_by_id(npc_id)
+        if not npc:
+            return jsonify({"error": "NPC não encontrado"}), 404
+
+        if str(npc.campaign_id) != campaign_id:
+            return jsonify({"error": "NPC não pertence a esta campanha"}), 403
+
+        # Conjurar magia
+        try:
+            cast_request = CastSpellRequest(**data)
+            result = cast_npc_spell(npc_id, cast_request)
+
+            response_data = {
+                "success": True,
+                "message": f"Magia {cast_request.spell_name} conjurada com sucesso"
+            }
+
+            if result:
+                response_data["result"] = result.dict()
+
+            return jsonify(response_data), 200
+
+        except ValueError as e:
+            return jsonify({"error": f"Dados de conjuração inválidos: {str(e)}"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+@campaign_bp.route('/<campaign_id>/npcs/enhanced/<npc_id>/hit-points', methods=['PUT'])
+@token_required
+def update_hit_points_route(campaign_id, npc_id):
+    """Atualizar pontos de vida"""
+    try:
+        user_id = get_current_user_id()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "Dados dos pontos de vida não fornecidos"}), 400
+
+        # Verificar se é GM ou tem permissão
+        if not user_is_gm_of_campaign(user_id, campaign_id):
+            return jsonify({"error": "Apenas GMs podem alterar HP"}), 403
+
+        # Verificar se NPC existe
+        npc = get_enhanced_npc_by_id(npc_id)
+        if not npc:
+            return jsonify({"error": "NPC não encontrado"}), 404
+
+        if str(npc.campaign_id) != campaign_id:
+            return jsonify({"error": "NPC não pertence a esta campanha"}), 403
+
+        # Atualizar HP
+        try:
+            data['npc_id'] = npc_id
+            hp_request = UpdateHitPointsRequest(**data)
+            success = update_npc_hit_points(hp_request)
+
+            if success:
+                return jsonify({
+                    "success": True,
+                    "message": "Pontos de vida atualizados com sucesso"
+                }), 200
+            else:
+                return jsonify({"error": "Falha ao atualizar pontos de vida"}), 500
+
+        except ValueError as e:
+            return jsonify({"error": f"Dados de HP inválidos: {str(e)}"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+
+# ===========================
+# FUNÇÕES AUXILIARES (adicionar se não existirem)
+# ===========================
+
+def user_is_gm_of_campaign(user_id: str, campaign_id: str) -> bool:
+    """Verifica se usuário é GM da campanha"""
+    try:
+        # Implementar baseado na sua lógica existente
+        # Exemplo usando sua estrutura atual:
+        from database.repositories.campaign import get_campaign_by_id
+
+        campaign = get_campaign_by_id(campaign_id)
+        if campaign:
+            return str(campaign.get('gm_id')) == user_id
+        return False
+    except:
+        return False
+
+
+def user_has_access_to_campaign(user_id: str, campaign_id: str) -> bool:
+    """Verifica se usuário tem acesso à campanha"""
+    try:
+        # Implementar baseado na sua lógica existente
+        # Pode ser GM ou jogador da campanha
+        from database.repositories.campaign import get_campaign_by_id
+
+        campaign = get_campaign_by_id(campaign_id)
+        if not campaign:
+            return False
+
+        # Verificar se é GM
+        if str(campaign.get('gm_id')) == user_id:
+            return True
+
+        # Verificar se é jogador
+        players = campaign.get('players', [])
+        for player in players:
+            if str(player.get('user_id')) == user_id:
+                return True
+
+        return False
+    except:
+        return False
