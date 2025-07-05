@@ -40,8 +40,8 @@ from database.repositories.enhanced_npc import (
     update_enhanced_npc,
     delete_enhanced_npc,
     get_enhanced_npcs_by_campaign,
-    execute_npc_dice_roll,
-    cast_npc_spell,
+    roll_dice_for_npc,
+    cast_spell_for_npc,
     update_npc_hit_points
 )
 from database.schemas.enhanced_npc import (
@@ -925,7 +925,7 @@ def roll_dice_for_npc_route(campaign_id, npc_id):
         # Executar rolagem
         try:
             roll_request = DiceRollRequest(**data)
-            result = execute_npc_dice_roll(npc_id, roll_request)
+            result = roll_dice_for_npc(npc_id, roll_request)
 
             if result:
                 return jsonify({
@@ -968,11 +968,11 @@ def cast_spell_route(campaign_id, npc_id):
         # Conjurar magia
         try:
             cast_request = CastSpellRequest(**data)
-            result = cast_npc_spell(npc_id, cast_request)
+            result = cast_spell_for_npc(cast_request)
 
             response_data = {
                 "success": True,
-                "message": f"Magia {cast_request.spell_name} conjurada com sucesso"
+                "message": "Magia conjurada com sucesso"
             }
 
             if result:
@@ -1032,45 +1032,57 @@ def update_hit_points_route(campaign_id, npc_id):
 
 
 # ===========================
-# FUNÇÕES AUXILIARES (adicionar se não existirem)
+# FUNÇÕES AUXILIARES CORRIGIDAS
 # ===========================
 
 def user_is_gm_of_campaign(user_id: str, campaign_id: str) -> bool:
     """Verifica se usuário é GM da campanha"""
     try:
-        # Implementar baseado na sua lógica existente
-        # Exemplo usando sua estrutura atual:
         from database.repositories.campaign import get_campaign_by_id
+        from bson import ObjectId
+
+        # Validar ObjectId
+        if not ObjectId.is_valid(campaign_id):
+            return False
 
         campaign = get_campaign_by_id(campaign_id)
         if campaign:
-            return str(campaign.get('gm_id')) == user_id
+            # CORRIGIDO: campaign é objeto Pydantic, usar atributo direto
+            return str(campaign.game_master_id) == user_id
         return False
-    except:
+    except Exception as e:
+        print(f"Erro ao verificar GM: {e}")
         return False
 
 
 def user_has_access_to_campaign(user_id: str, campaign_id: str) -> bool:
     """Verifica se usuário tem acesso à campanha"""
     try:
-        # Implementar baseado na sua lógica existente
-        # Pode ser GM ou jogador da campanha
         from database.repositories.campaign import get_campaign_by_id
+        from bson import ObjectId
+
+        # Validar ObjectId
+        if not ObjectId.is_valid(campaign_id):
+            return False
 
         campaign = get_campaign_by_id(campaign_id)
         if not campaign:
             return False
 
         # Verificar se é GM
-        if str(campaign.get('gm_id')) == user_id:
+        if str(campaign.game_master_id) == user_id:
+            return True
+
+        # Verificar se a campanha é pública
+        if campaign.is_public:
             return True
 
         # Verificar se é jogador
-        players = campaign.get('players', [])
-        for player in players:
-            if str(player.get('user_id')) == user_id:
+        for player in campaign.players:
+            if str(player.user_id) == user_id:
                 return True
 
         return False
-    except:
+    except Exception as e:
+        print(f"Erro ao verificar acesso à campanha: {e}")
         return False

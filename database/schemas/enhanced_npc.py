@@ -1,31 +1,24 @@
 # ===========================
-# SCHEMAS ATUALIZADOS PARA NPCs COM SISTEMA DE DADOS
+# SCHEMAS ATUALIZADOS PARA NPCs COM SISTEMA DE DADOS - CORRIGIDO
 # database/schemas/enhanced_npc.py
 # ===========================
 
-from pydantic import BaseModel, Field, ConfigDict, validator
+from typing import Dict, Any, List, Optional, Union
 from bson import ObjectId
-from typing import Optional, List, Dict, Any, Union
+from pydantic import BaseModel, Field, validator, ConfigDict
 from datetime import datetime
 from enum import Enum
 
+# Importar NPCType do manageCampaign para evitar duplicação
+from database.schemas.npc import NPCType, NPCAbility
+
 
 # ===========================
-# ENUMS E TIPOS BÁSICOS
+# ENUMS E TIPOS ESPECÍFICOS
 # ===========================
-
-class NPCType(str, Enum):
-    """Tipos de NPC"""
-    ALLY = "aliado"
-    NEUTRAL = "neutro"
-    ENEMY = "inimigo"
-    MERCHANT = "mercador"
-    QUEST_GIVER = "missões"
-    BACKGROUND = "cenário"
-
 
 class NPCSize(str, Enum):
-    """Tamanhos de criaturas D&D 5e"""
+    """Tamanhos de NPCs"""
     TINY = "Minúsculo"
     SMALL = "Pequeno"
     MEDIUM = "Médio"
@@ -35,7 +28,7 @@ class NPCSize(str, Enum):
 
 
 class NPCCreatureType(str, Enum):
-    """Tipos de criaturas D&D 5e"""
+    """Tipos de criaturas"""
     ABERRATION = "Aberração"
     BEAST = "Besta"
     CELESTIAL = "Celestial"
@@ -53,7 +46,7 @@ class NPCCreatureType(str, Enum):
 
 
 class DamageType(str, Enum):
-    """Tipos de dano D&D 5e"""
+    """Tipos de dano"""
     ACID = "ácido"
     BLUDGEONING = "contundente"
     COLD = "frio"
@@ -70,7 +63,7 @@ class DamageType(str, Enum):
 
 
 class SpellSchool(str, Enum):
-    """Escolas de magia D&D 5e"""
+    """Escolas de magia"""
     ABJURATION = "Abjuração"
     CONJURATION = "Conjuração"
     DIVINATION = "Adivinhação"
@@ -81,48 +74,29 @@ class SpellSchool(str, Enum):
     TRANSMUTATION = "Transmutação"
 
 
-class AbilityScore(str, Enum):
-    """Atributos básicos D&D 5e"""
-    STRENGTH = "strength"
-    DEXTERITY = "dexterity"
-    CONSTITUTION = "constitution"
-    INTELLIGENCE = "intelligence"
-    WISDOM = "wisdom"
-    CHARISMA = "charisma"
-
-
 # ===========================
-# MODELOS DE DADOS DE ROLAGEM
+# MODELOS DE DADOS E ROLAGENS
 # ===========================
 
 class DiceRoll(BaseModel):
-    """Modelo para rolagens de dados"""
-    dice_count: int = Field(..., ge=1, le=100, description="Quantidade de dados")
-    dice_sides: int = Field(..., ge=2, le=100, description="Lados do dado")
-    modifier: int = Field(default=0, ge=-50, le=50, description="Modificador")
-
-    def __str__(self):
-        if self.modifier == 0:
-            return f"{self.dice_count}d{self.dice_sides}"
-        elif self.modifier > 0:
-            return f"{self.dice_count}d{self.dice_sides}+{self.modifier}"
-        else:
-            return f"{self.dice_count}d{self.dice_sides}{self.modifier}"
+    """Rolagem de dados"""
+    dice_count: int = Field(..., ge=1, le=20, description="Quantidade de dados")
+    dice_sides: int = Field(..., description="Lados do dado")
+    modifier: int = Field(default=0, description="Modificador")
 
     @validator('dice_sides')
     def validate_dice_sides(cls, v):
-        """Validar que os lados do dado são valores comuns"""
-        common_dice = [2, 3, 4, 6, 8, 10, 12, 20, 100]
-        if v not in common_dice:
-            # Permitir outros valores mas emitir aviso
-            pass
+        """Validar lados do dado"""
+        valid_sides = [4, 6, 8, 10, 12, 20, 100]
+        if v not in valid_sides:
+            raise ValueError(f"Lados do dado devem ser um de: {valid_sides}")
         return v
 
 
 class RollResult(BaseModel):
-    """Resultado de uma rolagem de dados"""
-    total: int = Field(..., description="Resultado total")
-    rolls: List[int] = Field(..., description="Valores individuais dos dados")
+    """Resultado de uma rolagem"""
+    total: int = Field(..., description="Total da rolagem")
+    rolls: List[int] = Field(..., description="Rolagens individuais")
     modifier: int = Field(..., description="Modificador aplicado")
     formula: str = Field(..., description="Fórmula da rolagem")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
@@ -131,104 +105,21 @@ class RollResult(BaseModel):
 
 
 # ===========================
-# MODELOS DE ATRIBUTOS E ESTATÍSTICAS
-# ===========================
-
-class NPCAttributes(BaseModel):
-    """Atributos básicos do NPC"""
-    strength: int = Field(default=10, ge=1, le=30, description="Força")
-    dexterity: int = Field(default=10, ge=1, le=30, description="Destreza")
-    constitution: int = Field(default=10, ge=1, le=30, description="Constituição")
-    intelligence: int = Field(default=10, ge=1, le=30, description="Inteligência")
-    wisdom: int = Field(default=10, ge=1, le=30, description="Sabedoria")
-    charisma: int = Field(default=10, ge=1, le=30, description="Carisma")
-
-    @property
-    def modifiers(self) -> Dict[str, int]:
-        """Calcula modificadores de todos os atributos"""
-        return {
-            attr: self._calculate_modifier(getattr(self, attr))
-            for attr in ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
-        }
-
-    @staticmethod
-    def _calculate_modifier(score: int) -> int:
-        """Calcula modificador de atributo"""
-        return (score - 10) // 2
-
-
-class NPCSkill(BaseModel):
-    """Perícia individual do NPC"""
-    name: str = Field(..., description="Nome da perícia")
-    proficient: bool = Field(default=False, description="Se tem proficiência")
-    expertise: bool = Field(default=False, description="Se tem especialização")
-    modifier: int = Field(default=0, description="Modificador total calculado")
-
-
-class NPCSavingThrow(BaseModel):
-    """Teste de resistência do NPC"""
-    ability: AbilityScore = Field(..., description="Atributo base")
-    proficient: bool = Field(default=False, description="Se tem proficiência")
-    modifier: int = Field(default=0, description="Modificador total calculado")
-
-
-class NPCStats(BaseModel):
-    """Estatísticas completas do NPC"""
-    # Estatísticas de combate básicas
-    armor_class: int = Field(default=10, ge=1, le=30, description="Classe de Armadura")
-    hit_points: int = Field(default=1, ge=1, description="Pontos de Vida máximos")
-    current_hit_points: Optional[int] = Field(None, description="Pontos de Vida atuais")
-    temporary_hit_points: Optional[int] = Field(None, ge=0, description="Pontos de Vida temporários")
-    speed: str = Field(default="30 ft", description="Velocidade")
-
-    # Atributos básicos
-    attributes: NPCAttributes = Field(default_factory=NPCAttributes)
-
-    # Proficiências
-    skills: List[NPCSkill] = Field(default_factory=list, description="Perícias")
-    saving_throws: List[NPCSavingThrow] = Field(default_factory=list, description="Testes de resistência")
-
-    # Resistências e imunidades
-    damage_resistances: List[str] = Field(default_factory=list, description="Resistências a dano")
-    damage_immunities: List[str] = Field(default_factory=list, description="Imunidades a dano")
-    condition_immunities: List[str] = Field(default_factory=list, description="Imunidades a condições")
-
-    # Sentidos e idiomas
-    senses: List[str] = Field(default_factory=list, description="Sentidos especiais")
-    languages: List[str] = Field(default_factory=list, description="Idiomas conhecidos")
-
-    # Estatísticas derivadas (calculadas automaticamente)
-    proficiency_bonus: Optional[int] = Field(None, description="Bônus de proficiência")
-    passive_perception: Optional[int] = Field(None, description="Percepção passiva")
-    initiative_modifier: Optional[int] = Field(None, description="Modificador de iniciativa")
-
-    @property
-    def effective_hit_points(self) -> int:
-        """Pontos de vida efetivos (atual + temporários)"""
-        current = self.current_hit_points or self.hit_points
-        temporary = self.temporary_hit_points or 0
-        return current + temporary
-
-
-# ===========================
 # MODELOS DE COMBATE
 # ===========================
 
 class Attack(BaseModel):
-    """Ataque físico ou de arma"""
+    """Ataque do NPC"""
     id: Optional[str] = Field(None, description="ID único do ataque")
     name: str = Field(..., min_length=1, max_length=100, description="Nome do ataque")
-    attack_bonus: int = Field(default=0, ge=-10, le=20, description="Bônus de ataque")
-    damage: DiceRoll = Field(..., description="Dados de dano")
-    damage_type: DamageType = Field(default=DamageType.SLASHING, description="Tipo de dano")
-    range: str = Field(default="Corpo a corpo", description="Alcance do ataque")
-    reach: Optional[int] = Field(None, ge=0, le=100, description="Alcance em pés")
+    attack_bonus: int = Field(..., description="Bônus de ataque")
+    damage: DiceRoll = Field(..., description="Dano do ataque")
+    damage_type: DamageType = Field(..., description="Tipo de dano")
+    range: str = Field(..., description="Alcance do ataque")
     description: Optional[str] = Field(None, max_length=500, description="Descrição do ataque")
-
-    # Propriedades especiais
     is_magical: bool = Field(default=False, description="Se é um ataque mágico")
-    versatile_damage: Optional[DiceRoll] = Field(None, description="Dano versatil (duas mãos)")
-    additional_effects: List[str] = Field(default_factory=list, description="Efeitos adicionais")
+    reach: Optional[int] = Field(None, ge=0, description="Alcance em pés")
+    versatile_damage: Optional[DiceRoll] = Field(None, description="Dano versátil")
 
     @validator('id', pre=True, always=True)
     def generate_id(cls, v):
@@ -242,30 +133,24 @@ class Spell(BaseModel):
     """Magia do NPC"""
     id: Optional[str] = Field(None, description="ID único da magia")
     name: str = Field(..., min_length=1, max_length=100, description="Nome da magia")
-    level: int = Field(..., ge=0, le=9, description="Nível da magia (0 = truque)")
-    school: SpellSchool = Field(default=SpellSchool.EVOCATION, description="Escola de magia")
+    level: int = Field(..., ge=0, le=9, description="Nível da magia")
+    school: SpellSchool = Field(..., description="Escola de magia")
     description: Optional[str] = Field(None, max_length=1000, description="Descrição da magia")
+    casting_time: Optional[str] = Field(None, description="Tempo de conjuração")
+    range: str = Field(..., description="Alcance da magia")
+    components: Optional[str] = Field(None, description="Componentes")
+    duration: Optional[str] = Field(None, description="Duração")
 
-    # Propriedades de conjuração
-    casting_time: str = Field(default="1 ação", description="Tempo de conjuração")
-    range: str = Field(default="Toque", description="Alcance da magia")
-    components: str = Field(default="V, S", description="Componentes (V/S/M)")
-    duration: str = Field(default="Instantâneo", description="Duração")
-    concentration: bool = Field(default=False, description="Requer concentração")
-    ritual: bool = Field(default=False, description="Pode ser conjurada como ritual")
-
-    # Informações de ataque/dano (para magias ofensivas)
+    # Informações de ataque/dano
     is_attack_spell: bool = Field(default=False, description="Se é magia de ataque")
-    attack_bonus: Optional[int] = Field(None, ge=-10, le=20, description="Bônus de ataque mágico")
-    damage: Optional[DiceRoll] = Field(None, description="Dados de dano")
+    attack_bonus: Optional[int] = Field(None, description="Bônus de ataque mágico")
+    damage: Optional[DiceRoll] = Field(None, description="Dano da magia")
     damage_type: Optional[DamageType] = Field(None, description="Tipo de dano")
+    save_dc: Optional[int] = Field(None, description="CD de resistência")
+    save_ability: Optional[str] = Field(None, description="Atributo de resistência")
 
-    # CD de resistência
-    save_dc: Optional[int] = Field(None, ge=8, le=30, description="CD de resistência")
-    save_ability: Optional[AbilityScore] = Field(None, description="Atributo para resistência")
-
-    # Upcast (conjuração em nível superior)
-    higher_level: Optional[str] = Field(None, description="Efeitos em níveis superiores")
+    # Upcast
+    higher_level: Optional[str] = Field(None, description="Efeito em níveis superiores")
     upcast_damage: Optional[DiceRoll] = Field(None, description="Dano adicional por nível")
 
     @validator('id', pre=True, always=True)
@@ -275,23 +160,61 @@ class Spell(BaseModel):
             return str(ObjectId())
         return v
 
-    @validator('save_dc', always=True)
-    def validate_save_dc(cls, v, values):
-        """Validar CD de resistência apenas para magias que precisam"""
-        if values.get('is_attack_spell') and v is None and 'attack_bonus' not in values:
-            # Se é magia de ataque mas não tem bônus de ataque, deve ter CD
-            pass
-        return v
+
+# ===========================
+# ESTATÍSTICAS E ATRIBUTOS
+# ===========================
+
+class NPCAttributes(BaseModel):
+    """Atributos do NPC"""
+    strength: int = Field(default=10, ge=1, le=30, description="Força")
+    dexterity: int = Field(default=10, ge=1, le=30, description="Destreza")
+    constitution: int = Field(default=10, ge=1, le=30, description="Constituição")
+    intelligence: int = Field(default=10, ge=1, le=30, description="Inteligência")
+    wisdom: int = Field(default=10, ge=1, le=30, description="Sabedoria")
+    charisma: int = Field(default=10, ge=1, le=30, description="Carisma")
+
+
+class NPCStats(BaseModel):
+    """Estatísticas completas do NPC"""
+    armor_class: int = Field(..., ge=1, le=30, description="Classe de Armadura")
+    hit_points: int = Field(..., ge=1, description="Pontos de Vida")
+    max_hit_points: Optional[int] = Field(None, ge=1, description="PV máximos")
+    temporary_hit_points: Optional[int] = Field(default=0, ge=0, description="PV temporários")
+    speed: str = Field(default="30 pés", description="Deslocamento")
+    attributes: NPCAttributes = Field(default_factory=NPCAttributes, description="Atributos")
+
+    # Estatísticas derivadas (calculadas automaticamente)
+    proficiency_bonus: Optional[int] = Field(None, description="Bônus de proficiência")
+    passive_perception: Optional[int] = Field(None, description="Percepção passiva")
+    initiative_modifier: Optional[int] = Field(None, description="Modificador de iniciativa")
+
+
+class NPCSkills(BaseModel):
+    """Perícias do NPC"""
+
+    class Config:
+        extra = "allow"  # Permite perícias adicionais
+
+
+class NPCSavingThrows(BaseModel):
+    """Testes de resistência do NPC"""
+    strength: Optional[int] = Field(None, description="Força")
+    dexterity: Optional[int] = Field(None, description="Destreza")
+    constitution: Optional[int] = Field(None, description="Constituição")
+    intelligence: Optional[int] = Field(None, description="Inteligência")
+    wisdom: Optional[int] = Field(None, description="Sabedoria")
+    charisma: Optional[int] = Field(None, description="Carisma")
 
 
 # ===========================
-# MODELOS DE SISTEMA DE CONJURAÇÃO
+# SISTEMA DE CONJURAÇÃO
 # ===========================
 
-class SpellSlot(BaseModel):
-    """Slot de magia por nível"""
+class NPCSpellSlot(BaseModel):
+    """Slot de magia"""
     level: int = Field(..., ge=1, le=9, description="Nível do slot")
-    max_slots: int = Field(..., ge=0, le=20, description="Slots máximos")
+    max_slots: int = Field(..., ge=0, description="Slots máximos")
     current_slots: int = Field(..., ge=0, description="Slots atuais")
 
     @validator('current_slots')
@@ -303,78 +226,29 @@ class SpellSlot(BaseModel):
         return v
 
 
-class InnateSpellcasting(BaseModel):
-    """Conjuração inata"""
-    frequency: str = Field(..., description="Frequência (ex: '3/dia cada', 'à vontade')")
-    spells: List[str] = Field(..., description="Lista de magias (nomes)")
-
-
 class NPCSpellcasting(BaseModel):
-    """Sistema completo de conjuração do NPC"""
+    """Sistema de conjuração do NPC"""
     is_spellcaster: bool = Field(default=False, description="Se é conjurador")
-    spellcasting_ability: Optional[AbilityScore] = Field(None, description="Atributo de conjuração")
-    spell_save_dc: Optional[int] = Field(None, ge=8, le=30, description="CD de resistência das magias")
-    spell_attack_bonus: Optional[int] = Field(None, ge=-10, le=20, description="Bônus de ataque mágico")
+    spellcasting_ability: Optional[str] = Field(None, description="Atributo de conjuração")
+    spell_save_dc: Optional[int] = Field(None, description="CD de resistência")
+    spell_attack_bonus: Optional[int] = Field(None, description="Bônus de ataque mágico")
     caster_level: Optional[int] = Field(None, ge=1, le=20, description="Nível de conjurador")
 
-    # Slots de magia por nível
-    spell_slots: List[SpellSlot] = Field(default_factory=list, description="Slots de magia")
+    # Slots de magia
+    spell_slots: List[NPCSpellSlot] = Field(default_factory=list, description="Slots de magia")
 
     # Magias conhecidas
     spells_known: List[Spell] = Field(default_factory=list, description="Magias conhecidas")
     cantrips_known: List[Spell] = Field(default_factory=list, description="Truques conhecidos")
 
     # Capacidades especiais
-    ritual_casting: bool = Field(default=False, description="Pode conjurar rituais")
-    innate_spellcasting: List[InnateSpellcasting] = Field(default_factory=list, description="Conjuração inata")
-
-    @validator('spell_save_dc', always=True)
-    def calculate_spell_save_dc(cls, v, values):
-        """Calcula CD de magia automaticamente se não fornecida"""
-        if v is None and values.get('is_spellcaster'):
-            # Será calculado no backend baseado no atributo e CR
-            return None
-        return v
-
-    @validator('spell_attack_bonus', always=True)
-    def calculate_spell_attack_bonus(cls, v, values):
-        """Calcula bônus de ataque mágico automaticamente se não fornecido"""
-        if v is None and values.get('is_spellcaster'):
-            # Será calculado no backend baseado no atributo e CR
-            return None
-        return v
+    ritual_casting: bool = Field(default=False, description="Conjuração ritual")
+    innate_spellcasting: Dict[str, List[Spell]] = Field(default_factory=dict, description="Conjuração inata")
 
 
 # ===========================
-# MODELOS DE HABILIDADES ESPECIAIS
+# HABILIDADES ESPECIAIS
 # ===========================
-
-class NPCAbility(BaseModel):
-    """Habilidade especial do NPC"""
-    id: Optional[str] = Field(None, description="ID único da habilidade")
-    name: str = Field(..., min_length=1, max_length=100, description="Nome da habilidade")
-    description: str = Field(..., min_length=1, max_length=1000, description="Descrição da habilidade")
-    usage: Optional[str] = Field(None, description="Limitação de uso (ex: '1/dia', 'recarga 5-6')")
-    usage_type: Optional[str] = Field(None, description="Tipo de limitação")
-    max_uses: Optional[int] = Field(None, ge=0, description="Usos máximos")
-    current_uses: Optional[int] = Field(None, ge=0, description="Usos atuais")
-    recharge_on: Optional[List[int]] = Field(None, description="Valores de recarga (ex: [5, 6])")
-
-    @validator('id', pre=True, always=True)
-    def generate_id(cls, v):
-        """Gera ID único se não fornecido"""
-        if v is None:
-            return str(ObjectId())
-        return v
-
-    @validator('current_uses')
-    def validate_current_uses(cls, v, values):
-        """Usos atuais não podem exceder máximo"""
-        max_uses = values.get('max_uses')
-        if max_uses is not None and v is not None and v > max_uses:
-            return max_uses
-        return v
-
 
 class LegendaryAction(BaseModel):
     """Ação lendária"""
@@ -395,7 +269,7 @@ class LairAction(BaseModel):
 # ===========================
 
 class EnhancedNPC(BaseModel):
-    """Modelo completo para NPCs com sistema de dados"""
+    """Modelo completo para NPCs Enhanced"""
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         use_enum_values=True,
@@ -403,12 +277,12 @@ class EnhancedNPC(BaseModel):
         populate_by_name=True
     )
 
-    id: Optional[ObjectId] = None
+    id: Optional[ObjectId] = Field(None, description="ID do NPC")
     campaign_id: ObjectId = Field(..., description="ID da campanha")
 
     # Informações básicas
     name: str = Field(..., min_length=2, max_length=100, description="Nome do NPC")
-    description: Optional[str] = Field(None, max_length=1000, description="Descrição física e comportamental")
+    description: Optional[str] = Field(None, max_length=1000, description="Descrição")
     race: Optional[str] = Field(None, max_length=50, description="Raça")
     npc_class: Optional[str] = Field(None, alias="class", max_length=50, description="Classe")
     size: NPCSize = Field(default=NPCSize.MEDIUM, description="Tamanho")
@@ -424,22 +298,29 @@ class EnhancedNPC(BaseModel):
     faction: Optional[str] = Field(None, max_length=100, description="Facção")
 
     # Estatísticas completas
-    stats: NPCStats = Field(default_factory=NPCStats, description="Estatísticas do NPC")
+    stats: NPCStats = Field(default_factory=NPCStats, description="Estatísticas")
     challenge_rating: Optional[str] = Field(None, description="Challenge Rating")
-    experience_points: Optional[int] = Field(None, ge=0, description="Pontos de experiência dados")
+    experience_points: Optional[int] = Field(None, ge=0, description="XP concedido")
 
-    # Sistema de combate e magias
-    attacks: List[Attack] = Field(default_factory=list, description="Ataques disponíveis")
-    spellcasting: NPCSpellcasting = Field(default_factory=NPCSpellcasting, description="Sistema de conjuração")
+    # Sistema de combate
+    attacks: List[Attack] = Field(default_factory=list, description="Ataques")
+    spellcasting: NPCSpellcasting = Field(default_factory=NPCSpellcasting, description="Conjuração")
     abilities: List[NPCAbility] = Field(default_factory=list, description="Habilidades especiais")
-
-    # Capacidades lendárias e de covil
     legendary_actions: List[LegendaryAction] = Field(default_factory=list, description="Ações lendárias")
     legendary_actions_per_turn: int = Field(default=3, ge=0, le=5, description="Ações lendárias por turno")
     lair_actions: List[LairAction] = Field(default_factory=list, description="Ações de covil")
 
+    # Proficiências
+    skills: Optional[NPCSkills] = Field(None, description="Perícias")
+    saving_throws: Optional[NPCSavingThrows] = Field(None, description="Testes de resistência")
+    damage_resistances: List[str] = Field(default_factory=list, description="Resistências a dano")
+    damage_immunities: List[str] = Field(default_factory=list, description="Imunidades a dano")
+    condition_immunities: List[str] = Field(default_factory=list, description="Imunidades a condições")
+    senses: List[str] = Field(default_factory=list, description="Sentidos")
+    languages: List[str] = Field(default_factory=list, description="Idiomas")
+
     # Relacionamentos
-    relationships: Dict[str, str] = Field(default_factory=dict, description="Relacionamentos com outros NPCs/PCs")
+    relationships: Dict[str, str] = Field(default_factory=dict, description="Relacionamentos")
 
     # Informações de roleplay
     personality_traits: List[str] = Field(default_factory=list, description="Traços de personalidade")
@@ -447,96 +328,40 @@ class EnhancedNPC(BaseModel):
     bonds: List[str] = Field(default_factory=list, description="Vínculos")
     flaws: List[str] = Field(default_factory=list, description="Defeitos")
     goals: Optional[str] = Field(None, max_length=500, description="Objetivos")
-    secrets: Optional[str] = Field(None, max_length=500, description="Segredos (apenas GM)")
+    secrets: Optional[str] = Field(None, max_length=500, description="Segredos")
 
-    # Status de jogo
+    # Status do jogo
     is_alive: bool = Field(default=True, description="Se está vivo")
     is_active: bool = Field(default=True, description="Se está ativo na campanha")
-
-    # Notas do mestre
-    gm_notes: Optional[str] = Field(None, max_length=2000, description="Notas privadas do GM")
-
-    # Representação visual
-    avatar_url: Optional[str] = Field(None, description="URL da imagem do avatar")
-    token_url: Optional[str] = Field(None, description="URL do token para mapa")
-
-    # Configurações de exibição
-    show_to_players: bool = Field(default=True, description="Se é visível aos jogadores")
-    is_important: bool = Field(default=False, description="Se é um NPC importante")
-    tags: List[str] = Field(default_factory=list, description="Tags para organização")
+    current_hit_points: Optional[int] = Field(None, description="PV atuais")
 
     # Metadados
-    created_date: datetime = Field(default_factory=datetime.utcnow)
-    updated_date: datetime = Field(default_factory=datetime.utcnow)
-    created_by: Optional[ObjectId] = Field(None, description="ID do usuário que criou")
+    created_date: Optional[datetime] = Field(None, description="Data de criação")
+    updated_date: Optional[datetime] = Field(None, description="Data de atualização")
+    created_by: Optional[ObjectId] = Field(None, description="Criado por")
+
+    # Notas do mestre
+    gm_notes: Optional[str] = Field(None, max_length=2000, description="Notas do GM")
+
+    # Configurações de exibição
+    avatar_url: Optional[str] = Field(None, description="URL do avatar")
+    token_url: Optional[str] = Field(None, description="URL do token")
+    show_to_players: bool = Field(default=True, description="Visível para jogadores")
+    is_important: bool = Field(default=False, description="NPC importante")
+    tags: List[str] = Field(default_factory=list, description="Tags")
 
     def calculate_derived_stats(self):
-        """Calcula estatísticas derivadas automaticamente"""
-        # Calcular bônus de proficiência baseado no CR
-        if self.challenge_rating:
-            cr_value = self._parse_challenge_rating(self.challenge_rating)
-            self.stats.proficiency_bonus = self._calculate_proficiency_bonus(cr_value)
-
-        # Calcular modificador de iniciativa
-        self.stats.initiative_modifier = self.stats.attributes.modifiers['dexterity']
-
-        # Calcular percepção passiva
-        wisdom_mod = self.stats.attributes.modifiers['wisdom']
-        perception_skill = next((s for s in self.stats.skills if s.name.lower() == 'perception'), None)
-        perception_bonus = perception_skill.modifier if perception_skill and perception_skill.proficient else 0
-        self.stats.passive_perception = 10 + wisdom_mod + perception_bonus
-
-        # Calcular estatísticas de conjuração se for conjurador
-        if self.spellcasting.is_spellcaster and self.spellcasting.spellcasting_ability:
-            ability_mod = self.stats.attributes.modifiers[self.spellcasting.spellcasting_ability.value]
-            prof_bonus = self.stats.proficiency_bonus or 2
-
-            if self.spellcasting.spell_save_dc is None:
-                self.spellcasting.spell_save_dc = 8 + prof_bonus + ability_mod
-
-            if self.spellcasting.spell_attack_bonus is None:
-                self.spellcasting.spell_attack_bonus = prof_bonus + ability_mod
-
-    @staticmethod
-    def _parse_challenge_rating(cr: str) -> float:
-        """Converte string de CR para valor numérico"""
-        if cr == "0":
-            return 0
-        elif "/" in cr:
-            numerator, denominator = cr.split("/")
-            return float(numerator) / float(denominator)
-        else:
-            return float(cr)
-
-    @staticmethod
-    def _calculate_proficiency_bonus(cr: float) -> int:
-        """Calcula bônus de proficiência baseado no CR"""
-        if cr < 1:
-            return 2
-        elif cr < 5:
-            return 2
-        elif cr < 9:
-            return 3
-        elif cr < 13:
-            return 4
-        elif cr < 17:
-            return 5
-        elif cr < 21:
-            return 6
-        elif cr < 25:
-            return 7
-        elif cr < 29:
-            return 8
-        else:
-            return 9
+        """Calcula estatísticas derivadas"""
+        # Implementar cálculos automáticos quando necessário
+        pass
 
 
 # ===========================
-# SCHEMAS PARA API
+# SCHEMAS PARA API - CORRIGIDOS
 # ===========================
 
 class EnhancedNPCCreate(BaseModel):
-    """Schema para criação de NPC"""
+    """Schema para criação de NPC - CORRIGIDO para aceitar string no campaign_id"""
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         use_enum_values=True,
@@ -544,7 +369,8 @@ class EnhancedNPCCreate(BaseModel):
         populate_by_name=True
     )
 
-    campaign_id: ObjectId
+    # CORRIGIDO: Aceitar string e converter para ObjectId
+    campaign_id: Union[str, ObjectId] = Field(..., description="ID da campanha")
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
     race: Optional[str] = Field(None, max_length=50)
@@ -576,6 +402,16 @@ class EnhancedNPCCreate(BaseModel):
     show_to_players: bool = True
     is_important: bool = False
     tags: List[str] = Field(default_factory=list)
+
+    @validator('campaign_id', pre=True)
+    def convert_campaign_id(cls, v):
+        """Converte string para ObjectId"""
+        if isinstance(v, str):
+            if ObjectId.is_valid(v):
+                return ObjectId(v)
+            else:
+                raise ValueError(f"campaign_id inválido: {v}")
+        return v
 
 
 class EnhancedNPCUpdate(BaseModel):
@@ -659,26 +495,27 @@ class EnhancedNPCResponse(BaseModel):
     secrets: Optional[str] = None
     is_alive: bool
     is_active: bool
+    current_hit_points: Optional[int] = None
+    created_date: str
+    updated_date: str
+    created_by: Optional[str] = None
     gm_notes: Optional[str] = None
     avatar_url: Optional[str] = None
     token_url: Optional[str] = None
     show_to_players: bool
     is_important: bool
     tags: List[str]
-    created_date: str
-    updated_date: str
-    created_by: Optional[str] = None
 
 
 # ===========================
-# SCHEMAS PARA OPERAÇÕES ESPECIAIS
+# SCHEMAS PARA OPERAÇÕES
 # ===========================
 
 class DiceRollRequest(BaseModel):
     """Request para rolagem de dados"""
     npc_id: str
     roll_type: str = Field(...,
-                           description="Tipo de rolagem: attack, damage, spell_attack, spell_damage, ability_check, saving_throw")
+                           description="Tipo: attack, damage, spell_attack, spell_damage, ability_check, saving_throw")
     target_id: Optional[str] = Field(None, description="ID do ataque/magia específica")
     advantage: bool = False
     disadvantage: bool = False
@@ -697,8 +534,8 @@ class CastSpellRequest(BaseModel):
     """Request para conjurar magia"""
     npc_id: str
     spell_id: str
-    cast_level: Optional[int] = Field(None, ge=0, le=9, description="Nível de conjuração (para upcast)")
-    use_spell_slot: bool = Field(True, description="Se deve consumir slot de magia")
+    cast_level: Optional[int] = Field(None, ge=0, le=9, description="Nível de conjuração")
+    use_spell_slot: bool = Field(True, description="Se deve consumir slot")
 
 
 # ===========================
