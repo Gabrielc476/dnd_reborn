@@ -166,7 +166,7 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
 def search_users_service(query: str) -> Dict[str, Any]:
     """Busca usuários por username ou email"""
     try:
-        from database.repositories.user import search_users_by_query
+
 
         # Buscar usuários
         users = search_users_by_query(query)

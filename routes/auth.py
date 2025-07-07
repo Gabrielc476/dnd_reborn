@@ -3,7 +3,6 @@ import jwt
 import os
 from datetime import datetime, timedelta
 
-from middleware.auth import token_required
 from services.user import register_user, login_user, get_user_profile,  search_users_service
 
 auth_bp = Blueprint('auth', __name__)
@@ -91,7 +90,6 @@ def get_profile(user_id):
 
 
 @auth_bp.route('/search', methods=['GET'])
-@token_required
 def search_users():
     """Buscar usuários por username ou email"""
     try:
