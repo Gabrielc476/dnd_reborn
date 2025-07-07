@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Dice6, Sparkles } from "lucide-react";
 
 interface AuthLayoutProps {
@@ -8,10 +8,33 @@ interface AuthLayoutProps {
   footerText?: string;
 }
 
+interface FloatingElement {
+  id: number;
+  left: string;
+  top: string;
+  animationDelay: string;
+}
+
 export default function AuthLayout({
   children,
   footerText = "Aventuras épicas te aguardam",
 }: AuthLayoutProps) {
+  const [floatingElements, setFloatingElements] = useState<FloatingElement[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  // Gerar elementos flutuantes apenas no cliente
+  useEffect(() => {
+    const elements: FloatingElement[] = Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      animationDelay: `${Math.random() * 5}s`,
+    }));
+    
+    setFloatingElements(elements);
+    setMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-800 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Efeitos de fundo animados */}
@@ -21,23 +44,25 @@ export default function AuthLayout({
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-pulse delay-500"></div>
       </div>
 
-      {/* Padrão de dados flutuantes */}
-      <div className="absolute inset-0 pointer-events-none">
-        {[...Array(12)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute text-white/5 animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              fontSize: "2rem",
-            }}
-          >
-            <Dice6 />
-          </div>
-        ))}
-      </div>
+      {/* Padrão de dados flutuantes - apenas renderizar após hidratar */}
+      {mounted && (
+        <div className="absolute inset-0 pointer-events-none">
+          {floatingElements.map((element) => (
+            <div
+              key={element.id}
+              className="absolute text-white/5 animate-float"
+              style={{
+                left: element.left,
+                top: element.top,
+                animationDelay: element.animationDelay,
+                fontSize: "2rem",
+              }}
+            >
+              <Dice6 />
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Container principal */}
       <div className="w-full max-w-md relative z-10">
