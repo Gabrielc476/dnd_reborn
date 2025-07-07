@@ -38,3 +38,33 @@ def get_user_as_schema(user_id: str) -> Optional[User]:
     if user_data:
         return User(**user_data)
     return None
+
+
+def search_users_by_query(query: str, limit: int = 10) -> list:
+    """Busca usuários por username ou email usando regex"""
+    # Criar padrão de busca case-insensitive
+    pattern = {"$regex": f".*{query}.*", "$options": "i"}
+
+    # Buscar por username OU email
+    search_filter = {
+        "$or": [
+            {"username": pattern},
+            {"email": pattern}
+        ]
+    }
+
+    return list(users_collection.find(search_filter).limit(limit))
+
+
+def get_user_by_username_or_email(identifier: str) -> Optional[Dict[str, Any]]:
+    """Busca usuário por username ou email"""
+    if "@" in identifier:
+        return get_user_by_email(identifier.lower().strip())
+    else:
+        return get_user_by_username(identifier.strip())
+
+
+def user_exists(identifier: str) -> bool:
+    """Verifica se usuário existe por username ou email"""
+    user = get_user_by_username_or_email(identifier)
+    return user is not None

@@ -2,7 +2,7 @@ import bcrypt
 import re
 from typing import Dict, Any, Optional
 from database.schemas.user import User
-from database.repositories.user import create_user, get_user_by_email, get_user_by_username, get_user_by_id
+from database.repositories.user import create_user, get_user_by_email, get_user_by_username, get_user_by_id,  search_users_by_query, get_user_by_username_or_email
 from pydantic import ValidationError
 
 
@@ -152,6 +152,62 @@ def get_user_profile(user_id: str) -> Dict[str, Any]:
             "id": str(user["_id"]),
             "email": user["email"],
             "username": user["username"]
+        }
+
+        return {
+            "success": True,
+            "user": user_data
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"Erro interno: {str(e)}"}
+
+
+def search_users_service(query: str) -> Dict[str, Any]:
+    """Busca usuários por username ou email"""
+    try:
+        from database.repositories.user import search_users_by_query
+
+        # Buscar usuários
+        users = search_users_by_query(query)
+
+        # Converter para formato de resposta (sem senhas)
+        users_response = []
+        for user in users:
+            user_data = {
+                "id": str(user["_id"]),
+                "username": user["username"],
+                "email": user["email"]
+            }
+            users_response.append(user_data)
+
+        return {
+            "success": True,
+            "users": users_response,
+            "count": len(users_response)
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"Erro interno: {str(e)}"}
+
+
+def find_user_by_identifier_service(identifier: str) -> Dict[str, Any]:
+    """Encontra usuário por username ou email"""
+    try:
+        # Verificar se é email ou username
+        if "@" in identifier:
+            user = get_user_by_email(identifier.lower().strip())
+        else:
+            user = get_user_by_username(identifier.strip())
+
+        if not user:
+            return {"success": False, "error": "Usuário não encontrado"}
+
+        # Retornar dados sem senha
+        user_data = {
+            "id": str(user["_id"]),
+            "username": user["username"],
+            "email": user["email"]
         }
 
         return {

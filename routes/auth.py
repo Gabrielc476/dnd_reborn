@@ -2,7 +2,9 @@ from flask import request, jsonify, Blueprint
 import jwt
 import os
 from datetime import datetime, timedelta
-from services.user import register_user, login_user, get_user_profile
+
+from middleware.auth import token_required
+from services.user import register_user, login_user, get_user_profile,  search_users_service
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -83,6 +85,35 @@ def get_profile(user_id):
             }), 200
         else:
             return jsonify({"error": result.get("error")}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route('/search', methods=['GET'])
+@token_required
+def search_users():
+    """Buscar usuários por username ou email"""
+    try:
+        query = request.args.get('q', '').strip()
+
+        if not query:
+            return jsonify({"error": "Parâmetro 'q' é obrigatório"}), 400
+
+        if len(query) < 2:
+            return jsonify({"error": "Query deve ter pelo menos 2 caracteres"}), 400
+
+        # Chamar service para buscar usuários
+        result = search_users_service(query)
+
+        if result.get("success"):
+            return jsonify({
+                "success": True,
+                "users": result.get("users", []),
+                "count": result.get("count", 0)
+            }), 200
+        else:
+            return jsonify({"error": result.get("error")}), 400
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
