@@ -78,6 +78,7 @@ export interface Encounter {
   is_completed: boolean;
   session_number?: number;
   notes?: string;
+  created_date?: string;
 }
 
 export interface LootItem {
