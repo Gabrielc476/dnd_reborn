@@ -513,6 +513,11 @@ def add_encounter_service(campaign_id: str, data: Dict[str, Any], user_id: str) 
             if field not in data or not data[field]:
                 return {"success": False, "error": f"Campo '{field}' é obrigatório"}
 
+        # ✅ GARANTIR que created_date seja adicionado
+        from datetime import datetime
+        if "created_date" not in data:
+            data["created_date"] = datetime.utcnow()
+
         # Adicionar encontro à campanha
         success = add_encounter_to_campaign(campaign_id, data)
 

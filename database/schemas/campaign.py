@@ -37,6 +37,7 @@ class Encounter(BaseModel):
     is_completed: bool = False
     session_number: Optional[int] = None
     notes: Optional[str] = None
+    created_date: datetime = Field(default_factory=datetime.utcnow)
 
 
 class LootItem(BaseModel):
