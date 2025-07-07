@@ -237,175 +237,185 @@ export function useEnhancedNPCs({
   // ===========================
   
   const rollAttack = useCallback(async (
-    npcId: string, 
-    attackId: string, 
-    options: { advantage?: boolean; disadvantage?: boolean } = {}
-  ): Promise<RollResult> => {
-    try {
-      console.log('🎲 Rolando ataque para NPC:', npcId);
-      
-      // Tentar usar API do servidor primeiro
-      const response = await campaignAPI.rollDiceForNPC(campaignId, npcId, {
-        roll_type: 'attack',
-        target_id: attackId,
-        advantage: options.advantage,
-        disadvantage: options.disadvantage
-      });
-      
-      if (response.success && response.result) {
-        console.log(`✅ Rolagem de ataque: ${response.result.total}`);
-        return response.result;
-      }
-      
-      throw new Error(response.error || 'Falha na rolagem');
-    } catch (err) {
-      console.warn('❌ Erro na API, usando rolagem local:', err);
-      
-      // Fallback para rolagem local usando utilities existentes
-      const npc = npcs.find(n => n.id === npcId);
-      const attack = npc?.attacks?.find(a => a.id === attackId);
-      
-      if (attack) {
-        const roll: DiceRoll = {
-          dice_count: 1,
-          dice_sides: 20,
-          modifier: attack.attack_bonus
-        };
-        
-        return rollDice(roll, options.advantage, options.disadvantage);
-      }
-      
-      throw err;
+  npcId: string, 
+  attackId: string, 
+  options: { advantage?: boolean; disadvantage?: boolean } = {}
+): Promise<RollResult> => {
+  try {
+    console.log('🎲 Rolando ataque para NPC:', npcId);
+    
+    // Tentar usar API do servidor primeiro
+    const response = await campaignAPI.rollDiceForNPC(campaignId, npcId, {
+      npc_id: npcId,  // ✅ ADICIONADO: Campo obrigatório
+      roll_type: 'attack',
+      target_id: attackId,
+      advantage: options.advantage,
+      disadvantage: options.disadvantage
+    });
+    
+    if (response.success && response.result) {
+      console.log(`✅ Rolagem de ataque: ${response.result.total}`);
+      return response.result;
     }
-  }, [campaignId, npcs]);
+    
+    throw new Error(response.error || 'Falha na rolagem');
+  } catch (err) {
+    console.warn('❌ Erro na API, usando rolagem local:', err);
+    
+    // Fallback para rolagem local usando utilities existentes
+    const npc = npcs.find(n => n.id === npcId);
+    const attack = npc?.attacks?.find(a => a.id === attackId);
+    
+    if (attack) {
+      const roll: DiceRoll = {
+        dice_count: 1,
+        dice_sides: 20,
+        modifier: attack.attack_bonus
+      };
+      
+      return rollDice(roll, options.advantage, options.disadvantage);
+    }
+    
+    throw err;
+  }
+}, [campaignId, npcs]);
 
   const rollDamage = useCallback(async (
-    npcId: string, 
-    attackId: string, 
-    options: { critical?: boolean } = {}
-  ): Promise<RollResult> => {
-    try {
-      console.log('🎲 Rolando dano para NPC:', npcId);
-      
-      const response = await campaignAPI.rollDiceForNPC(campaignId, npcId, {
-        roll_type: 'damage',
-        target_id: attackId,
-        modifier_override: options.critical ? undefined : undefined
-      });
-      
-      if (response.success && response.result) {
-        console.log(`✅ Rolagem de dano: ${response.result.total}`);
-        return response.result;
-      }
-      
-      throw new Error(response.error || 'Falha na rolagem');
-    } catch (err) {
-      console.warn('❌ Erro na API, usando rolagem local:', err);
-      
-      // Fallback local
-      const npc = npcs.find(n => n.id === npcId);
-      const attack = npc?.attacks?.find(a => a.id === attackId);
-      
-      if (attack) {
-        let damageRoll = attack.damage;
-        
-        // Para críticos, dobrar os dados
-        if (options.critical) {
-          damageRoll = {
-            ...attack.damage,
-            dice_count: attack.damage.dice_count * 2
-          };
-        }
-        
-        return rollDice(damageRoll);
-      }
-      
-      throw err;
+  npcId: string, 
+  attackId: string, 
+  options: { critical?: boolean } = {}
+): Promise<RollResult> => {
+  try {
+    console.log('🎲 Rolando dano para NPC:', npcId);
+    
+    const response = await campaignAPI.rollDiceForNPC(campaignId, npcId, {
+      npc_id: npcId,  // ✅ ADICIONADO: Campo obrigatório
+      roll_type: 'damage',
+      target_id: attackId,
+      modifier_override: options.critical ? undefined : undefined
+    });
+    
+    if (response.success && response.result) {
+      console.log(`✅ Rolagem de dano: ${response.result.total}`);
+      return response.result;
     }
-  }, [campaignId, npcs]);
+    
+    throw new Error(response.error || 'Falha na rolagem');
+  } catch (err) {
+    console.warn('❌ Erro na API, usando rolagem local:', err);
+    
+    // Fallback local
+    const npc = npcs.find(n => n.id === npcId);
+    const attack = npc?.attacks?.find(a => a.id === attackId);
+    
+    if (attack) {
+      let damageRoll = attack.damage;
+      
+      // Para críticos, dobrar os dados
+      if (options.critical) {
+        damageRoll = {
+          ...attack.damage,
+          dice_count: attack.damage.dice_count * 2
+        };
+      }
+      
+      return rollDice(damageRoll);
+    }
+    
+    throw err;
+  }
+}, [campaignId, npcs]);
 
   const castSpell = useCallback(async (
-    npcId: string, 
-    spellId: string, 
-    options: { spellLevel?: number } = {}
-  ): Promise<RollResult | null> => {
-    try {
-      console.log('🎲 Conjurando magia ID:', spellId);
-      
-      const response = await campaignAPI.castSpellForNPC(campaignId, npcId, {
-        spell_id: spellId,
-        cast_level: options.spellLevel || 1
-      });
-      
-      if (response.success) {
-        console.log(`✅ Magia conjurada: ${spellId}`);
-        return response.result || null;
-      }
-      
-      throw new Error(response.error || 'Falha na conjuração');
-    } catch (err) {
-      console.error('❌ Erro na conjuração:', err);
-      throw err;
+  npcId: string, 
+  spellId: string, 
+  options: { spellLevel?: number } = {}
+): Promise<RollResult | null> => {
+  try {
+    console.log('🎲 Conjurando magia para NPC:', npcId);
+    
+    const response = await campaignAPI.castSpellForNPC(campaignId, npcId, {
+      npc_id: npcId,  // ✅ ADICIONADO: Campo obrigatório se esperado
+      spell_id: spellId,
+      cast_level: options.spellLevel
+    });
+    
+    if (response.success) {
+      console.log(`✅ Magia conjurada: ${response.result?.total || 'sem dano'}`);
+      return response.result || null;
     }
-  }, [campaignId]);
+    
+    throw new Error(response.error || 'Falha na conjuração');
+  } catch (err) {
+    console.warn('❌ Erro na API, usando rolagem local:', err);
+    
+    // Fallback local
+    const npc = npcs.find(n => n.id === npcId);
+    const spell = npc?.spellcasting?.spells_known?.find(s => s.id === spellId);
+    
+    if (spell && spell.damage) {
+      return rollDice(spell.damage);
+    }
+    
+    throw err;
+  }
+}, [campaignId, npcs]);
 
   // ===========================
   // GERENCIAMENTO DE HP INTEGRADO
   // ===========================
   
   const updateHitPoints = useCallback(async (
-    npcId: string, 
-    newHP: number, 
-    tempHP?: number
-  ): Promise<boolean> => {
-    try {
-      console.log('❤️ Atualizando HP do NPC:', npcId, 'Novo HP:', newHP);
-      
-      const response = await campaignAPI.updateNPCHitPoints(campaignId, npcId, {
-        npc_id: npcId,
-        new_hit_points: newHP,
-        temporary_hit_points: tempHP
-      });
-      
-      if (response.success) {
-        // Atualizar localmente
-        setNpcs(prev => prev.map(npc => 
-          npc.id === npcId 
-            ? { 
-                ...npc, 
-                stats: { 
-                  ...npc.stats, 
-                  current_hit_points: newHP,
-                  temporary_hit_points: tempHP
-                },
-                is_alive: newHP > 0
-              } 
-            : npc
-        ));
-        
-        if (selectedNPC?.id === npcId) {
-          setSelectedNPC(prev => prev ? {
-            ...prev,
-            stats: { 
-              ...prev.stats, 
+  npcId: string, 
+  newHP: number, 
+  tempHP?: number
+): Promise<void> => {
+  try {
+    console.log('💖 Atualizando HP do NPC:', npcId, 'para', newHP);
+    
+    const response = await campaignAPI.updateNPCHitPoints(campaignId, npcId, {
+      npc_id: npcId,  // ✅ ADICIONADO: Campo obrigatório se esperado
+      new_hit_points: newHP,
+      temporary_hit_points: tempHP
+    });
+    
+    if (response.success) {
+      // Atualizar o estado local do NPC
+      setNpcs(prev => prev.map(npc => 
+        npc.id === npcId 
+          ? { 
+              ...npc, 
               current_hit_points: newHP,
-              temporary_hit_points: tempHP
-            },
-            is_alive: newHP > 0
-          } : null);
-        }
-        
-        console.log(`✅ HP atualizado para ${newHP}`);
-        return true;
-      }
+              stats: {
+                ...npc.stats,
+                current_hit_points: newHP
+              }
+            }
+          : npc
+      ));
       
+      console.log(`✅ HP atualizado para: ${newHP}`);
+    } else {
       throw new Error(response.error || 'Falha ao atualizar HP');
-    } catch (err) {
-      console.error('❌ Erro ao atualizar HP:', err);
-      setError(`Erro ao atualizar HP: ${err}`);
-      return false;
     }
-  }, [campaignId, selectedNPC]);
+  } catch (err) {
+    console.warn('❌ Erro ao atualizar HP via API:', err);
+    
+    // Fallback: atualizar apenas localmente
+    setNpcs(prev => prev.map(npc => 
+      npc.id === npcId 
+        ? { 
+            ...npc, 
+            current_hit_points: newHP,
+            stats: {
+              ...npc.stats,
+              current_hit_points: newHP
+            }
+          }
+        : npc
+    ));
+  }
+}, [campaignId]);
 
   const healNPC = useCallback(async (npcId: string, amount: number): Promise<boolean> => {
     const npc = npcs.find(n => n.id === npcId);
