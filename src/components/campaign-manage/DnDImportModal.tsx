@@ -562,32 +562,38 @@ ${monster.hit_dice ? `DV: ${monster.hit_dice}` : ''}`, 500);
   };
 
   const handleImport = async () => {
-    if (!selectedMonster) return;
+  if (!selectedMonster) return;
+  
+  setImportingMonster(selectedMonster.index);
+  
+  try {
+    console.log(`📥 Importando: ${selectedMonster.name}`);
+    const npcData = convertToNPCData(selectedMonster);
     
-    setImportingMonster(selectedMonster.index);
+    // ✅ ADICIONADO: Incluir monstro original nos dados
+    const enhancedNpcData = {
+      ...npcData,
+      __originalMonster__: selectedMonster  // Incluir dados originais
+    };
     
-    try {
-      console.log(`📥 Importando: ${selectedMonster.name}`);
-      const npcData = convertToNPCData(selectedMonster);
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      onImport(npcData);
-      setLastImported(selectedMonster.name);
-      
-      console.log(`✅ Importado com sucesso: ${selectedMonster.name}`);
-      
-      setTimeout(() => {
-        onClose();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('❌ Erro ao importar:', error);
-      setError('Erro ao importar criatura. Tente novamente.');
-    } finally {
-      setImportingMonster(null);
-    }
-  };
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    onImport(enhancedNpcData);  // ✅ Passa dados processados + originais
+    setLastImported(selectedMonster.name);
+    
+    console.log(`✅ Importado com sucesso: ${selectedMonster.name}`);
+    
+    setTimeout(() => {
+      onClose();
+    }, 1000);
+    
+  } catch (error) {
+    console.error('❌ Erro ao importar:', error);
+    setError('Erro ao importar criatura. Tente novamente.');
+  } finally {
+    setImportingMonster(null);
+  }
+};
 
   // ===========================
   // EFEITOS E OBSERVERS - COMPLETAMENTE CORRIGIDOS

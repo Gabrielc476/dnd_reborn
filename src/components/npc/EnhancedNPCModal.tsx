@@ -1,6 +1,6 @@
 // ===========================
 // src/components/npc/EnhancedNPCModal.tsx
-// VERSÃO COMPLETA COM SISTEMA DE DADOS INTEGRADO
+// VERSÃO COMPLETA COM SISTEMA DE DADOS E IMPORTAÇÃO D&D INTEGRADOS
 // ===========================
 
 import React, { useState, useEffect } from 'react';
@@ -29,13 +29,42 @@ import {
 } from 'lucide-react';
 
 // Importações dos componentes de dados
-import { DiceRoller, AttackRoller, SpellRoller, HPManager } from '@/components/DiceComponents';
+import { DiceRoller, HPManager } from '@/components/DiceComponents';
 import { useEnhancedNPCs } from '@/hooks/useEnhancedNPCs';
 import type { RollResult, NPCFormData, Attack, Spell, NPCAttributes, NPCStats, NPCAbility } from '@/types/enhancedNPC';
+
+// Importação direta do modal de D&D
+import { DnDImportModal } from '@/components/campaign-manage/DnDImportModal';
 
 // ===========================
 // TIPOS E INTERFACES
 // ===========================
+
+interface DiceRoll {
+  dice_count: number;
+  dice_sides: number;
+  modifier: number;
+}
+
+enum NPCType {
+  ALLY = "aliado",
+  ENEMY = "inimigo", 
+  NEUTRAL = "neutro",
+  MERCHANT = "mercador",
+  QUEST_GIVER = "missões",
+  BACKGROUND = "cenário"
+}
+
+// ✅ CORRIGIDO: Interface local para NPCStats
+interface LocalNPCStats {
+  armor_class: number;
+  hit_points: number;
+  max_hit_points: number;
+  temp_hit_points: number;
+  speed: string; // String ao invés de number
+  proficiency_bonus: number;
+  passive_perception: number;
+}
 
 interface DiceRoll {
   dice_count: number;
@@ -69,6 +98,58 @@ interface RollHistoryEntry {
 }
 
 // ===========================
+// DADOS PADRÃO DOS TIPOS
+// ===========================
+
+const DEFAULT_FORM_DATA: NPCFormData = {
+  name: '',
+  description: '',
+  race: '',
+  npc_class: '',
+  npc_type: NPCType.NEUTRAL,
+  alignment: '',
+  location: '',
+  occupation: '',
+  faction: '',
+  attributes: {
+    strength: 10,
+    dexterity: 10,
+    constitution: 10,
+    intelligence: 10,
+    wisdom: 10,
+    charisma: 10
+  },
+  stats: {
+    armor_class: 10,
+    hit_points: 1,
+    max_hit_points: 1,
+    temp_hit_points: 0,
+    speed: '30 ft', // ✅ CORRIGIDO: String ao invés de número
+    proficiency_bonus: 2,
+    passive_perception: 10
+  },
+  saving_throws: {
+    strength: 0,
+    dexterity: 0,
+    constitution: 0,
+    intelligence: 0,
+    wisdom: 0,
+    charisma: 0
+  },
+  skills: {},
+  challenge_rating: '0', // ✅ CORRIGIDO: String ao invés de número
+  attacks: [],
+  spells: [],
+  abilities: [],
+  personality_traits: [],
+  goals: '',
+  secrets: '',
+  gm_notes: '',
+  is_alive: true,
+  is_active: true
+};
+
+// ===========================
 // COMPONENTE PRINCIPAL DO MODAL
 // ===========================
 
@@ -89,6 +170,10 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
   const [rollHistory, setRollHistory] = useState<RollHistoryEntry[]>([]);
   const [isRolling, setIsRolling] = useState(false);
 
+  // ADICIONADO: Estados para importação D&D
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importSuccess, setImportSuccess] = useState(false);
+
   // ADICIONADO: Hook para NPCs Enhanced
   const {
     rollAttack,
@@ -97,257 +182,303 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
     updateHitPoints,
     healNPC,
     damageNPC
-  } = useEnhancedNPCs({ campaignId });
-
-  // ADICIONADO: Estados de HP para gerenciamento em tempo real
-  const [currentHP, setCurrentHP] = useState(0);
-  const [tempHP, setTempHP] = useState(0);
-  
-  const [formData, setFormData] = useState<NPCFormData>({
-    name: '',
-    description: '',
-    race: '',
-    npc_class: '',
-    npc_type: NPCType.NEUTRAL,
-    alignment: '',
-    location: '',
-    occupation: '',
-    faction: '',
-    stats: {
-      armor_class: 10,
-      hit_points: 1,
-      speed: '30 ft',
-      attributes: {
-        strength: 10,
-        dexterity: 10,
-        constitution: 10,
-        intelligence: 10,
-        wisdom: 10,
-        charisma: 10
-      }
-    },
-    challenge_rating: '',
-    abilities: [],
-    attacks: [],
-    spells: [],
-    is_spellcaster: false,
-    personality_traits: [],
-    goals: '',
-    secrets: '',
-    gm_notes: '',
-    is_alive: true,
-    is_active: true
+  } = useEnhancedNPCs({
+    campaignId,
+    autoLoad: false // Não precisamos carregar todos os NPCs aqui
   });
 
-  // ATUALIZADO: useEffect existente para incluir HP
+  // Estado do formulário
+  const [formData, setFormData] = useState<NPCFormData>(DEFAULT_FORM_DATA);
+
+  // ===========================
+  // EFEITOS
+  // ===========================
+
+  // Carregar dados do NPC
   useEffect(() => {
     if (npc) {
       setFormData({
+        ...DEFAULT_FORM_DATA,
         ...npc,
-        stats: {
-          ...npc.stats,
-          attributes: {
-            strength: npc.stats?.attributes?.strength || 10,
-            dexterity: npc.stats?.attributes?.dexterity || 10,
-            constitution: npc.stats?.attributes?.constitution || 10,
-            intelligence: npc.stats?.attributes?.intelligence || 10,
-            wisdom: npc.stats?.attributes?.wisdom || 10,
-            charisma: npc.stats?.attributes?.charisma || 10
-          }
-        }
+        attributes: { ...DEFAULT_FORM_DATA.attributes, ...npc.attributes },
+        stats: { ...DEFAULT_FORM_DATA.stats, ...npc.stats },
+        saving_throws: { ...DEFAULT_FORM_DATA.saving_throws, ...npc.saving_throws }
       });
-      
-      // ADICIONADO: Configurar HP atual
-      setCurrentHP(npc.stats?.current_hit_points || npc.stats?.hit_points || 0);
-      setTempHP(npc.stats?.temporary_hit_points || 0);
+    } else {
+      setFormData(DEFAULT_FORM_DATA);
     }
-  }, [npc]);
-
-  // ADICIONADO: Funções de rolagem
-  const addToRollHistory = (type: string, result: RollResult, description: string) => {
-    const entry: RollHistoryEntry = {
-      type,
-      result,
-      description,
-      timestamp: new Date()
-    };
-    setRollHistory(prev => [entry, ...prev.slice(0, 9)]); // Manter 10 entradas
-  };
-
-  const rollDice = (roll: DiceRoll, advantage?: boolean, disadvantage?: boolean): RollResult => {
-    const rolls: number[] = [];
-    for (let i = 0; i < roll.dice_count; i++) {
-      rolls.push(Math.floor(Math.random() * roll.dice_sides) + 1);
-    }
-    
-    let total = rolls.reduce((sum, roll) => sum + roll, 0) + roll.modifier;
-    
-    // Implementar vantagem/desvantagem para d20
-    if ((advantage || disadvantage) && roll.dice_sides === 20) {
-      const extraRoll = Math.floor(Math.random() * 20) + 1;
-      if (advantage) {
-        total = Math.max(rolls[0], extraRoll) + roll.modifier;
-      } else if (disadvantage) {
-        total = Math.min(rolls[0], extraRoll) + roll.modifier;
-      }
-    }
-    
-    return {
-      total,
-      rolls,
-      modifier: roll.modifier,
-      formula: `${roll.dice_count}d${roll.dice_sides}${roll.modifier !== 0 ? (roll.modifier > 0 ? '+' : '') + roll.modifier : ''}`,
-      timestamp: new Date()
-    };
-  };
-
-  const handleAttackRoll = async (attackId: string, advantage?: boolean, disadvantage?: boolean) => {
-    if (!npc?.id || mode === 'create') {
-      // Para NPCs não salvos, usar rolagem local
-      const attack = formData.attacks?.find(a => a.id === attackId);
-      if (attack) {
-        const roll = {
-          dice_count: 1,
-          dice_sides: 20,
-          modifier: attack.attack_bonus
-        };
-        const result = rollDice(roll, advantage, disadvantage);
-        addToRollHistory('attack_roll', result, `Ataque: ${attack.name}`);
-      }
-      return;
-    }
-
-    setIsRolling(true);
-    try {
-      const result = await rollAttack(npc.id, attackId, { advantage, disadvantage });
-      const attack = formData.attacks?.find(a => a.id === attackId);
-      addToRollHistory('attack_roll', result, `Ataque: ${attack?.name || 'Desconhecido'}`);
-    } catch (error) {
-      console.error('Erro na rolagem de ataque:', error);
-    } finally {
-      setIsRolling(false);
-    }
-  };
-
-  const handleDamageRoll = async (attackId: string, critical?: boolean) => {
-    if (!npc?.id || mode === 'create') {
-      // Rolagem local
-      const attack = formData.attacks?.find(a => a.id === attackId);
-      if (attack) {
-        let damageRoll = attack.damage;
-        if (critical) {
-          damageRoll = { ...attack.damage, dice_count: attack.damage.dice_count * 2 };
-        }
-        const result = rollDice(damageRoll);
-        addToRollHistory('damage_roll', result, `Dano: ${attack.name}${critical ? ' (CRÍTICO)' : ''}`);
-      }
-      return;
-    }
-
-    setIsRolling(true);
-    try {
-      const result = await rollDamage(npc.id, attackId, { critical });
-      const attack = formData.attacks?.find(a => a.id === attackId);
-      addToRollHistory('damage_roll', result, `Dano: ${attack?.name || 'Desconhecido'}${critical ? ' (CRÍTICO)' : ''}`);
-    } catch (error) {
-      console.error('Erro na rolagem de dano:', error);
-    } finally {
-      setIsRolling(false);
-    }
-  };
-
-  const handleSpellCast = async (spellName: string, spellLevel?: number) => {
-    if (!npc?.id || mode === 'create') {
-      // Apenas adicionar ao histórico local
-      addToRollHistory('spell_cast', {
-        total: 0,
-        rolls: [],
-        modifier: 0,
-        formula: spellName,
-        timestamp: new Date()
-      }, `Magia: ${spellName}${spellLevel ? ` (Nível ${spellLevel})` : ''}`);
-      return;
-    }
-
-    setIsRolling(true);
-    try {
-      const result = await castSpell(npc.id, spellName, { spellLevel });
-      if (result) {
-        addToRollHistory('spell_cast', result, `Magia: ${spellName}${spellLevel ? ` (Nível ${spellLevel})` : ''}`);
-      }
-    } catch (error) {
-      console.error('Erro na conjuração:', error);
-    } finally {
-      setIsRolling(false);
-    }
-  };
-
-  const handleHPChange = async (newHP: number, newTempHP?: number) => {
-    setCurrentHP(newHP);
-    if (newTempHP !== undefined) setTempHP(newTempHP);
-
-    if (npc?.id && mode !== 'create') {
-      try {
-        await updateHitPoints(npc.id, newHP, newTempHP);
-      } catch (error) {
-        console.error('Erro ao atualizar HP:', error);
-      }
-    }
-  };
+    setValidationErrors([]);
+    setHasUnsavedChanges(false);
+    setImportSuccess(false);
+  }, [npc, isOpen]);
 
   // ===========================
-  // FUNÇÕES AUXILIARES
-  // ===========================
-
-  const calculateModifier = (score: number): number => {
-    return Math.floor((score - 10) / 2);
-  };
-
-  const calculateProficiencyBonus = (cr: string): number => {
-    const crNumber = parseFloat(cr) || 0;
-    if (crNumber < 1) return 2;
-    if (crNumber < 5) return 2;
-    if (crNumber < 9) return 3;
-    if (crNumber < 13) return 4;
-    if (crNumber < 17) return 5;
-    return 6;
-  };
-
-  // ===========================
-  // HANDLERS DE FORMULÁRIO
+  // HANDLERS GERAIS
   // ===========================
 
   const handleInputChange = (field: keyof NPCFormData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
-  };
-
-  const handleStatsChange = (statField: keyof NPCStats, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        [statField]: value
-      }
-    }));
-    setHasUnsavedChanges(true);
+    
+    // Limpar erros de validação quando o usuário corrigir
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
+    }
   };
 
   const handleAttributeChange = (attribute: keyof NPCAttributes, value: number) => {
     setFormData(prev => ({
       ...prev,
-      stats: {
-        ...prev.stats,
-        attributes: {
-          ...prev.stats.attributes,
-          [attribute]: Math.max(1, Math.min(30, value))
-        }
-      }
+      attributes: { ...prev.attributes, [attribute]: value }
     }));
     setHasUnsavedChanges(true);
+  };
+
+  const handleStatChange = (stat: keyof LocalNPCStats, value: number | string) => {
+    let processedValue = value;
+    
+    // ✅ CORRIGIDO: Tratar speed como string sempre
+    if (stat === 'speed') {
+      processedValue = typeof value === 'number' ? `${value} ft` : value;
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      stats: { ...prev.stats, [stat]: processedValue }
+    }));
+    setHasUnsavedChanges(true);
+  };
+
+  // ADICIONADO: Handler para importação D&D
+  const handleImportFromDnD = (importedData: any) => {
+    try {
+      console.log('📥 Dados importados da API D&D:', importedData);
+      
+      // Converter dados importados para o formato Enhanced NPC
+      const enhancedNPCData: NPCFormData = {
+        ...DEFAULT_FORM_DATA,
+        name: importedData.name || '',
+        description: importedData.description || '',
+        race: importedData.race || '',
+        npc_class: importedData.npc_class || '',
+        npc_type: importedData.npc_type || NPCType.NEUTRAL,
+        alignment: importedData.alignment || '',
+        location: importedData.location || '',
+        occupation: importedData.occupation || '',
+        faction: importedData.faction || '',
+        
+        // CORRIGIDO: Mapear atributos corretamente da API D&D
+        attributes: {
+          strength: importedData.abilities?.strength || importedData.strength || 10,
+          dexterity: importedData.abilities?.dexterity || importedData.dexterity || 10,
+          constitution: importedData.abilities?.constitution || importedData.constitution || 10,
+          intelligence: importedData.abilities?.intelligence || importedData.intelligence || 10,
+          wisdom: importedData.abilities?.wisdom || importedData.wisdom || 10,
+          charisma: importedData.abilities?.charisma || importedData.charisma || 10
+        },
+        
+        // CORRIGIDO: Mapear estatísticas com tipos corretos
+        stats: {
+          armor_class: importedData.stats?.armor_class || extractArmorClass(importedData.armor_class) || 10,
+          hit_points: importedData.stats?.hit_points || importedData.hit_points || 1,
+          max_hit_points: importedData.stats?.hit_points || importedData.hit_points || 1,
+          temp_hit_points: 0,
+          speed: `${extractSpeed(importedData.speed)} ft`, // ✅ CORRIGIDO: String ao invés de número
+          proficiency_bonus: importedData.proficiency_bonus || 2,
+          passive_perception: 10
+        },
+        
+        // Configurar saving throws básicos
+        saving_throws: {
+          strength: 0,
+          dexterity: 0,
+          constitution: 0,
+          intelligence: 0,
+          wisdom: 0,
+          charisma: 0
+        },
+        
+        challenge_rating: String(parseFloat(importedData.challenge_rating) || 0), // ✅ CORRIGIDO: String ao invés de float
+        
+        // NOVO: Converter ataques da API D&D
+        attacks: convertDnDActionsToAttacks(importedData.actions || []),
+        
+        // NOVO: Converter magias/habilidades especiais 
+        spells: convertDnDAbilitiesToSpells(importedData.special_abilities || []),
+        
+        // NOVO: Converter habilidades especiais para abilities
+        abilities: convertDnDAbilitiesToNPCAbilities(importedData.special_abilities || [], importedData.legendary_actions || []),
+        
+        personality_traits: importedData.personality_traits || [],
+        goals: importedData.goals || '',
+        secrets: importedData.secrets || '',
+        gm_notes: importedData.gm_notes || '',
+        is_alive: true,
+        is_active: true
+      };
+      
+      setFormData(enhancedNPCData);
+      setHasUnsavedChanges(true);
+      setImportSuccess(true);
+      
+      // Resetar notificação após alguns segundos
+      setTimeout(() => {
+        setImportSuccess(false);
+      }, 5000);
+      
+      console.log('✅ NPC Enhanced criado a partir da importação D&D');
+      
+    } catch (error) {
+      console.error('❌ Erro ao processar dados importados:', error);
+      setValidationErrors(['Erro ao processar dados da importação D&D. Tente novamente.']);
+    }
+  };
+
+  // NOVO: Função auxiliar para extrair AC
+  const extractArmorClass = (ac: any): number => {
+    if (typeof ac === 'number') return ac;
+    if (Array.isArray(ac) && ac.length > 0) {
+      return ac[0].value || 10;
+    }
+    return 10;
+  };
+
+  // NOVO: Função auxiliar para extrair velocidade 
+  const extractSpeed = (speed: any): number => {
+    if (typeof speed === 'number') return speed;
+    if (typeof speed === 'string') {
+      const speedMatch = speed.replace(/[^0-9]/g, '');
+      return parseInt(speedMatch) || 30;
+    }
+    if (typeof speed === 'object' && speed.walk) {
+      const walkSpeed = speed.walk.replace(/[^0-9]/g, '');
+      return parseInt(walkSpeed) || 30;
+    }
+    return 30;
+  };
+
+  // NOVO: Converter ações D&D para ataques Enhanced
+  const convertDnDActionsToAttacks = (actions: any[]): Attack[] => {
+    const attacks: Attack[] = [];
+    
+    actions.forEach((action, index) => {
+      if (action.attack_bonus !== undefined || action.damage_dice) {
+        // Extrair dados de dano
+        let diceCount = 1, diceSides = 6, modifier = 0;
+        
+        if (action.damage_dice) {
+          const diceMatch = action.damage_dice.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?/);
+          if (diceMatch) {
+            diceCount = parseInt(diceMatch[1]) || 1;
+            diceSides = parseInt(diceMatch[2]) || 6;
+            modifier = parseInt(diceMatch[3]) || action.damage_bonus || 0;
+          }
+        }
+
+        // Determinar tipo de dano baseado na descrição
+        let damageType = 'slashing';
+        const desc = (action.desc || '').toLowerCase();
+        if (desc.includes('fire') || desc.includes('fogo')) damageType = 'fire';
+        else if (desc.includes('cold') || desc.includes('frio')) damageType = 'cold';
+        else if (desc.includes('lightning') || desc.includes('elétrico')) damageType = 'lightning';
+        else if (desc.includes('piercing') || desc.includes('perfurante')) damageType = 'piercing';
+        else if (desc.includes('bludgeoning') || desc.includes('contundente')) damageType = 'bludgeoning';
+
+        attacks.push({
+          id: `attack_${index}`,
+          name: action.name || `Ataque ${index + 1}`,
+          attack_bonus: action.attack_bonus || 0,
+          damage: {
+            dice_count: diceCount,
+            dice_sides: diceSides,
+            modifier: modifier
+          },
+          damage_type: damageType,
+          range: desc.includes('ranged') || desc.includes('range') ? 'À distância' : 'Corpo a corpo',
+          description: action.desc || ''
+        });
+      }
+    });
+
+    return attacks;
+  };
+
+  // NOVO: Converter habilidades especiais para magias
+  const convertDnDAbilitiesToSpells = (abilities: any[]): Spell[] => {
+    const spells: Spell[] = [];
+    
+    abilities.forEach((ability, index) => {
+      const desc = (ability.desc || '').toLowerCase();
+      
+      // Verificar se é uma habilidade mágica
+      if (desc.includes('spell') || desc.includes('magic') || desc.includes('magia') || 
+          desc.includes('dc') || desc.includes('save')) {
+        
+        // Extrair dados de dano se houver
+        let damage = null;
+        const diceMatch = ability.desc?.match(/(\d+)d(\d+)(?:\s*\+\s*(\d+))?/);
+        if (diceMatch) {
+          damage = {
+            dice_count: parseInt(diceMatch[1]) || 1,
+            dice_sides: parseInt(diceMatch[2]) || 6,
+            modifier: parseInt(diceMatch[3]) || 0
+          };
+        }
+
+        // Extrair DC se houver
+        const dcMatch = ability.desc?.match(/DC\s*(\d+)/i);
+        const saveDC = dcMatch ? parseInt(dcMatch[1]) : 12;
+
+        spells.push({
+          id: `spell_${index}`,
+          name: ability.name || `Habilidade Mágica ${index + 1}`,
+          level: desc.includes('cantrip') ? 0 : (damage ? Math.min(Math.floor(damage.dice_count / 2) + 1, 9) : 1),
+          school: 'evocation',
+          description: ability.desc || '',
+          casting_time: '1 ação',
+          range: '60 pés',
+          components: 'V, S',
+          duration: 'Instantâneo',
+          is_attack_spell: !!damage,
+          damage: damage,
+          save_dc: saveDC,
+          save_ability: 'dexterity'
+        });
+      }
+    });
+
+    return spells;
+  };
+
+  // NOVO: Converter habilidades D&D para NPCAbilities
+  const convertDnDAbilitiesToNPCAbilities = (specialAbilities: any[], legendaryActions: any[]): NPCAbility[] => {
+    const abilities: NPCAbility[] = [];
+    
+    // Processar habilidades especiais
+    specialAbilities.forEach((ability, index) => {
+      abilities.push({
+        id: `ability_${index}`,
+        name: ability.name || `Habilidade ${index + 1}`,
+        description: ability.desc || '',
+        type: 'passive',
+        uses_per_day: null,
+        recharge_on: null
+      });
+    });
+
+    // Processar ações lendárias
+    legendaryActions.forEach((action, index) => {
+      abilities.push({
+        id: `legendary_${index}`,
+        name: action.name || `Ação Lendária ${index + 1}`,
+        description: action.desc || '',
+        type: 'legendary',
+        uses_per_day: 3, // Ações lendárias padrão
+        recharge_on: null
+      });
+    });
+
+    return abilities;
   };
 
   // ===========================
@@ -356,15 +487,18 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
 
   const addAttack = () => {
     const newAttack: Attack = {
-      id: `attack_${Date.now()}`,
-      name: '',
+      id: Date.now().toString(),
+      name: 'Novo Ataque',
       attack_bonus: 0,
-      damage: { dice_count: 1, dice_sides: 6, modifier: 0 },
-      damage_type: 'cortante',
+      damage: {
+        dice_count: 1,
+        dice_sides: 6,
+        modifier: 0
+      },
+      damage_type: 'slashing',
       range: 'Corpo a corpo',
       description: ''
     };
-    
     setFormData(prev => ({
       ...prev,
       attacks: [...prev.attacks, newAttack]
@@ -396,15 +530,24 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
 
   const addSpell = () => {
     const newSpell: Spell = {
-      id: `spell_${Date.now()}`,
-      name: '',
+      id: Date.now().toString(),
+      name: 'Nova Magia',
       level: 0,
-      school: 'Evocação',
-      range: '30 pés',
+      school: 'evocation',
+      casting_time: '1 ação',
+      range: '60 pés',
+      components: 'V, S',
+      duration: 'Instantâneo',
+      description: '',
       is_attack_spell: false,
-      description: ''
+      damage: {
+        dice_count: 1,
+        dice_sides: 6,
+        modifier: 0
+      },
+      save_dc: 10,
+      save_ability: 'dexterity'
     };
-    
     setFormData(prev => ({
       ...prev,
       spells: [...prev.spells, newSpell]
@@ -436,12 +579,13 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
 
   const addAbility = () => {
     const newAbility: NPCAbility = {
-      id: `ability_${Date.now()}`,
-      name: '',
+      id: Date.now().toString(),
+      name: 'Nova Habilidade',
       description: '',
-      usage: ''
+      type: 'passive',
+      uses_per_day: null,
+      recharge_on: null
     };
-    
     setFormData(prev => ({
       ...prev,
       abilities: [...prev.abilities, newAbility]
@@ -468,18 +612,113 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
   };
 
   // ===========================
-  // HANDLER DE SUBMIT
+  // HANDLERS DE ROLAGEM INTEGRADA
   // ===========================
 
-  const handleSubmit = async () => {
-    setValidationErrors([]);
+  const handleAttackRoll = async (attackId: string, advantage: boolean = false, disadvantage: boolean = false) => {
+    if (!formData.id) return;
     
-    // Validação básica
+    setIsRolling(true);
+    try {
+      const result = await rollAttack(formData.id, attackId, advantage, disadvantage);
+      
+      const historyEntry: RollHistoryEntry = {
+        type: 'attack',
+        result,
+        description: `Rolagem de Ataque`,
+        timestamp: new Date()
+      };
+      
+      setRollHistory(prev => [historyEntry, ...prev.slice(0, 9)]);
+    } catch (error) {
+      console.error('Erro ao rolar ataque:', error);
+    } finally {
+      setIsRolling(false);
+    }
+  };
+
+  const handleDamageRoll = async (attackId: string, critical: boolean = false) => {
+    if (!formData.id) return;
+    
+    setIsRolling(true);
+    try {
+      const result = await rollDamage(formData.id, attackId, critical);
+      
+      const historyEntry: RollHistoryEntry = {
+        type: 'damage',
+        result,
+        description: `Rolagem de Dano${critical ? ' (Crítico)' : ''}`,
+        timestamp: new Date()
+      };
+      
+      setRollHistory(prev => [historyEntry, ...prev.slice(0, 9)]);
+    } catch (error) {
+      console.error('Erro ao rolar dano:', error);
+    } finally {
+      setIsRolling(false);
+    }
+  };
+
+  const handleSpellCast = async (spellId: string) => {
+    if (!formData.id) return;
+    
+    setIsRolling(true);
+    try {
+      const result = await castSpell(formData.id, spellId);
+      
+      const historyEntry: RollHistoryEntry = {
+        type: 'spell',
+        result,
+        description: `Lançamento de Magia`,
+        timestamp: new Date()
+      };
+      
+      setRollHistory(prev => [historyEntry, ...prev.slice(0, 9)]);
+    } catch (error) {
+      console.error('Erro ao lançar magia:', error);
+    } finally {
+      setIsRolling(false);
+    }
+  };
+
+  // ===========================
+  // VALIDAÇÃO E SALVAMENTO
+  // ===========================
+
+  const validateForm = (): string[] => {
     const errors: string[] = [];
+    
     if (!formData.name.trim()) {
       errors.push('Nome é obrigatório');
     }
     
+    if (!formData.npc_type) {
+      errors.push('Tipo de NPC é obrigatório');
+    }
+    
+    if (formData.stats.hit_points < 1) {
+      errors.push('Pontos de vida devem ser pelo menos 1');
+    }
+    
+    if (formData.stats.armor_class < 1) {
+      errors.push('Classe de armadura deve ser pelo menos 1');
+    }
+
+    // ✅ ADICIONADO: Validar se speed é uma string
+    if (typeof formData.stats.speed !== 'string') {
+      errors.push('Velocidade deve ser uma string (ex: "30 ft")');
+    }
+
+    // ✅ ADICIONADO: Validar se challenge_rating é uma string
+    if (typeof formData.challenge_rating !== 'string') {
+      errors.push('Nível de desafio deve ser uma string (ex: "1", "0.25", "1/4")');
+    }
+    
+    return errors;
+  };
+
+  const handleSave = async () => {
+    const errors = validateForm();
     if (errors.length > 0) {
       setValidationErrors(errors);
       return;
@@ -487,14 +726,42 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
     
     setIsLoading(true);
     try {
-      await onSave(formData);
+      // ✅ ADICIONADO: Sanitizar dados antes de enviar
+      const sanitizedData = {
+        ...formData,
+        // Garantir que speed seja string
+        stats: {
+          ...formData.stats,
+          speed: typeof formData.stats.speed === 'string' 
+            ? formData.stats.speed 
+            : `${formData.stats.speed} ft`
+        },
+        // Garantir que challenge_rating seja string
+        challenge_rating: typeof formData.challenge_rating === 'string' 
+          ? formData.challenge_rating 
+          : String(formData.challenge_rating)
+      };
+
+      console.log('📤 Dados sendo enviados para API:', sanitizedData);
+
+      await onSave(sanitizedData);
       setHasUnsavedChanges(false);
       onClose();
     } catch (error) {
-      console.error('Erro ao salvar NPC:', error);
-      setValidationErrors(['Erro ao salvar NPC. Tente novamente.']);
+      console.error('❌ Erro ao salvar NPC:', error);
+      setValidationErrors([`Erro ao salvar NPC: ${error.message || error}`]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    if (hasUnsavedChanges && mode !== 'view') {
+      if (confirm('Você tem alterações não salvas. Deseja realmente fechar?')) {
+        onClose();
+      }
+    } else {
+      onClose();
     }
   };
 
@@ -514,984 +781,1201 @@ export const EnhancedNPCModal: React.FC<NPCModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <Users className="w-6 h-6 text-purple-400" />
-            <h2 className="text-xl font-bold text-white">
-              {mode === 'create' ? 'Criar NPC' : mode === 'edit' ? 'Editar NPC' : 'Visualizar NPC'}
-            </h2>
-            {hasUnsavedChanges && (
-              <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Alterações não salvas" />
-            )}
-          </div>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] flex flex-col">
           
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        <div className="flex flex-1 overflow-hidden">
-          
-          {/* Sidebar com Tabs */}
-          <div className="w-64 bg-gray-900 border-r border-gray-700 flex flex-col">
-            <div className="p-4">
-              <nav className="space-y-2">
-                {tabs.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setCurrentTab(tab.id as any)}
-                      className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
-                        currentTab === tab.id
-                          ? 'bg-purple-600 text-white'
-                          : 'text-gray-400 hover:text-white hover:bg-gray-600/50'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-
-            {/* ADICIONADO: Seção de gerenciamento de HP (se for modo edit/view) */}
-            {(mode === 'edit' || mode === 'view') && npc && (
-              <div className="p-4 border-t border-gray-700">
-                <h4 className="text-sm font-semibold text-white mb-3">Gerenciamento de HP</h4>
-                <HPManager
-                  currentHP={currentHP}
-                  maxHP={formData.stats?.hit_points || 0}
-                  tempHP={tempHP}
-                  onHPChange={handleHPChange}
-                  disabled={mode === 'view' || isRolling}
-                  compact={true}
-                />
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-700">
+            <div className="flex items-center space-x-3">
+              <Users className="w-6 h-6 text-purple-400" />
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  {mode === 'create' ? 'Criar NPC Enhanced' : mode === 'edit' ? 'Editar NPC' : 'Visualizar NPC'}
+                </h2>
+                <p className="text-gray-400 text-sm">
+                  {mode === 'create' ? 'Criar um novo NPC com funcionalidades avançadas' : 
+                   mode === 'edit' ? 'Modificar informações do NPC' : 
+                   'Visualizar detalhes do NPC'}
+                </p>
               </div>
-            )}
+              {hasUnsavedChanges && (
+                <div className="w-2 h-2 bg-yellow-400 rounded-full" title="Alterações não salvas" />
+              )}
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              {/* Botão de Importação D&D - apenas para novos NPCs */}
+              {mode === 'create' && (
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-lg shadow-purple-500/25"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Importar D&D</span>
+                </button>
+              )}
+              
+              <button
+                onClick={handleClose}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
 
-            {/* ADICIONADO: Histórico de rolagens */}
-            {rollHistory.length > 0 && (
-              <div className="flex-1 p-4 border-t border-gray-700">
-                <h4 className="text-sm font-semibold text-white mb-3 flex items-center">
-                  <Clock className="w-4 h-4 mr-2" />
-                  Histórico de Rolagens
-                </h4>
-                <div className="bg-gray-800 rounded-lg max-h-60 overflow-y-auto">
-                  {rollHistory.map((entry, index) => (
-                    <div key={index} className="p-3 border-b border-gray-700 last:border-b-0">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-300">{entry.description}</span>
-                        <span className="text-xs text-gray-500">
-                          {entry.timestamp.toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className="text-sm font-bold text-white">{entry.result.total}</span>
-                        <span className="text-xs text-gray-400">{entry.result.formula}</span>
-                        {entry.result.rolls.length > 1 && (
+          {/* Notificação de Importação Bem-sucedida */}
+          {importSuccess && (
+            <div className="mx-6 mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Sparkles className="w-5 h-5 text-green-400" />
+                <span className="text-green-400 font-medium">NPC importado com sucesso da API D&D!</span>
+              </div>
+              <p className="text-green-300 text-sm mt-1">
+                Os dados foram carregados automaticamente. Você pode editá-los antes de salvar.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-1 overflow-hidden">
+            
+            {/* Sidebar com Tabs */}
+            <div className="w-64 bg-gray-900 border-r border-gray-700 flex flex-col">
+              <div className="p-4">
+                <nav className="space-y-2">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setCurrentTab(tab.id as any)}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors ${
+                          currentTab === tab.id
+                            ? 'bg-purple-600 text-white'
+                            : 'text-gray-300 hover:text-white hover:bg-gray-800'
+                        }`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* Histórico de Rolagens */}
+              {rollHistory.length > 0 && mode !== 'create' && (
+                <div className="flex-1 p-4 border-t border-gray-700">
+                  <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center">
+                    <Activity className="w-4 h-4 mr-2" />
+                    Últimas Rolagens
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {rollHistory.slice(0, 5).map((entry, index) => (
+                      <div key={index} className="text-xs p-2 bg-gray-800 rounded">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-purple-400">{entry.description}</span>
+                          <span className="text-green-400 font-bold">{entry.result.total}</span>
+                        </div>
+                        {entry.result.rolls && (
                           <span className="text-xs text-gray-500">
                             [{entry.result.rolls.join(', ')}]
                           </span>
                         )}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            
-            {/* Errors */}
-            {validationErrors.length > 0 && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <div className="flex items-center space-x-2 mb-2">
-                  <AlertTriangle className="w-5 h-5 text-red-400" />
-                  <span className="text-red-400 font-medium">Erros de validação:</span>
-                </div>
-                <ul className="list-disc list-inside text-red-300 text-sm space-y-1">
-                  {validationErrors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Tab: Básico */}
-            {currentTab === 'basic' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Nome *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => handleInputChange('name', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Nome do NPC"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Tipo de NPC
-                    </label>
-                    <select
-                      value={formData.npc_type}
-                      onChange={(e) => handleInputChange('npc_type', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      disabled={mode === 'view'}
-                    >
-                      {Object.values(NPCType).map(type => (
-                        <option key={type} value={type}>
-                          {type === NPCType.ALLY && 'Aliado'}
-                          {type === NPCType.ENEMY && 'Inimigo'}
-                          {type === NPCType.NEUTRAL && 'Neutro'}
-                          {type === NPCType.MERCHANT && 'Mercador'}
-                          {type === NPCType.QUEST_GIVER && 'Doador de Missões'}
-                          {type === NPCType.BACKGROUND && 'Cenário'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Raça
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.race}
-                      onChange={(e) => handleInputChange('race', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Ex: Humano, Elfo, Orc"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Classe
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.npc_class}
-                      onChange={(e) => handleInputChange('npc_class', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Ex: Guerreiro, Mago, Ladino"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Alinhamento
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.alignment}
-                      onChange={(e) => handleInputChange('alignment', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Ex: Leal e Bom"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Localização
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Onde o NPC pode ser encontrado"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Ocupação
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.occupation}
-                      onChange={(e) => handleInputChange('occupation', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Profissão ou função"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Facção
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.faction}
-                      onChange={(e) => handleInputChange('faction', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Grupo ou organização"
-                      disabled={mode === 'view'}
-                    />
+                    ))}
                   </div>
                 </div>
+              )}
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Descrição
-                  </label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={4}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="Descrição física e características do NPC..."
-                    disabled={mode === 'view'}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Atributos */}
-            {currentTab === 'stats' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Classe de Armadura
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.stats.armor_class}
-                      onChange={(e) => handleStatsChange('armor_class', parseInt(e.target.value) || 10)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      min="1"
-                      max="30"
-                      disabled={mode === 'view'}
-                    />
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              
+              {/* Errors */}
+              {validationErrors.length > 0 && (
+                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <AlertTriangle className="w-5 h-5 text-red-400" />
+                    <span className="text-red-400 font-medium">Erros de validação:</span>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Pontos de Vida
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.stats.hit_points}
-                      onChange={(e) => handleStatsChange('hit_points', parseInt(e.target.value) || 1)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      min="1"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                      Velocidade
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.stats.speed}
-                      onChange={(e) => handleStatsChange('speed', e.target.value)}
-                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                      placeholder="Ex: 30 ft"
-                      disabled={mode === 'view'}
-                    />
-                  </div>
+                  <ul className="list-disc list-inside text-red-300 text-sm space-y-1">
+                    {validationErrors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
                 </div>
+              )}
 
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-4">Atributos</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                    {Object.entries(formData.stats.attributes).map(([attr, value]) => {
-                      const modifier = calculateModifier(value);
-                      const labels = {
-                        strength: 'Força',
-                        dexterity: 'Destreza',
-                        constitution: 'Constituição',
-                        intelligence: 'Inteligência',
-                        wisdom: 'Sabedoria',
-                        charisma: 'Carisma'
-                      };
-                      
-                      return (
-                        <div key={attr} className="text-center">
-                          <label className="block text-sm font-medium text-gray-300 mb-2">
-                            {labels[attr as keyof typeof labels]}
-                          </label>
-                          <input
-                            type="number"
-                            value={value}
-                            onChange={(e) => handleAttributeChange(attr as keyof NPCAttributes, parseInt(e.target.value) || 10)}
-                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                            min="1"
-                            max="30"
-                            disabled={mode === 'view'}
-                          />
-                          <div className="mt-2 text-sm text-gray-400">
-                            Modificador: {modifier >= 0 ? '+' : ''}{modifier}
-                          </div>
-                          
-                          {/* ADICIONADO: Botão de teste rápido */}
-                          {mode !== 'create' && mode !== 'view' && (
-                            <DiceRoller
-                              roll={{ dice_count: 1, dice_sides: 20, modifier }}
-                              label={attr.substring(0, 3).toUpperCase()}
-                              onRoll={(result) => addToRollHistory('ability_check', result, `Teste de ${labels[attr as keyof typeof labels]}`)}
-                              className="mt-2"
-                              disabled={isRolling}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Nível de Desafio
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.challenge_rating}
-                    onChange={(e) => handleInputChange('challenge_rating', e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="Ex: 1/4, 1, 2, 5"
-                    disabled={mode === 'view'}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Tab: Ataques */}
-            {currentTab === 'attacks' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Ataques</h3>
-                  {mode !== 'view' && (
-                    <button
-                      onClick={addAttack}
-                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Adicionar Ataque</span>
-                    </button>
-                  )}
-                </div>
-
-                {formData.attacks.map((attack, index) => (
-                  <div key={attack.id || index} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-md font-semibold text-white">
-                        {attack.name || `Ataque ${index + 1}`}
-                      </h4>
-                      {mode !== 'view' && (
-                        <button
-                          onClick={() => removeAttack(index)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Nome
-                        </label>
-                        <input
-                          type="text"
-                          value={attack.name}
-                          onChange={(e) => updateAttack(index, 'name', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                          placeholder="Ex: Espada Longa"
-                          disabled={mode === 'view'}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Bônus de Ataque
-                        </label>
-                        <input
-                          type="number"
-                          value={attack.attack_bonus}
-                          onChange={(e) => updateAttack(index, 'attack_bonus', parseInt(e.target.value) || 0)}
-                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                          disabled={mode === 'view'}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Dano (dados)
-                        </label>
-                        <div className="flex space-x-2">
-                          <input
-                            type="number"
-                            value={attack.damage.dice_count}
-                            onChange={(e) => updateAttack(index, 'damage', { 
-                              ...attack.damage, 
-                              dice_count: parseInt(e.target.value) || 1 
-                            })}
-                            className="w-16 px-2 py-2 bg-gray-600 border border-gray-500 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                            min="1"
-                            disabled={mode === 'view'}
-                          />
-                          <span className="text-white self-center">d</span>
-                          <input
-                            type="number"
-                            value={attack.damage.dice_sides}
-                            onChange={(e) => updateAttack(index, 'damage', { 
-                              ...attack.damage, 
-                              dice_sides: parseInt(e.target.value) || 6 
-                            })}
-                            className="w-16 px-2 py-2 bg-gray-600 border border-gray-500 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                            disabled={mode === 'view'}
-                          />
-                          <span className="text-white self-center">+</span>
-                          <input
-                            type="number"
-                            value={attack.damage.modifier}
-                            onChange={(e) => updateAttack(index, 'damage', { 
-                              ...attack.damage, 
-                              modifier: parseInt(e.target.value) || 0 
-                            })}
-                            className="w-16 px-2 py-2 bg-gray-600 border border-gray-500 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                            disabled={mode === 'view'}
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Tipo de Dano
-                        </label>
-                        <input
-                          type="text"
-                          value={attack.damage_type}
-                          onChange={(e) => updateAttack(index, 'damage_type', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                          placeholder="Ex: cortante, contundente"
-                          disabled={mode === 'view'}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Alcance
-                        </label>
-                        <input
-                          type="text"
-                          value={attack.range}
-                          onChange={(e) => updateAttack(index, 'range', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                          placeholder="Ex: Corpo a corpo, 30/120 ft"
-                          disabled={mode === 'view'}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Descrição
+              {/* Tab: Básico */}
+              {currentTab === 'basic' && (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Nome *
                       </label>
-                      <textarea
-                        value={attack.description || ''}
-                        onChange={(e) => updateAttack(index, 'description', e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                        placeholder="Efeitos especiais do ataque..."
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Nome do NPC"
                         disabled={mode === 'view'}
                       />
                     </div>
 
-                    {/* ADICIONADO: Botões de rolagem integrados */}
-                    {mode !== 'create' && (
-                      <div className="flex items-center space-x-4">
-                        <AttackRoller
-                          attack={attack}
-                          onAttackRoll={(adv, dis) => handleAttackRoll(attack.id!, adv, dis)}
-                          onDamageRoll={(crit) => handleDamageRoll(attack.id!, crit)}
-                          disabled={isRolling}
-                          compact={false}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Tipo de NPC *
+                      </label>
+                      <select
+                        value={formData.npc_type}
+                        onChange={(e) => handleInputChange('npc_type', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        disabled={mode === 'view'}
+                      >
+                        <option value={NPCType.ALLY}>Aliado</option>
+                        <option value={NPCType.ENEMY}>Inimigo</option>
+                        <option value={NPCType.NEUTRAL}>Neutro</option>
+                        <option value={NPCType.MERCHANT}>Mercador</option>
+                        <option value={NPCType.QUEST_GIVER}>Dador de Missões</option>
+                        <option value={NPCType.BACKGROUND}>Cenário</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Raça
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.race}
+                        onChange={(e) => handleInputChange('race', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Ex: Humano, Elfo..."
+                        disabled={mode === 'view'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Classe
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.npc_class}
+                        onChange={(e) => handleInputChange('npc_class', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Ex: Guerreiro, Mago..."
+                        disabled={mode === 'view'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Alinhamento
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.alignment}
+                        onChange={(e) => handleInputChange('alignment', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Ex: Neutro Bom"
+                        disabled={mode === 'view'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Localização
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.location}
+                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Onde o NPC pode ser encontrado"
+                        disabled={mode === 'view'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Ocupação
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.occupation}
+                        onChange={(e) => handleInputChange('occupation', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Profissão ou papel"
+                        disabled={mode === 'view'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Facção
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.faction}
+                        onChange={(e) => handleInputChange('faction', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                        placeholder="Grupo ou organização"
+                        disabled={mode === 'view'}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Descrição
+                    </label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      placeholder="Aparência e descrição geral do NPC..."
+                      disabled={mode === 'view'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Nível de Desafio
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.challenge_rating}
+                      onChange={(e) => handleInputChange('challenge_rating', e.target.value)}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      placeholder="Ex: 0, 1/4, 1/2, 1, 2..."
+                      disabled={mode === 'view'}
+                    />
+                    <div className="text-xs text-gray-400 mt-1">
+                      Formatos aceitos: 0, 0.25, 1/4, 1/2, 1, 2, etc.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab: Atributos */}
+              {currentTab === 'stats' && (
+                <div className="space-y-6">
+                  
+                  {/* Atributos Básicos */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Atributos Básicos</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {Object.entries(formData.attributes).map(([key, value]) => (
+                        <div key={key}>
+                          <label className="block text-sm font-medium text-gray-300 mb-2 capitalize">
+                            {key === 'strength' ? 'Força' :
+                             key === 'dexterity' ? 'Destreza' :
+                             key === 'constitution' ? 'Constituição' :
+                             key === 'intelligence' ? 'Inteligência' :
+                             key === 'wisdom' ? 'Sabedoria' : 'Carisma'}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="30"
+                            value={value}
+                            onChange={(e) => handleAttributeChange(key as keyof NPCAttributes, parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          />
+                          <div className="text-xs text-gray-400 mt-1">
+                            Modificador: {Math.floor((value - 10) / 2) >= 0 ? '+' : ''}{Math.floor((value - 10) / 2)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Estatísticas de Combate */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Estatísticas de Combate</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Classe de Armadura
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="30"
+                          value={formData.stats.armor_class}
+                          onChange={(e) => handleStatChange('armor_class', parseInt(e.target.value) || 1)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          disabled={mode === 'view'}
                         />
                       </div>
-                    )}
-                  </div>
-                ))}
 
-                {formData.attacks.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    <Swords className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhum ataque configurado</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tab: Magias */}
-            {currentTab === 'spells' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Magias</h3>
-                  <div className="flex items-center space-x-4">
-                    {mode !== 'view' && (
-                      <label className="flex items-center space-x-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Pontos de Vida Atuais
+                        </label>
                         <input
-                          type="checkbox"
-                          checked={formData.is_spellcaster}
-                          onChange={(e) => handleInputChange('is_spellcaster', e.target.checked)}
-                          className="rounded border-gray-600 bg-gray-700 text-purple-600 focus:ring-purple-500"
+                          type="number"
+                          min="0"
+                          value={formData.stats.hit_points}
+                          onChange={(e) => handleStatChange('hit_points', parseInt(e.target.value) || 0)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          disabled={mode === 'view'}
                         />
-                        <span className="text-gray-300">É conjurador</span>
-                      </label>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Pontos de Vida Máximos
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={formData.stats.max_hit_points}
+                          onChange={(e) => handleStatChange('max_hit_points', parseInt(e.target.value) || 1)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          disabled={mode === 'view'}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Pontos de Vida Temporários
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={formData.stats.temp_hit_points}
+                          onChange={(e) => handleStatChange('temp_hit_points', parseInt(e.target.value) || 0)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          disabled={mode === 'view'}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Velocidade
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.stats.speed}
+                          onChange={(e) => handleStatChange('speed', e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          placeholder="Ex: 30 ft, fly 60 ft"
+                          disabled={mode === 'view'}
+                        />
+                        <div className="text-xs text-gray-400 mt-1">
+                          Formato: "30 ft" ou "30 ft, fly 60 ft"
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                          Bônus de Proficiência
+                        </label>
+                        <input
+                          type="number"
+                          min="2"
+                          max="9"
+                          value={formData.stats.proficiency_bonus}
+                          onChange={(e) => handleStatChange('proficiency_bonus', parseInt(e.target.value) || 2)}
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          disabled={mode === 'view'}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HP Manager Component */}
+                  {mode !== 'create' && formData.id && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-4">Gerenciamento de HP</h3>
+                      <HPManager
+                        currentHP={formData.stats.hit_points}
+                        maxHP={formData.stats.max_hit_points}
+                        tempHP={formData.stats.temp_hit_points}
+                        onHPChange={(newHP, newTempHP) => {
+                          handleStatChange('hit_points', newHP);
+                          if (newTempHP !== undefined) {
+                            handleStatChange('temp_hit_points', newTempHP);
+                          }
+                        }}
+                        disabled={mode === 'view'}
+                        showQuickActions={true}
+                        showTempHP={true}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab: Ataques */}
+              {currentTab === 'attacks' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">Ataques</h3>
+                    {mode !== 'view' && (
+                      <button
+                        onClick={addAttack}
+                        className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Adicionar Ataque</span>
+                      </button>
                     )}
-                    {mode !== 'view' && formData.is_spellcaster && (
+                  </div>
+
+                  {formData.attacks.map((attack, index) => (
+                    <div key={attack.id || index} className="p-4 bg-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-medium text-white">Ataque #{index + 1}</h4>
+                        {mode !== 'view' && (
+                          <button
+                            onClick={() => removeAttack(index)}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Nome do Ataque
+                          </label>
+                          <input
+                            type="text"
+                            value={attack.name}
+                            onChange={(e) => updateAttack(index, 'name', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: Espada Longa"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Bônus de Ataque
+                          </label>
+                          <input
+                            type="number"
+                            value={attack.attack_bonus}
+                            onChange={(e) => updateAttack(index, 'attack_bonus', parseInt(e.target.value) || 0)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Dados de Dano (qtd)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="20"
+                            value={attack.damage.dice_count}
+                            onChange={(e) => updateAttack(index, 'damage', {
+                              ...attack.damage,
+                              dice_count: parseInt(e.target.value) || 1
+                            })}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Lados do Dado
+                          </label>
+                          <select
+                            value={attack.damage.dice_sides}
+                            onChange={(e) => updateAttack(index, 'damage', {
+                              ...attack.damage,
+                              dice_sides: parseInt(e.target.value)
+                            })}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            <option value={4}>d4</option>
+                            <option value={6}>d6</option>
+                            <option value={8}>d8</option>
+                            <option value={10}>d10</option>
+                            <option value={12}>d12</option>
+                            <option value={20}>d20</option>
+                            <option value={100}>d100</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Modificador de Dano
+                          </label>
+                          <input
+                            type="number"
+                            value={attack.damage.modifier}
+                            onChange={(e) => updateAttack(index, 'damage', {
+                              ...attack.damage,
+                              modifier: parseInt(e.target.value) || 0
+                            })}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          />
+                          <div className="text-xs text-gray-400 mt-1">
+                            Fórmula: {attack.damage.dice_count}d{attack.damage.dice_sides}{attack.damage.modifier !== 0 ? (attack.damage.modifier > 0 ? `+${attack.damage.modifier}` : attack.damage.modifier) : ''}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Tipo de Dano
+                          </label>
+                          <select
+                            value={attack.damage_type}
+                            onChange={(e) => updateAttack(index, 'damage_type', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            <option value="slashing">Cortante</option>
+                            <option value="piercing">Perfurante</option>
+                            <option value="bludgeoning">Contundente</option>
+                            <option value="fire">Fogo</option>
+                            <option value="cold">Frio</option>
+                            <option value="lightning">Elétrico</option>
+                            <option value="acid">Ácido</option>
+                            <option value="poison">Veneno</option>
+                            <option value="psychic">Psíquico</option>
+                            <option value="necrotic">Necrótico</option>
+                            <option value="radiant">Radiante</option>
+                            <option value="force">Força</option>
+                            <option value="thunder">Trovão</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Alcance
+                          </label>
+                          <input
+                            type="text"
+                            value={attack.range}
+                            onChange={(e) => updateAttack(index, 'range', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: Corpo a corpo, 30/120 ft"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                          Descrição
+                        </label>
+                        <textarea
+                          value={attack.description || ''}
+                          onChange={(e) => updateAttack(index, 'description', e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          placeholder="Efeitos especiais do ataque..."
+                          disabled={mode === 'view'}
+                        />
+                      </div>
+
+                      {/* Botões de rolagem integrados - versão simplificada */}
+                      {mode !== 'create' && attack.id && (
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={() => handleAttackRoll(attack.id!, false, false)}
+                            disabled={isRolling}
+                            className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center space-x-2"
+                          >
+                            <Target className="w-4 h-4" />
+                            <span>Atacar</span>
+                          </button>
+                          <button
+                            onClick={() => handleDamageRoll(attack.id!, false)}
+                            disabled={isRolling}
+                            className="px-3 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center space-x-2"
+                          >
+                            <Swords className="w-4 h-4" />
+                            <span>Dano</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {formData.attacks.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Swords className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhum ataque configurado</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab: Magias */}
+              {currentTab === 'spells' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">Magias</h3>
+                    {mode !== 'view' && (
                       <button
                         onClick={addSpell}
-                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2"
                       >
                         <Plus className="w-4 h-4" />
                         <span>Adicionar Magia</span>
                       </button>
                     )}
                   </div>
-                </div>
 
-                {formData.is_spellcaster && (
-                  <>
-                    {formData.spells.map((spell, index) => (
-                      <div key={spell.id || index} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                        <div className="flex items-center justify-between mb-4">
-                          <h4 className="text-md font-semibold text-white">
-                            {spell.name || `Magia ${index + 1}`}
-                          </h4>
-                          {mode !== 'view' && (
-                            <button
-                              onClick={() => removeSpell(index)}
-                              className="text-red-400 hover:text-red-300"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
+                  {formData.spells.map((spell, index) => (
+                    <div key={spell.id || index} className="p-4 bg-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-medium text-white">Magia #{index + 1}</h4>
+                        {mode !== 'view' && (
+                          <button
+                            onClick={() => removeSpell(index)}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Nome
-                            </label>
-                            <input
-                              type="text"
-                              value={spell.name}
-                              onChange={(e) => updateSpell(index, 'name', e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                              placeholder="Ex: Bola de Fogo"
-                              disabled={mode === 'view'}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Nível
-                            </label>
-                            <input
-                              type="number"
-                              value={spell.level}
-                              onChange={(e) => updateSpell(index, 'level', parseInt(e.target.value) || 0)}
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                              min="0"
-                              max="9"
-                              disabled={mode === 'view'}
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Escola
-                            </label>
-                            <select
-                              value={spell.school}
-                              onChange={(e) => updateSpell(index, 'school', e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                              disabled={mode === 'view'}
-                            >
-                              <option value="Abjuração">Abjuração</option>
-                              <option value="Conjuração">Conjuração</option>
-                              <option value="Adivinhação">Adivinhação</option>
-                              <option value="Encantamento">Encantamento</option>
-                              <option value="Evocação">Evocação</option>
-                              <option value="Ilusão">Ilusão</option>
-                              <option value="Necromancia">Necromancia</option>
-                              <option value="Transmutação">Transmutação</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-1">
-                              Alcance
-                            </label>
-                            <input
-                              type="text"
-                              value={spell.range}
-                              onChange={(e) => updateSpell(index, 'range', e.target.value)}
-                              className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                              placeholder="Ex: 120 pés, Toque"
-                              disabled={mode === 'view'}
-                            />
-                          </div>
-                        </div>
-
-                        <div className="mb-4">
-                          <label className="flex items-center space-x-2 mb-2">
-                            <input
-                              type="checkbox"
-                              checked={spell.is_attack_spell}
-                              onChange={(e) => updateSpell(index, 'is_attack_spell', e.target.checked)}
-                              className="rounded border-gray-600 bg-gray-700 text-purple-600 focus:ring-purple-500"
-                              disabled={mode === 'view'}
-                            />
-                            <span className="text-gray-300">É magia de ataque</span>
-                          </label>
-
-                          {spell.is_attack_spell && (
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                  Dano
-                                </label>
-                                <div className="flex space-x-2">
-                                  <input
-                                    type="number"
-                                    value={spell.damage?.dice_count || 1}
-                                    onChange={(e) => updateSpell(index, 'damage', { 
-                                      ...spell.damage, 
-                                      dice_count: parseInt(e.target.value) || 1 
-                                    })}
-                                    className="w-16 px-2 py-2 bg-gray-600 border border-gray-500 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                                    disabled={mode === 'view'}
-                                  />
-                                  <span className="text-white self-center">d</span>
-                                  <input
-                                    type="number"
-                                    value={spell.damage?.dice_sides || 6}
-                                    onChange={(e) => updateSpell(index, 'damage', { 
-                                      ...spell.damage, 
-                                      dice_sides: parseInt(e.target.value) || 6 
-                                    })}
-                                    className="w-16 px-2 py-2 bg-gray-600 border border-gray-500 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                                    disabled={mode === 'view'}
-                                  />
-                                  <span className="text-white self-center">+</span>
-                                  <input
-                                    type="number"
-                                    value={spell.damage?.modifier || 0}
-                                    onChange={(e) => updateSpell(index, 'damage', { 
-                                      ...spell.damage, 
-                                      modifier: parseInt(e.target.value) || 0 
-                                    })}
-                                    className="w-16 px-2 py-2 bg-gray-600 border border-gray-500 rounded text-white text-center focus:ring-2 focus:ring-purple-500"
-                                    disabled={mode === 'view'}
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">
-                                  Tipo de Dano
-                                </label>
-                                <input
-                                  type="text"
-                                  value={spell.damage_type || ''}
-                                  onChange={(e) => updateSpell(index, 'damage_type', e.target.value)}
-                                  className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                                  placeholder="Ex: fogo, frio"
-                                  disabled={mode === 'view'}
-                                />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
                           <label className="block text-sm font-medium text-gray-300 mb-1">
-                            Descrição
+                            Nome da Magia
                           </label>
-                          <textarea
-                            value={spell.description || ''}
-                            onChange={(e) => updateSpell(index, 'description', e.target.value)}
-                            rows={2}
+                          <input
+                            type="text"
+                            value={spell.name}
+                            onChange={(e) => updateSpell(index, 'name', e.target.value)}
                             className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                            placeholder="Efeitos da magia..."
+                            placeholder="Ex: Bola de Fogo"
                             disabled={mode === 'view'}
                           />
                         </div>
 
-                        {/* ADICIONADO: Botão de conjuração */}
-                        {mode !== 'create' && (
-                          <div className="mt-4">
-                            <SpellRoller
-                              spell={spell}
-                              onCast={(level) => handleSpellCast(spell.name, level)}
-                              disabled={isRolling}
-                              compact={false}
-                            />
-                          </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Nível
+                          </label>
+                          <select
+                            value={spell.level}
+                            onChange={(e) => updateSpell(index, 'level', parseInt(e.target.value))}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            {[0,1,2,3,4,5,6,7,8,9].map(level => (
+                              <option key={level} value={level}>
+                                {level === 0 ? 'Truque' : `${level}º nível`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Escola
+                          </label>
+                          <select
+                            value={spell.school}
+                            onChange={(e) => updateSpell(index, 'school', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            <option value="evocation">Evocação</option>
+                            <option value="enchantment">Encantamento</option>
+                            <option value="illusion">Ilusão</option>
+                            <option value="necromancy">Necromancia</option>
+                            <option value="conjuration">Conjuração</option>
+                            <option value="abjuration">Abjuração</option>
+                            <option value="divination">Adivinhação</option>
+                            <option value="transmutation">Transmutação</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Tempo de Conjuração
+                          </label>
+                          <input
+                            type="text"
+                            value={spell.casting_time}
+                            onChange={(e) => updateSpell(index, 'casting_time', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: 1 ação"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Alcance
+                          </label>
+                          <input
+                            type="text"
+                            value={spell.range}
+                            onChange={(e) => updateSpell(index, 'range', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: 150 pés"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Duração
+                          </label>
+                          <input
+                            type="text"
+                            value={spell.duration}
+                            onChange={(e) => updateSpell(index, 'duration', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: Instantâneo"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Componentes
+                          </label>
+                          <input
+                            type="text"
+                            value={spell.components}
+                            onChange={(e) => updateSpell(index, 'components', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: V, S, M"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            É Magia de Ataque?
+                          </label>
+                          <select
+                            value={spell.is_attack_spell ? 'true' : 'false'}
+                            onChange={(e) => updateSpell(index, 'is_attack_spell', e.target.value === 'true')}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            <option value="false">Não</option>
+                            <option value="true">Sim</option>
+                          </select>
+                        </div>
+
+                        {spell.is_attack_spell && spell.damage && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">
+                                Dados de Dano (qtd)
+                              </label>
+                              <input
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={spell.damage.dice_count}
+                                onChange={(e) => updateSpell(index, 'damage', {
+                                  ...spell.damage!,
+                                  dice_count: parseInt(e.target.value) || 1
+                                })}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                                disabled={mode === 'view'}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">
+                                Lados do Dado
+                              </label>
+                              <select
+                                value={spell.damage.dice_sides}
+                                onChange={(e) => updateSpell(index, 'damage', {
+                                  ...spell.damage!,
+                                  dice_sides: parseInt(e.target.value)
+                                })}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                                disabled={mode === 'view'}
+                              >
+                                <option value={4}>d4</option>
+                                <option value={6}>d6</option>
+                                <option value={8}>d8</option>
+                                <option value={10}>d10</option>
+                                <option value={12}>d12</option>
+                                <option value={20}>d20</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium text-gray-300 mb-1">
+                                Modificador de Dano
+                              </label>
+                              <input
+                                type="number"
+                                value={spell.damage.modifier}
+                                onChange={(e) => updateSpell(index, 'damage', {
+                                  ...spell.damage!,
+                                  modifier: parseInt(e.target.value) || 0
+                                })}
+                                className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                                disabled={mode === 'view'}
+                              />
+                              <div className="text-xs text-gray-400 mt-1">
+                                Fórmula: {spell.damage.dice_count}d{spell.damage.dice_sides}{spell.damage.modifier !== 0 ? (spell.damage.modifier > 0 ? `+${spell.damage.modifier}` : spell.damage.modifier) : ''}
+                              </div>
+                            </div>
+                          </>
                         )}
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            DC de Resistência
+                          </label>
+                          <input
+                            type="number"
+                            min="8"
+                            max="30"
+                            value={spell.save_dc}
+                            onChange={(e) => updateSpell(index, 'save_dc', parseInt(e.target.value) || 10)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Atributo de Resistência
+                          </label>
+                          <select
+                            value={spell.save_ability}
+                            onChange={(e) => updateSpell(index, 'save_ability', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            <option value="strength">Força</option>
+                            <option value="dexterity">Destreza</option>
+                            <option value="constitution">Constituição</option>
+                            <option value="intelligence">Inteligência</option>
+                            <option value="wisdom">Sabedoria</option>
+                            <option value="charisma">Carisma</option>
+                          </select>
+                        </div>
                       </div>
-                    ))}
 
-                    {formData.spells.length === 0 && formData.is_spellcaster && (
-                      <div className="text-center py-8 text-gray-400">
-                        <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Nenhuma magia configurada</p>
+                      <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-300 mb-1">
+                          Descrição
+                        </label>
+                        <textarea
+                          value={spell.description}
+                          onChange={(e) => updateSpell(index, 'description', e.target.value)}
+                          rows={3}
+                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                          placeholder="Efeitos da magia..."
+                          disabled={mode === 'view'}
+                        />
                       </div>
-                    )}
-                  </>
-                )}
 
-                {!formData.is_spellcaster && (
-                  <div className="text-center py-8 text-gray-400">
-                    <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Este NPC não é um conjurador</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tab: Habilidades */}
-            {currentTab === 'abilities' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Habilidades Especiais</h3>
-                  {mode !== 'view' && (
-                    <button
-                      onClick={addAbility}
-                      className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Adicionar Habilidade</span>
-                    </button>
-                  )}
-                </div>
-
-                {formData.abilities.map((ability, index) => (
-                  <div key={ability.id || index} className="bg-gray-700 rounded-lg p-4 border border-gray-600">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-md font-semibold text-white">
-                        {ability.name || `Habilidade ${index + 1}`}
-                      </h4>
-                      {mode !== 'view' && (
-                        <button
-                          onClick={() => removeAbility(index)}
-                          className="text-red-400 hover:text-red-300"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      {/* Botões de rolagem integrados - versão simplificada */}
+                      {mode !== 'create' && spell.id && (
+                        <div className="flex items-center space-x-4">
+                          <button
+                            onClick={() => handleSpellCast(spell.id!)}
+                            disabled={isRolling}
+                            className="px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors flex items-center space-x-2"
+                          >
+                            <Wand2 className="w-4 h-4" />
+                            <span>Lançar Magia</span>
+                          </button>
+                        </div>
                       )}
                     </div>
+                  ))}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Nome
-                        </label>
-                        <input
-                          type="text"
-                          value={ability.name}
-                          onChange={(e) => updateAbility(index, 'name', e.target.value)}
-                          className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                          placeholder="Ex: Ataque Furtivo"
-                          disabled={mode === 'view'}
-                        />
+                  {formData.spells.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Wand2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhuma magia configurada</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab: Habilidades */}
+              {currentTab === 'abilities' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-white">Habilidades Especiais</h3>
+                    {mode !== 'view' && (
+                      <button
+                        onClick={addAbility}
+                        className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors flex items-center space-x-2"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Adicionar Habilidade</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {formData.abilities.map((ability, index) => (
+                    <div key={ability.id || index} className="p-4 bg-gray-700 rounded-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-medium text-white">Habilidade #{index + 1}</h4>
+                        {mode !== 'view' && (
+                          <button
+                            onClick={() => removeAbility(index)}
+                            className="text-red-400 hover:text-red-300 transition-colors"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Nome da Habilidade
+                          </label>
+                          <input
+                            type="text"
+                            value={ability.name}
+                            onChange={(e) => updateAbility(index, 'name', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: Ataque Furtivo"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Tipo
+                          </label>
+                          <select
+                            value={ability.type}
+                            onChange={(e) => updateAbility(index, 'type', e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            disabled={mode === 'view'}
+                          >
+                            <option value="passive">Passiva</option>
+                            <option value="action">Ação</option>
+                            <option value="bonus_action">Ação Bônus</option>
+                            <option value="reaction">Reação</option>
+                            <option value="legendary">Lendária</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Usos por Dia
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={ability.uses_per_day || ''}
+                            onChange={(e) => updateAbility(index, 'uses_per_day', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Deixe vazio para uso ilimitado"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-300 mb-1">
+                            Recarrega em (d6)
+                          </label>
+                          <input
+                            type="number"
+                            min="2"
+                            max="6"
+                            value={ability.recharge_on || ''}
+                            onChange={(e) => updateAbility(index, 'recharge_on', e.target.value ? parseInt(e.target.value) : null)}
+                            className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
+                            placeholder="Ex: 5-6"
+                            disabled={mode === 'view'}
+                          />
+                        </div>
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-300 mb-1">
-                          Uso
+                          Descrição
                         </label>
-                        <input
-                          type="text"
-                          value={ability.usage || ''}
-                          onChange={(e) => updateAbility(index, 'usage', e.target.value)}
+                        <textarea
+                          value={ability.description}
+                          onChange={(e) => updateAbility(index, 'description', e.target.value)}
+                          rows={3}
                           className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                          placeholder="Ex: 1/dia, À vontade"
+                          placeholder="Efeitos e regras da habilidade..."
                           disabled={mode === 'view'}
                         />
                       </div>
                     </div>
+                  ))}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Descrição
-                      </label>
-                      <textarea
-                        value={ability.description}
-                        onChange={(e) => updateAbility(index, 'description', e.target.value)}
-                        rows={3}
-                        className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded text-white focus:ring-2 focus:ring-purple-500"
-                        placeholder="Descreva o efeito e como funciona..."
-                        disabled={mode === 'view'}
-                      />
+                  {formData.abilities.length === 0 && (
+                    <div className="text-center py-8 text-gray-400">
+                      <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Nenhuma habilidade especial configurada</p>
                     </div>
-                  </div>
-                ))}
-
-                {formData.abilities.length === 0 && (
-                  <div className="text-center py-8 text-gray-400">
-                    <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>Nenhuma habilidade especial configurada</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Tab: Roleplay */}
-            {currentTab === 'roleplay' && (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Traços de Personalidade
-                  </label>
-                  <textarea
-                    value={formData.personality_traits.join('\n')}
-                    onChange={(e) => handleInputChange('personality_traits', e.target.value.split('\n').filter(t => t.trim()))}
-                    rows={4}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="Um traço por linha..."
-                    disabled={mode === 'view'}
-                  />
+                  )}
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Objetivos
-                  </label>
-                  <textarea
-                    value={formData.goals}
-                    onChange={(e) => handleInputChange('goals', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="O que este NPC deseja alcançar..."
-                    disabled={mode === 'view'}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Segredos (apenas GM)
-                  </label>
-                  <textarea
-                    value={formData.secrets}
-                    onChange={(e) => handleInputChange('secrets', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="Informações secretas que apenas o GM conhece..."
-                    disabled={mode === 'view'}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Notas do GM
-                  </label>
-                  <textarea
-                    value={formData.gm_notes}
-                    onChange={(e) => handleInputChange('gm_notes', e.target.value)}
-                    rows={4}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
-                    placeholder="Notas privadas do GM sobre este NPC..."
-                    disabled={mode === 'view'}
-                  />
-                </div>
-
-                <div className="flex items-center space-x-6">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_alive}
-                      onChange={(e) => handleInputChange('is_alive', e.target.checked)}
-                      className="rounded border-gray-600 bg-gray-700 text-purple-600 focus:ring-purple-500"
+              {/* Tab: Roleplay */}
+              {currentTab === 'roleplay' && (
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Traços de Personalidade
+                    </label>
+                    <textarea
+                      value={formData.personality_traits.join('\n')}
+                      onChange={(e) => handleInputChange('personality_traits', e.target.value.split('\n').filter(t => t.trim()))}
+                      rows={4}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      placeholder="Um traço por linha..."
                       disabled={mode === 'view'}
                     />
-                    <span className="text-gray-300">Está vivo</span>
-                  </label>
+                  </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Objetivos
+                    </label>
+                    <textarea
+                      value={formData.goals}
+                      onChange={(e) => handleInputChange('goals', e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      placeholder="O que este NPC deseja alcançar..."
+                      disabled={mode === 'view'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Segredos (apenas GM)
+                    </label>
+                    <textarea
+                      value={formData.secrets}
+                      onChange={(e) => handleInputChange('secrets', e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      placeholder="Informações secretas que apenas o GM conhece..."
+                      disabled={mode === 'view'}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Notas do Mestre
+                    </label>
+                    <textarea
+                      value={formData.gm_notes}
+                      onChange={(e) => handleInputChange('gm_notes', e.target.value)}
+                      rows={4}
+                      className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                      placeholder="Notas e lembretes para o GM..."
+                      disabled={mode === 'view'}
+                    />
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="border-t border-gray-700 px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center space-x-4">
+                {mode !== 'view' && (
                   <label className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       checked={formData.is_active}
                       onChange={(e) => handleInputChange('is_active', e.target.checked)}
-                      className="rounded border-gray-600 bg-gray-700 text-purple-600 focus:ring-purple-500"
-                      disabled={mode === 'view'}
+                      className="rounded border-gray-600 bg-gray-700 text-purple-600 focus:ring-2 focus:ring-purple-500"
                     />
-                    <span className="text-gray-300">Está ativo na campanha</span>
+                    <span className="text-gray-300">NPC Ativo</span>
                   </label>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-700">
-          <div className="flex items-center space-x-4">
-            {hasUnsavedChanges && (
-              <span className="text-yellow-400 text-sm flex items-center">
-                <AlertTriangle className="w-4 h-4 mr-1" />
-                Alterações não salvas
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 text-gray-300 border border-gray-600 rounded-lg hover:text-white hover:border-gray-500 transition-colors"
-            >
-              {mode === 'view' ? 'Fechar' : 'Cancelar'}
-            </button>
-            
-            {mode !== 'view' && (
-              <button
-                onClick={handleSubmit}
-                disabled={isLoading}
-                className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <span>{npc ? 'Atualizar NPC' : 'Criar NPC'}</span>
                 )}
-              </button>
-            )}
+                
+                {mode !== 'view' && (
+                  <label className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_alive}
+                      onChange={(e) => handleInputChange('is_alive', e.target.checked)}
+                      className="rounded border-gray-600 bg-gray-700 text-purple-600 focus:ring-2 focus:ring-purple-500"
+                    />
+                    <span className="text-gray-300">NPC Vivo</span>
+                  </label>
+                )}
+              </div>
+              
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleClose}
+                  className="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  {mode === 'view' ? 'Fechar' : 'Cancelar'}
+                </button>
+                
+                {mode !== 'view' && (
+                  <button
+                    onClick={handleSave}
+                    disabled={isLoading}
+                    className="px-6 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <span>{mode === 'edit' ? 'Atualizar NPC' : 'Criar NPC'}</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Modal de Importação D&D */}
+      {showImportModal && (
+        <React.Suspense fallback={
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-8">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                <span className="text-white">Carregando importador D&D...</span>
+              </div>
+            </div>
+          </div>
+        }>
+          <DnDImportModal
+            isOpen={showImportModal}
+            onClose={() => setShowImportModal(false)}
+            onImport={handleImportFromDnD}
+          />
+        </React.Suspense>
+      )}
+    </>
   );
 };
