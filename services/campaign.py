@@ -680,11 +680,17 @@ def create_enhanced_npc_service(campaign_id: str, data: Dict[str, Any], user_id:
         return {"success": False, "error": f"Erro interno: {str(e)}"}
 
 
-def get_enhanced_npcs_service(campaign_id: str, user_id: str, filters: Optional[Dict[str, Any]] = None) -> Dict[
-    str, Any]:
+def get_enhanced_npcs_service(
+        campaign_id: str,
+        user_id: str,
+        filters: Optional[Dict[str, Any]] = None,
+        page: int = 1,
+        per_page: int = 50
+) -> Dict[str, Any]:
     """Service para buscar NPCs Enhanced da campanha"""
     try:
         from database.repositories.enhanced_npc import get_enhanced_npcs_by_campaign
+        from database.schemas.enhanced_npc import NPCSearchFilters
 
         # Validar se campaign_id é válido
         if not ObjectId.is_valid(campaign_id):
@@ -698,20 +704,37 @@ def get_enhanced_npcs_service(campaign_id: str, user_id: str, filters: Optional[
         if not has_campaign_access(campaign, user_id):
             return {"success": False, "error": "Acesso negado"}
 
-        # Buscar NPCs
-        npcs = get_enhanced_npcs_by_campaign(campaign_id, filters or {})
+        # Criar objeto NPCSearchFilters a partir do dicionário
+        try:
+            npc_filters = NPCSearchFilters(**filters) if filters else NPCSearchFilters()
+        except ValueError as e:
+            return {"success": False, "error": f"Filtros inválidos: {str(e)}"}
 
-        # Se não é GM, remover informações sensíveis
+        # Buscar NPCs
+        search_result = get_enhanced_npcs_by_campaign(campaign_id, npc_filters, page, per_page)
+
+        # Converter NPCs para dicionários
+        npcs_data = []
         is_gm = str(campaign.game_master_id) == user_id
-        if not is_gm:
-            for npc in npcs:
-                npc.pop('gm_notes', None)
-                npc.pop('secrets', None)
+
+        for npc in search_result.npcs:
+            # Use model_dump for Pydantic v2 or dict() for v1
+            npc_dict = npc.model_dump() if hasattr(npc, 'model_dump') else npc.dict()
+
+            # Se não é GM, remover informações sensíveis
+            if not is_gm:
+                npc_dict.pop('gm_notes', None)
+                npc_dict.pop('secrets', None)
+
+            npcs_data.append(npc_dict)
 
         return {
             "success": True,
-            "npcs": npcs,
-            "count": len(npcs)
+            "npcs": npcs_data,
+            "total": search_result.total,
+            "page": search_result.page,
+            "per_page": search_result.per_page,
+            "count": len(npcs_data)
         }
 
     except Exception as e:
@@ -744,7 +767,8 @@ def get_enhanced_npc_service(campaign_id: str, npc_id: str, user_id: str) -> Dic
         if str(npc.campaign_id) != campaign_id:
             return {"success": False, "error": "NPC não pertence a esta campanha"}
 
-        npc_data = npc.dict()
+        # Convert to dict properly
+        npc_data = npc.model_dump() if hasattr(npc, 'model_dump') else npc.dict()
 
         # Se não é GM, remover informações sensíveis
         is_gm = str(campaign.game_master_id) == user_id
@@ -759,7 +783,6 @@ def get_enhanced_npc_service(campaign_id: str, npc_id: str, user_id: str) -> Dic
 
     except Exception as e:
         return {"success": False, "error": f"Erro interno: {str(e)}"}
-
 
 def update_enhanced_npc_service(campaign_id: str, npc_id: str, data: Dict[str, Any], user_id: str) -> Dict[str, Any]:
     """Service para atualizar NPC Enhanced"""

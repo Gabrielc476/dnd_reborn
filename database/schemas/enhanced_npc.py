@@ -566,3 +566,19 @@ class NPCSearchResult(BaseModel):
     page: int = 1
     per_page: int = 50
     filters_applied: NPCSearchFilters
+
+    def __len__(self) -> int:
+        """Return the number of NPCs in the result"""
+        return len(self.npcs)
+
+    def __bool__(self) -> bool:
+        """Return True if there are NPCs in the result"""
+        return len(self.npcs) > 0
+
+    def __iter__(self):
+        """Allow iteration over the NPCs"""
+        return iter(self.npcs)
+
+    def __getitem__(self, index):
+        """Allow indexing of NPCs"""
+        return self.npcs[index]

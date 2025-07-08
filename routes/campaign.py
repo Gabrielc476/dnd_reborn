@@ -56,6 +56,9 @@ from database.schemas.enhanced_npc import (
     UpdateHitPointsRequest,
     NPCSearchFilters
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 campaign_bp = Blueprint('campaign', __name__)
 
@@ -912,33 +915,82 @@ def get_enhanced_npcs_route(campaign_id):
         if not user_has_access_to_campaign(user_id, campaign_id):
             return jsonify({"error": "Acesso negado à campanha"}), 403
 
-        # Obter parâmetros de filtro
-        filters = {}
+        # Obter parâmetros de paginação
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 50))
+
+        # Obter parâmetros de filtro e criar objeto NPCSearchFilters
+        filter_data = {}
         if request.args.get('name'):
-            filters['name'] = request.args.get('name')
+            filter_data['name'] = request.args.get('name')
         if request.args.get('npc_type'):
-            filters['npc_type'] = request.args.get('npc_type')
+            filter_data['npc_type'] = request.args.get('npc_type').split(',')
+        if request.args.get('creature_type'):
+            filter_data['creature_type'] = request.args.get('creature_type').split(',')
         if request.args.get('location'):
-            filters['location'] = request.args.get('location')
+            filter_data['location'] = request.args.get('location').split(',')
+        if request.args.get('faction'):
+            filter_data['faction'] = request.args.get('faction').split(',')
+        if request.args.get('challenge_rating_min'):
+            filter_data['challenge_rating_min'] = float(request.args.get('challenge_rating_min'))
+        if request.args.get('challenge_rating_max'):
+            filter_data['challenge_rating_max'] = float(request.args.get('challenge_rating_max'))
         if request.args.get('is_alive'):
-            filters['is_alive'] = request.args.get('is_alive').lower() == 'true'
+            filter_data['is_alive'] = request.args.get('is_alive').lower() == 'true'
+        if request.args.get('is_active'):
+            filter_data['is_active'] = request.args.get('is_active').lower() == 'true'
+        if request.args.get('has_attacks'):
+            filter_data['has_attacks'] = request.args.get('has_attacks').lower() == 'true'
+        if request.args.get('is_spellcaster'):
+            filter_data['is_spellcaster'] = request.args.get('is_spellcaster').lower() == 'true'
+        if request.args.get('is_important'):
+            filter_data['is_important'] = request.args.get('is_important').lower() == 'true'
+        if request.args.get('tags'):
+            filter_data['tags'] = request.args.get('tags').split(',')
 
-        # Buscar NPCs
-        npcs = get_enhanced_npcs_by_campaign(campaign_id, filters)
+        # Criar objeto de filtros
+        try:
+            filters = NPCSearchFilters(**filter_data) if filter_data else NPCSearchFilters()
+        except ValueError as e:
+            return jsonify({"error": f"Filtros inválidos: {str(e)}"}), 400
 
-        # Se não é GM, remover informações sensíveis
-        if not user_is_gm_of_campaign(user_id, campaign_id):
-            for npc in npcs:
-                npc.pop('gm_notes', None)
-                npc.pop('secrets', None)
+        # Buscar NPCs usando a função correta do repository
+        search_result = get_enhanced_npcs_by_campaign(campaign_id, filters, page, per_page)
 
+        # Verificar se o resultado é válido
+        if not search_result:
+            return jsonify({
+                "success": True,
+                "npcs": [],
+                "total": 0,
+                "page": page,
+                "per_page": per_page
+            }), 200
+
+        # Converter NPCs para dicionários
+        npcs_data = []
+        for npc in search_result.npcs:
+            npc_dict = npc.model_dump() if hasattr(npc, 'model_dump') else npc.dict()
+
+            # Se não é GM, remover informações sensíveis
+            if not user_is_gm_of_campaign(user_id, campaign_id):
+                npc_dict.pop('gm_notes', None)
+                npc_dict.pop('secrets', None)
+
+            npcs_data.append(npc_dict)
+
+        # Retornar resposta estruturada
         return jsonify({
             "success": True,
-            "npcs": npcs,
-            "count": len(npcs)
+            "npcs": npcs_data,
+            "total": search_result.total,
+            "page": search_result.page,
+            "per_page": search_result.per_page,
+            "count": len(npcs_data)
         }), 200
 
     except Exception as e:
+        logger.error(f"Erro ao buscar NPCs Enhanced: {str(e)}")
         return jsonify({"error": f"Erro interno: {str(e)}"}), 500
 
 
@@ -1198,7 +1250,7 @@ def filter_enhanced_npcs_route(campaign_id):
     """Filtrar NPCs Enhanced com critérios avançados"""
     try:
         user_id = get_current_user_id()
-        data = request.get_json()
+        data = request.get_json() or {}
 
         # Verificar acesso à campanha
         if not user_has_access_to_campaign(user_id, campaign_id):
@@ -1206,24 +1258,37 @@ def filter_enhanced_npcs_route(campaign_id):
 
         # Aplicar filtros
         try:
-            filters = NPCSearchFilters(**data) if data else NPCSearchFilters()
-            npcs = get_enhanced_npcs_by_campaign(campaign_id, filters.dict())
+            filters = NPCSearchFilters(**data)
+            page = data.get('page', 1)
+            per_page = data.get('per_page', 50)
 
-            # Se não é GM, remover informações sensíveis
-            if not user_is_gm_of_campaign(user_id, campaign_id):
-                for npc in npcs:
-                    npc.pop('gm_notes', None)
-                    npc.pop('secrets', None)
+            search_result = get_enhanced_npcs_by_campaign(campaign_id, filters, page, per_page)
+
+            # Converter NPCs para dicionários
+            npcs_data = []
+            for npc in search_result.npcs:
+                npc_dict = npc.model_dump() if hasattr(npc, 'model_dump') else npc.dict()
+
+                # Se não é GM, remover informações sensíveis
+                if not user_is_gm_of_campaign(user_id, campaign_id):
+                    npc_dict.pop('gm_notes', None)
+                    npc_dict.pop('secrets', None)
+
+                npcs_data.append(npc_dict)
 
             return jsonify({
                 "success": True,
-                "npcs": npcs,
-                "count": len(npcs),
-                "filters_applied": filters.dict()
+                "npcs": npcs_data,
+                "total": search_result.total,
+                "page": search_result.page,
+                "per_page": search_result.per_page,
+                "count": len(npcs_data),
+                "filters_applied": filters.model_dump() if hasattr(filters, 'model_dump') else filters.dict()
             }), 200
 
         except ValueError as e:
             return jsonify({"error": f"Filtros inválidos: {str(e)}"}), 400
 
     except Exception as e:
+        logger.error(f"Erro ao filtrar NPCs Enhanced: {str(e)}")
         return jsonify({"error": f"Erro interno: {str(e)}"}), 500
