@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 def create_app():
     """Factory function para criar a aplicação Flask"""
     app = Flask(__name__)
-
+    app.url_map.strict_slashes = False
     # Configurar CORS
     CORS(app, origins=['http://localhost:3000'], supports_credentials=True)
 
