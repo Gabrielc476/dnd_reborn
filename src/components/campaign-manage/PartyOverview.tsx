@@ -1,5 +1,5 @@
 // ===========================
-// PARTY OVERVIEW - IMPLEMENTAÇÃO COMPLETA COM BUSCA REAL DE USUÁRIOS
+// PARTY OVERVIEW - VERSÃO CORRIGIDA SEM DADOS MOCK
 // src/components/campaign-manage/PartyOverview.tsx
 // ===========================
 
@@ -32,7 +32,8 @@ import {
   Loader2,
   Plus,
   Minus,
-  Search
+  Search,
+  User
 } from 'lucide-react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { userAPI } from '@/api/userAPI';
@@ -42,20 +43,21 @@ interface PlayerStatus {
   user_id: string;
   character_id?: string;
   username: string;
-  character_name: string;
-  character_class: string;
-  character_level: number;
-  current_hp: number;
-  max_hp: number;
-  armor_class: number;
+  character_name?: string;
+  character_class?: string;
+  character_level?: number;
+  current_hp?: number;
+  max_hp?: number;
+  armor_class?: number;
   is_active: boolean;
   last_active: string;
   is_online: boolean;
-  status: 'ready' | 'resting' | 'injured' | 'unconscious' | 'dead';
-  conditions: string[];
+  status?: 'ready' | 'resting' | 'injured' | 'unconscious' | 'dead' | 'no_character';
+  conditions?: string[];
   notes?: string;
-  session_attendance: number;
-  total_sessions: number;
+  session_attendance?: number;
+  total_sessions?: number;
+  has_character: boolean;
 }
 
 const PartyOverview = () => {
@@ -77,17 +79,13 @@ const PartyOverview = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerStatus | null>(null);
   const [showPlayerDetails, setShowPlayerDetails] = useState(false);
 
-  // Estado para adicionar jogador
+  // Estado simplificado para adicionar jogador (APENAS USERNAME)
   const [newPlayerForm, setNewPlayerForm] = useState({
-    username: '',
-    email: '',
-    character_name: '',
-    character_class: 'Fighter',
-    character_level: 1
+    username: ''
   });
 
   // ===========================
-  // CARREGAR E PROCESSAR DADOS REAIS
+  // CARREGAR DADOS REAIS (SEM MOCK)
   // ===========================
   useEffect(() => {
     loadPlayersData();
@@ -101,40 +99,65 @@ const PartyOverview = () => {
 
     setIsLoading(true);
     try {
-      // Processar dados dos jogadores reais da campanha
-      const mappedPlayers: PlayerStatus[] = campaign.players.map((player, index) => {
-        // Simular dados de personagem baseados no índice para teste
-        const classes = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Ranger', 'Paladin'];
-        const characterClass = classes[index % classes.length];
-        const level = Math.floor(Math.random() * 10) + 1;
-        const maxHp = level * 8 + 20;
-        const currentHp = Math.floor(maxHp * (0.7 + Math.random() * 0.3));
-        
-        return {
-          id: player.user_id || `player-${index}`,
-          user_id: player.user_id || '',
-          character_id: player.character_id,
-          username: `Jogador${index + 1}`, // Você pode substituir por dados reais do usuário
-          character_name: `Personagem${index + 1}`, // Substituir por dados reais do personagem
-          character_class: characterClass,
-          character_level: level,
-          current_hp: currentHp,
-          max_hp: maxHp,
-          armor_class: 10 + Math.floor(Math.random() * 8),
-          is_active: player.is_active,
-          last_active: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-          is_online: Math.random() > 0.5,
-          status: currentHp === 0 ? 'dead' : 
-                  currentHp < maxHp * 0.25 ? 'injured' : 
-                  Math.random() > 0.8 ? 'resting' : 'ready',
-          conditions: Math.random() > 0.7 ? ['Blessing'] : [],
-          notes: player.notes,
-          session_attendance: Math.floor(Math.random() * 10) + 1,
-          total_sessions: dashboard?.total_sessions || 0
-        };
+      // Buscar dados reais dos usuários e personagens
+      const playersPromises = campaign.players.map(async (player, index) => {
+        try {
+          // Buscar dados do usuário
+          const userResult = await userAPI.getUserById(player.user_id);
+          
+          let playerData: PlayerStatus = {
+            id: player.user_id || `player-${index}`,
+            user_id: player.user_id || '',
+            character_id: player.character_id,
+            username: userResult.success ? userResult.user?.username || `Usuário${index + 1}` : `Usuário${index + 1}`,
+            is_active: player.is_active,
+            last_active: new Date().toISOString(),
+            is_online: false, // Pode ser implementado com WebSocket depois
+            has_character: !!player.character_id,
+            status: player.character_id ? 'ready' : 'no_character',
+            notes: player.notes
+          };
+
+          // Se tem personagem, buscar dados do personagem
+          if (player.character_id) {
+            // TODO: Implementar busca de dados do personagem quando a API estiver pronta
+            // const characterResult = await characterAPI.getCharacterById(player.character_id);
+            // if (characterResult.success) {
+            //   playerData.character_name = characterResult.character.name;
+            //   playerData.character_class = characterResult.character.class;
+            //   playerData.character_level = characterResult.character.level;
+            //   playerData.current_hp = characterResult.character.current_hp;
+            //   playerData.max_hp = characterResult.character.max_hp;
+            //   playerData.armor_class = characterResult.character.armor_class;
+            //   playerData.conditions = characterResult.character.conditions || [];
+            // }
+            
+            // Por enquanto, apenas indicar que tem personagem
+            playerData.character_name = "Personagem Criado";
+            playerData.character_class = "Classe não carregada";
+            playerData.character_level = 1;
+          }
+
+          return playerData;
+        } catch (error) {
+          console.error(`Erro ao carregar dados do jogador ${player.user_id}:`, error);
+          return {
+            id: player.user_id || `player-${index}`,
+            user_id: player.user_id || '',
+            character_id: player.character_id,
+            username: `Usuário${index + 1}`,
+            is_active: player.is_active,
+            last_active: new Date().toISOString(),
+            is_online: false,
+            has_character: !!player.character_id,
+            status: 'no_character' as const,
+            notes: player.notes
+          };
+        }
       });
 
-      setPlayersData(mappedPlayers);
+      const resolvedPlayers = await Promise.all(playersPromises);
+      setPlayersData(resolvedPlayers);
     } catch (error) {
       console.error('Erro ao carregar dados dos jogadores:', error);
       setPlayersData([]);
@@ -144,7 +167,7 @@ const PartyOverview = () => {
   };
 
   // ===========================
-  // AÇÕES COMPLETAMENTE IMPLEMENTADAS - COM BUSCA REAL
+  // AÇÕES DE JOGADOR SIMPLIFICADAS
   // ===========================
 
   const handleAddPlayer = async () => {
@@ -179,13 +202,11 @@ const PartyOverview = () => {
         return;
       }
       
-      // 3. ADICIONAR À CAMPANHA
+      // 3. ADICIONAR À CAMPANHA (SEM DADOS DE PERSONAGEM)
       const success = await addPlayer({
         user_id: foundUser.id,
-        character_id: undefined, // Pode ser adicionado depois
-        notes: newPlayerForm.character_name ? 
-          `Personagem: ${newPlayerForm.character_name} - ${newPlayerForm.character_class} Nível ${newPlayerForm.character_level}` : 
-          `Jogador adicionado: ${foundUser.username}`
+        character_id: undefined, // O jogador criará seu personagem depois
+        notes: `Jogador adicionado: ${foundUser.username}`
       });
       
       if (success) {
@@ -194,18 +215,14 @@ const PartyOverview = () => {
         // Limpar formulário
         setShowAddPlayer(false);
         setNewPlayerForm({
-          username: '',
-          email: '',
-          character_name: '',
-          character_class: 'Fighter',
-          character_level: 1
+          username: ''
         });
         
         // Atualizar dados
         await refreshDashboard();
         
         // Mostrar sucesso
-        alert(`${foundUser.username} foi adicionado à campanha!`);
+        alert(`${foundUser.username} foi adicionado à campanha! Agora ele pode criar seu personagem.`);
       } else {
         alert('Erro ao adicionar jogador à campanha. Tente novamente.');
       }
@@ -217,111 +234,73 @@ const PartyOverview = () => {
     }
   };
 
-  const handleRemovePlayer = async (playerId: string) => {
-    const player = playersData.find(p => p.user_id === playerId);
-    if (!confirm(`Tem certeza que deseja remover ${player?.username || 'este jogador'}?`)) return;
-    
+  const handleRemovePlayer = async (playerId: string, playerName: string) => {
+    if (!window.confirm(`Remover ${playerName} da campanha?`)) {
+      return;
+    }
+
     try {
-      setIsLoading(true);
       const success = await removePlayer(playerId);
-      
       if (success) {
+        alert(`${playerName} foi removido da campanha.`);
         await refreshDashboard();
       } else {
-        alert('Erro ao remover jogador');
+        alert('Erro ao remover jogador. Tente novamente.');
       }
     } catch (error) {
       console.error('Erro ao remover jogador:', error);
-      alert('Erro ao remover jogador');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleUpdatePlayerNotes = async (playerId: string, notes: string) => {
-    try {
-      const success = await updatePlayer(playerId, { notes });
-      
-      if (success) {
-        // Atualizar estado local
-        setPlayersData(prev => prev.map(p => 
-          p.user_id === playerId ? { ...p, notes } : p
-        ));
-      }
-    } catch (error) {
-      console.error('Erro ao atualizar notas:', error);
+      alert('Erro ao remover jogador.');
     }
   };
 
   // ===========================
-  // FUNÇÕES DE STATUS E UTILIDADES
+  // RENDERIZAÇÃO
   // ===========================
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ready': return 'text-green-400 bg-green-400/10';
-      case 'resting': return 'text-blue-400 bg-blue-400/10';
-      case 'injured': return 'text-yellow-400 bg-yellow-400/10';
-      case 'unconscious': return 'text-red-400 bg-red-400/10';
-      case 'dead': return 'text-gray-400 bg-gray-400/10';
-      default: return 'text-gray-400 bg-gray-400/10';
-    }
+  const getPlayerStatusColor = (player: PlayerStatus) => {
+    if (!player.has_character) return 'text-yellow-400';
+    if (!player.is_active) return 'text-gray-400';
+    if (player.is_online) return 'text-green-400';
+    return 'text-blue-400';
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ready': return <CheckCircle className="w-4 h-4" />;
-      case 'resting': return <Clock className="w-4 h-4" />;
-      case 'injured': return <AlertCircle className="w-4 h-4" />;
-      case 'unconscious': return <Activity className="w-4 h-4" />;
-      case 'dead': return <Skull className="w-4 h-4" />;
-      default: return <Activity className="w-4 h-4" />;
-    }
+  const getPlayerStatusText = (player: PlayerStatus) => {
+    if (!player.has_character) return 'Precisa criar personagem';
+    if (!player.is_active) return 'Inativo';
+    if (player.is_online) return 'Online';
+    return 'Offline';
   };
-
-  const getHPColor = (current: number, max: number) => {
-    const percentage = (current / max) * 100;
-    if (percentage > 75) return 'bg-green-500';
-    if (percentage > 50) return 'bg-yellow-500';
-    if (percentage > 25) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-
-  // ===========================
-  // RENDER
-  // ===========================
 
   return (
-    <div className="bg-gray-800/50 rounded-lg border border-gray-700">
+    <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-gray-700">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <Users className="w-5 h-5 text-white" />
-            </div>
+            <Users className="w-6 h-6 text-white" />
             <div>
-              <h3 className="text-lg font-semibold text-white">Grupo da Aventura</h3>
-              <p className="text-gray-400 text-sm">
-                {playersData.length} de {campaign?.max_players || 6} jogadores
+              <h3 className="text-lg font-semibold text-white">
+                Grupo da Aventura
+              </h3>
+              <p className="text-blue-100 text-sm">
+                {playersData.length} jogador{playersData.length !== 1 ? 'es' : ''} 
+                {campaign?.max_players && ` / ${campaign.max_players} máximo`}
               </p>
             </div>
           </div>
-          
           <div className="flex items-center space-x-2">
-            {isGM && canPerformAction('manage_players') && (
+            {isGM && (
               <button
                 onClick={() => setShowAddPlayer(true)}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center space-x-2"
+                className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-lg transition-colors flex items-center space-x-1"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Adicionar Jogador</span>
+                <span>Adicionar</span>
               </button>
             )}
-            
             <button
               onClick={() => setIsExpanded(!isExpanded)}
-              className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
             >
               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
@@ -329,7 +308,7 @@ const PartyOverview = () => {
         </div>
       </div>
 
-      {/* Modal de Adicionar Jogador */}
+      {/* Modal de Adicionar Jogador - SIMPLIFICADO */}
       {showAddPlayer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg w-full max-w-md">
@@ -354,67 +333,14 @@ const PartyOverview = () => {
                     <input
                       type="text"
                       value={newPlayerForm.username}
-                      onChange={(e) => setNewPlayerForm(prev => ({ ...prev, username: e.target.value }))}
+                      onChange={(e) => setNewPlayerForm({ username: e.target.value })}
                       placeholder="Digite o username ou email do jogador"
                       className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    O sistema buscará o usuário no banco de dados
+                    O jogador poderá criar seu personagem após entrar na campanha.
                   </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">
-                    Nome do Personagem (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={newPlayerForm.character_name}
-                    onChange={(e) => setNewPlayerForm(prev => ({ ...prev, character_name: e.target.value }))}
-                    placeholder="Ex: Aragorn"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Classe
-                    </label>
-                    <select
-                      value={newPlayerForm.character_class}
-                      onChange={(e) => setNewPlayerForm(prev => ({ ...prev, character_class: e.target.value }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Fighter">Guerreiro</option>
-                      <option value="Wizard">Mago</option>
-                      <option value="Rogue">Ladino</option>
-                      <option value="Cleric">Clérigo</option>
-                      <option value="Ranger">Ranger</option>
-                      <option value="Paladin">Paladino</option>
-                      <option value="Barbarian">Bárbaro</option>
-                      <option value="Bard">Bardo</option>
-                      <option value="Druid">Druida</option>
-                      <option value="Monk">Monge</option>
-                      <option value="Sorcerer">Feiticeiro</option>
-                      <option value="Warlock">Bruxo</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-1">
-                      Nível
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="20"
-                      value={newPlayerForm.character_level}
-                      onChange={(e) => setNewPlayerForm(prev => ({ ...prev, character_level: parseInt(e.target.value) || 1 }))}
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
                 </div>
               </div>
 
@@ -451,154 +377,116 @@ const PartyOverview = () => {
 
       {/* Content */}
       <div className="p-6">
-        {playersData.length > 0 ? (
-          <div className="space-y-4">
-            {/* Quick Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-gray-700/50 rounded-lg p-3">
-                <div className="flex items-center space-x-2">
-                  <Users className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm text-gray-300">Total</span>
-                </div>
-                <p className="text-lg font-semibold text-white">{playersData.length}</p>
-              </div>
-              
-              <div className="bg-gray-700/50 rounded-lg p-3">
-                <div className="flex items-center space-x-2">
-                  <Activity className="w-4 h-4 text-green-400" />
-                  <span className="text-sm text-gray-300">Online</span>
-                </div>
-                <p className="text-lg font-semibold text-white">
-                  {playersData.filter(p => p.is_online).length}
-                </p>
-              </div>
-              
-              <div className="bg-gray-700/50 rounded-lg p-3">
-                <div className="flex items-center space-x-2">
-                  <Trophy className="w-4 h-4 text-yellow-400" />
-                  <span className="text-sm text-gray-300">Nível Médio</span>
-                </div>
-                <p className="text-lg font-semibold text-white">
-                  {Math.round(playersData.reduce((sum, p) => sum + p.character_level, 0) / playersData.length)}
-                </p>
-              </div>
-              
-              <div className="bg-gray-700/50 rounded-lg p-3">
-                <div className="flex items-center space-x-2">
-                  <Heart className="w-4 h-4 text-red-400" />
-                  <span className="text-sm text-gray-300">HP Médio</span>
-                </div>
-                <p className="text-lg font-semibold text-white">
-                  {Math.round(playersData.reduce((sum, p) => sum + (p.current_hp / p.max_hp * 100), 0) / playersData.length)}%
-                </p>
-              </div>
-            </div>
-
-            {/* Players List */}
-            <div className="space-y-3">
-              {playersData.map((player) => (
-                <div
-                  key={player.id}
-                  className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/50 hover:border-gray-500/50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      {/* Avatar */}
-                      <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                          {player.character_name[0] || player.username[0]}
-                        </div>
-                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 ${player.is_online ? 'bg-green-500' : 'bg-gray-500'}`} />
+        {isLoading && playersData.length === 0 ? (
+          <div className="text-center py-8">
+            <Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto mb-2" />
+            <p className="text-gray-400">Carregando jogadores...</p>
+          </div>
+        ) : playersData.length > 0 ? (
+          <div className="space-y-3">
+            {playersData.map((player) => (
+              <div
+                key={player.id}
+                className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  {/* Info do Jogador */}
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
+                      player.has_character 
+                        ? 'bg-gradient-to-br from-blue-500 to-purple-600' 
+                        : 'bg-gradient-to-br from-gray-500 to-gray-600'
+                    }`}>
+                      {player.has_character ? (
+                        player.character_name?.[0] || player.username?.[0] || '?'
+                      ) : (
+                        <User className="w-5 h-5" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h4 className="font-semibold text-white">
+                          {player.has_character ? player.character_name : player.username}
+                        </h4>
+                        <span className={`text-xs px-2 py-1 rounded-full ${getPlayerStatusColor(player)} bg-gray-600`}>
+                          {getPlayerStatusText(player)}
+                        </span>
                       </div>
-
-                      {/* Info */}
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="text-white font-medium">{player.character_name}</h4>
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(player.status)}`}>
-                            {getStatusIcon(player.status)}
-                            <span className="capitalize">{player.status}</span>
-                          </span>
-                        </div>
-                        <p className="text-gray-400 text-sm">
-                          {player.username} • {player.character_class} Nível {player.character_level}
-                        </p>
-                        
-                        {/* HP Bar */}
-                        <div className="flex items-center space-x-2 mt-2">
-                          <div className="flex-1 bg-gray-600 rounded-full h-2">
-                            <div
-                              className={`h-full rounded-full transition-all duration-300 ${getHPColor(player.current_hp, player.max_hp)}`}
-                              style={{ width: `${(player.current_hp / player.max_hp) * 100}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-gray-400 min-w-[60px]">
-                            {player.current_hp}/{player.max_hp} HP
-                          </span>
-                        </div>
+                      <div className="text-sm text-gray-400">
+                        {player.has_character ? (
+                          `${player.username} • ${player.character_class} Nível ${player.character_level}`
+                        ) : (
+                          `${player.username} • Aguardando criação de personagem`
+                        )}
                       </div>
                     </div>
+                  </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center space-x-2">
+                  {/* Ações */}
+                  <div className="flex items-center space-x-2">
+                    {player.has_character && (
                       <button
                         onClick={() => {
                           setSelectedPlayer(player);
                           setShowPlayerDetails(true);
                         }}
-                        className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded-lg transition-colors"
+                        className="p-2 text-blue-400 hover:text-blue-300 hover:bg-gray-600 rounded-lg transition-colors"
                         title="Ver detalhes"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      
-                      {isGM && (
-                        <button
-                          onClick={() => handleRemovePlayer(player.user_id)}
-                          className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors"
-                          title="Remover jogador"
-                        >
-                          <UserMinus className="w-4 h-4" />
-                        </button>
-                      )}
+                    )}
+                    
+                    {isGM && (
+                      <button
+                        onClick={() => handleRemovePlayer(player.user_id, player.username)}
+                        className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-600 rounded-lg transition-colors"
+                        title="Remover jogador"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expandir detalhes quando há personagem */}
+                {isExpanded && player.has_character && (
+                  <div className="mt-3 pt-3 border-t border-gray-600">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-400">HP:</span>
+                        <span className="text-white ml-2">
+                          {player.current_hp || 0} / {player.max_hp || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400">CA:</span>
+                        <span className="text-white ml-2">{player.armor_class || 0}</span>
+                      </div>
+                    </div>
+                    
+                    {player.conditions && player.conditions.length > 0 && (
+                      <div className="mt-2">
+                        <span className="text-gray-400 text-sm">Condições:</span>
+                        <span className="text-yellow-400 text-sm ml-2">
+                          {player.conditions.join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Mostrar aviso para jogadores sem personagem */}
+                {isExpanded && !player.has_character && (
+                  <div className="mt-3 pt-3 border-t border-gray-600">
+                    <div className="flex items-center space-x-2 text-yellow-400 text-sm">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>Este jogador ainda não criou seu personagem.</span>
                     </div>
                   </div>
-
-                  {/* Expanded Info */}
-                  {isExpanded && (
-                    <div className="mt-4 pt-4 border-t border-gray-600/50">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-400">CA:</span>
-                          <span className="text-white ml-1">{player.armor_class}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Presença:</span>
-                          <span className="text-white ml-1">{player.session_attendance}/{player.total_sessions}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Última atividade:</span>
-                          <span className="text-white ml-1">{new Date(player.last_active).toLocaleDateString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Condições:</span>
-                          <span className="text-white ml-1">
-                            {player.conditions.length > 0 ? player.conditions.join(', ') : 'Nenhuma'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {player.notes && (
-                        <div className="mt-3">
-                          <span className="text-gray-400 text-sm">Notas:</span>
-                          <p className="text-white text-sm mt-1">{player.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+            ))}
           </div>
         ) : (
           <div className="text-center py-8">
@@ -619,8 +507,8 @@ const PartyOverview = () => {
         )}
       </div>
 
-      {/* Modal de Detalhes do Jogador */}
-      {showPlayerDetails && selectedPlayer && (
+      {/* Modal de Detalhes do Jogador - apenas para jogadores com personagem */}
+      {showPlayerDetails && selectedPlayer && selectedPlayer.has_character && (
         <PlayerDetailsModal
           player={selectedPlayer}
           isOpen={showPlayerDetails}
@@ -640,7 +528,7 @@ const PartyOverview = () => {
   );
 };
 
-// Modal de detalhes do jogador (implementação completa)
+// Modal de detalhes do jogador (simplificado)
 interface PlayerDetailsModalProps {
   player: PlayerStatus;
   isOpen: boolean;
@@ -687,136 +575,72 @@ const PlayerDetailsModal: React.FC<PlayerDetailsModalProps> = ({
                 <p className="text-gray-400">{player.username} • {player.character_class} Nível {player.character_level}</p>
               </div>
             </div>
-            <div className="flex items-center space-x-2">
-              {canEdit && (
-                <button
-                  onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-                  className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
-                >
-                  {isEditing ? 'Salvar' : 'Editar'}
-                </button>
-              )}
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-white"
-              >
-                <Plus className="w-5 h-5 rotate-45" />
-              </button>
-            </div>
-          </div>
-
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Heart className="w-4 h-4 text-red-400" />
-                <span className="text-sm text-gray-300">Pontos de Vida</span>
-              </div>
-              <p className="text-lg font-semibold text-white">{player.current_hp}/{player.max_hp}</p>
-              <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
-                <div
-                  className={`h-full rounded-full ${getHPColor(player.current_hp, player.max_hp)}`}
-                  style={{ width: `${(player.current_hp / player.max_hp) * 100}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Shield className="w-4 h-4 text-blue-400" />
-                <span className="text-sm text-gray-300">Classe de Armadura</span>
-              </div>
-              <p className="text-lg font-semibold text-white">{player.armor_class}</p>
-            </div>
-
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Star className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-gray-300">Nível</span>
-              </div>
-              <p className="text-lg font-semibold text-white">{player.character_level}</p>
-            </div>
-
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Calendar className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-gray-300">Presenças</span>
-              </div>
-              <p className="text-lg font-semibold text-white">{player.session_attendance}/{player.total_sessions}</p>
-            </div>
-
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Activity className="w-4 h-4 text-purple-400" />
-                <span className="text-sm text-gray-300">Status</span>
-              </div>
-              <div className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
-                {getStatusIcon(player.status)}
-                <span className="capitalize">{player.status}</span>
-              </div>
-            </div>
-
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="flex items-center space-x-2 mb-1">
-                <Clock className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-300">Última Atividade</span>
-              </div>
-              <p className="text-sm text-white">{new Date(player.last_active).toLocaleDateString()}</p>
-            </div>
-          </div>
-
-          {/* Conditions */}
-          {player.conditions.length > 0 && (
-            <div className="mb-6">
-              <h4 className="text-lg font-medium text-white mb-3">Condições Ativas</h4>
-              <div className="flex flex-wrap gap-2">
-                {player.conditions.map((condition, index) => (
-                  <span
-                    key={index}
-                    className="px-3 py-1 bg-purple-600/20 text-purple-300 rounded-full text-sm border border-purple-600/30"
-                  >
-                    {condition}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div className="mb-6">
-            <h4 className="text-lg font-medium text-white mb-3">Notas</h4>
-            {isEditing ? (
-              <textarea
-                value={editedPlayer.notes || ''}
-                onChange={(e) => setEditedPlayer(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                rows={4}
-                placeholder="Adicione notas sobre este jogador..."
-              />
-            ) : (
-              <div className="bg-gray-700/50 rounded-lg p-3">
-                <p className="text-gray-300">
-                  {player.notes || 'Nenhuma nota adicionada.'}
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Actions */}
-          <div className="flex justify-end space-x-3">
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors"
+              className="text-gray-400 hover:text-white"
             >
-              Fechar
+              <Plus className="w-6 h-6 rotate-45" />
             </button>
-            {canEdit && isEditing && (
-              <button
-                onClick={() => setIsEditing(false)}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
+          </div>
+
+          {/* Status do Personagem */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-gray-700 rounded-lg p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <Heart className="w-5 h-5 text-red-400" />
+                <span className="text-gray-300">Pontos de Vida</span>
+              </div>
+              <p className="text-2xl font-bold text-white">
+                {player.current_hp || 0} / {player.max_hp || 0}
+              </p>
+            </div>
+            
+            <div className="bg-gray-700 rounded-lg p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <Shield className="w-5 h-5 text-blue-400" />
+                <span className="text-gray-300">Classe de Armadura</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{player.armor_class || 0}</p>
+            </div>
+          </div>
+
+          {/* Informações Adicionais */}
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-lg font-semibold text-white mb-2">Status</h4>
+              <div className="flex items-center space-x-2">
+                <div className={`w-3 h-3 rounded-full ${
+                  player.is_online ? 'bg-green-400' : 'bg-gray-400'
+                }`} />
+                <span className="text-gray-300">
+                  {player.is_online ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            </div>
+
+            {player.conditions && player.conditions.length > 0 && (
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-2">Condições</h4>
+                <div className="flex flex-wrap gap-2">
+                  {player.conditions.map((condition, index) => (
+                    <span
+                      key={index}
+                      className="px-3 py-1 bg-yellow-600/20 text-yellow-400 rounded-full text-sm"
+                    >
+                      {condition}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {player.notes && (
+              <div>
+                <h4 className="text-lg font-semibold text-white mb-2">Notas</h4>
+                <p className="text-gray-300 bg-gray-700 rounded-lg p-3">
+                  {player.notes}
+                </p>
+              </div>
             )}
           </div>
         </div>
@@ -824,21 +648,5 @@ const PlayerDetailsModal: React.FC<PlayerDetailsModalProps> = ({
     </div>
   );
 };
-
-// Função auxiliar para HP color (definida aqui se não existir)
-const getHPColor = (current: number, max: number) => {
-  const percentage = (current / max) * 100;
-  if (percentage > 75) return 'bg-green-500';
-  if (percentage > 50) return 'bg-yellow-500';
-  if (percentage > 25) return 'bg-orange-500';
-  return 'bg-red-500';
-};
-
-// Importar Skull se não existir
-const Skull = ({ className }: { className?: string }) => (
-  <svg className={className} fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M10 2C6.686 2 4 4.686 4 8v4c0 1.657 1.343 3 3 3h6c1.657 0 3-1.343 3-3V8c0-3.314-2.686-6-6-6zM7 9a1 1 0 112 0v2a1 1 0 11-2 0V9zm6 0a1 1 0 10-2 0v2a1 1 0 102 0V9z" clipRule="evenodd" />
-  </svg>
-);
 
 export default PartyOverview;
