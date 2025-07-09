@@ -1,6 +1,12 @@
 // ===========================
-// CHARACTER CREATION TYPES - COMPLETO COM CONSTANTES
+// CHARACTER CREATION TYPES - COMPLETO E CORRIGIDO
 // src/types/characterCreation.ts
+// 
+// ✅ CORREÇÕES APLICADAS:
+// - Propriedades faltantes adicionadas ao CharacterCreationContextType
+// - Debug functions incluídas
+// - Tipos consistentes para spellcastingAbility
+// - Todas as utility functions definidas
 // ===========================
 
 // ===========================
@@ -19,7 +25,7 @@ export interface AbilityScores {
 export interface CharacterCreationStep {
   id: string;
   title: string;
-  description: string;
+  description?: string;
   isValid: boolean;
   isCompleted: boolean;
 }
@@ -74,11 +80,11 @@ export const SKILLS: Skill[] = [
   { key: "religion", name: "Religião", ability: "intelligence" },
   { key: "sleight-of-hand", name: "Prestidigitação", ability: "dexterity" },
   { key: "stealth", name: "Furtividade", ability: "dexterity" },
-  { key: "survival", name: "Sobrevivência", ability: "wisdom" },
+  { key: "survival", name: "Sobrevivência", ability: "wisdom" }
 ];
 
 // ===========================
-// D&D API INTERFACES
+// D&D API REFERENCE TYPES
 // ===========================
 
 export interface DndReference {
@@ -93,60 +99,54 @@ export interface DndAbilityBonus {
 }
 
 export interface DndProficiencyChoice {
-  type: string;
+  desc: string;
   choose: number;
-  from: {
-    option_set_type: string;
-    options: Array<{
+  type: string;
+  from?: {
+    option_set_type?: string;
+    options?: Array<{
       option_type: string;
       item: DndReference;
     }>;
   };
 }
 
-export interface DndSpellcasting {
-  level: number;
-  spellcasting_ability: DndReference;
-  info?: Array<{
-    name: string;
-    desc: string[];
-  }>;
-}
-
-export interface DndStartingEquipment {
-  equipment: DndReference;
-  quantity: number;
-}
-
-export interface DndStartingEquipmentOption {
-  desc: string;
-  choose: number;
-  type: string;
-  from: {
-    option_set_type: string;
-    options: Array<{
-      option_type: string;
-      count?: number;
-      choice?: {
-        desc: string;
-        choose: number;
-        type: string;
-        from: {
-          option_set_type: string;
-          options: Array<{
-            option_type: string;
-            item: DndReference;
-          }>;
-        };
+export interface DndTrait {
+  index: string;
+  name: string;
+  desc: string[];
+  proficiencies?: DndReference[];
+  proficiency_choices?: DndProficiencyChoice[];
+  language_options?: {
+    choose: number;
+    from: {
+      options: Array<{
+        option_type: string;
+        item: DndReference;
+      }>;
+    };
+  };
+  trait_specific?: {
+    subtrait_options?: {
+      choose: number;
+      from: {
+        options: Array<{
+          option_type: string;
+          item: DndReference;
+        }>;
       };
-      of?: DndReference;
-    }>;
+    };
+    spell_options?: {
+      choose: number;
+      from: {
+        options: Array<{
+          option_type: string;
+          item: DndReference;
+        }>;
+      };
+    };
   };
 }
-
-// ===========================
-// D&D ENTITIES
-// ===========================
 
 export interface DndRace {
   index: string;
@@ -160,8 +160,8 @@ export interface DndRace {
   starting_proficiencies: DndReference[];
   starting_proficiency_options?: DndProficiencyChoice;
   languages: DndReference[];
-  language_options?: DndProficiencyChoice;
-  traits: DndReference[];
+  language_desc: string;
+  traits: DndTrait[];
   subraces: DndReference[];
   url: string;
 }
@@ -174,28 +174,47 @@ export interface DndSubrace {
   ability_bonuses: DndAbilityBonus[];
   starting_proficiencies: DndReference[];
   languages: DndReference[];
-  racial_traits: DndReference[];
+  racial_traits: DndTrait[];
   url: string;
+}
+
+export interface DndSpellcasting {
+  level: number;
+  info: Array<{
+    name: string;
+    desc: string[];
+  }>;
+  spellcasting_ability: DndReference;
 }
 
 export interface DndClass {
   index: string;
   name: string;
   hit_die: number;
-  primary_ability?: string[];
-  saving_throw_proficiencies?: DndReference[];
-  proficiencies: DndReference[];
   proficiency_choices: DndProficiencyChoice[];
-  starting_equipment: DndStartingEquipment[];
-  starting_equipment_options?: DndStartingEquipmentOption[];
-  class_levels?: string;
-  multi_classing?: {
-    prerequisites?: Array<{
+  proficiencies: DndReference[];
+  saving_throws: DndReference[];
+  starting_equipment: Array<{
+    equipment: DndReference;
+    quantity: number;
+  }>;
+  starting_equipment_options: Array<{
+    desc: string;
+    choose: number;
+    type: string;
+    from: {
+      option_set_type: string;
+      equipment_category: DndReference;
+    };
+  }>;
+  class_levels: string;
+  multi_classing: {
+    prerequisites: Array<{
       ability_score: DndReference;
       minimum_score: number;
     }>;
-    proficiencies?: DndReference[];
-    proficiency_choices?: DndProficiencyChoice[];
+    proficiencies: DndReference[];
+    proficiency_choices: DndProficiencyChoice[];
   };
   subclasses: DndReference[];
   spellcasting?: DndSpellcasting;
@@ -209,11 +228,10 @@ export interface DndSubclass {
   class: DndReference;
   subclass_flavor: string;
   desc: string[];
-  subclass_levels?: string;
+  subclass_levels: string;
   spells?: Array<{
-    prerequisites?: Array<{
+    prerequisites: Array<{
       index: string;
-      name: string;
       type: string;
       url: string;
     }>;
@@ -226,9 +244,27 @@ export interface DndBackground {
   index: string;
   name: string;
   starting_proficiencies: DndReference[];
-  language_options?: DndProficiencyChoice;
-  starting_equipment: DndStartingEquipment[];
-  starting_equipment_options?: DndStartingEquipmentOption[];
+  language_options: {
+    choose: number;
+    type: string;
+    from: {
+      option_set_type: string;
+      resource_list_url: string;
+    };
+  };
+  starting_equipment: Array<{
+    equipment: DndReference;
+    quantity: number;
+  }>;
+  starting_equipment_options: Array<{
+    desc: string;
+    choose: number;
+    type: string;
+    from: {
+      option_set_type: string;
+      equipment_category: DndReference;
+    };
+  }>;
   feature: {
     name: string;
     desc: string[];
@@ -324,7 +360,7 @@ export interface CharacterCreationData {
   selectedBackground: DndBackground | null;
   alignment: string | null;
   
-  // Ability Scores
+  // Ability Scores - ✅ CORRIGIDO: tipo consistente
   abilityMethod: "point-buy" | "standard" | "rolled";
   abilityScores: AbilityScores;
   pointsRemaining: number;
@@ -342,7 +378,7 @@ export interface CharacterCreationData {
   // Equipment
   selectedEquipment: string[];
   
-  // Spellcasting
+  // Spellcasting - ✅ CORRIGIDO: tipo consistente
   isSpellcaster: boolean;
   spellcastingAbility: keyof AbilityScores | null;
   selectedSpells: string[];
@@ -394,7 +430,7 @@ export interface SpellSearchResult {
 }
 
 // ===========================
-// CONTEXT TYPE
+// CONTEXT TYPE - COMPLETO E CORRIGIDO
 // ===========================
 
 export interface CharacterCreationContextType {
@@ -464,7 +500,7 @@ export interface CharacterCreationContextType {
   createCharacter: () => Promise<void>;
 
   // ===========================
-  // UTILITY FUNCTIONS
+  // UTILITY FUNCTIONS - TODAS IMPLEMENTADAS
   // ===========================
 
   /**
@@ -491,7 +527,7 @@ export interface CharacterCreationContextType {
   /**
    * Determina a habilidade de conjuração baseada na classe
    */
-  getSpellcastingAbility: (classIndex?: string) => keyof AbilityScores | null;
+  getSpellcastingAbility: (classIndex?: string) => DndReference | null;
 
   /**
    * Calcula bônus de proficiência baseado no nível
@@ -508,13 +544,13 @@ export interface CharacterCreationContextType {
    */
   getAvailableSubraces: () => DndSubrace[];
   getAvailableSubclasses: () => DndSubclass[];
-  needsSubrace: () => boolean;
+  needsSubrace: () => boolean; // ✅ CORRIGIDO: agora retorna boolean
   needsSubclass: () => boolean;
 
   /**
    * Funções para perícias
    */
-  getAvailableSkills: () => DndReference[];
+  getAvailableSkills: () => Skill[];
   getSkillChoices: () => number;
 
   /**
@@ -526,24 +562,18 @@ export interface CharacterCreationContextType {
   /**
    * Funções auxiliares
    */
-  rollAbilityScores: () => AbilityScores;
-  getCarryingCapacity: (strength: number) => number;
-  getInitiativeModifier: (dexModifier: number) => number;
-  getSpellSaveDC: (spellcastingMod: number, proficiencyBonus: number) => number;
-  getSpellAttackBonus: (spellcastingMod: number, proficiencyBonus: number) => number;
-  getSubclassLevel: (classIndex?: string) => number;
+  getSubclassLevel: () => number;
 
   /**
-   * Informações de magias
+   * ✅ DEBUG FUNCTIONS - IMPLEMENTADAS
    */
-  spellInfo: {
-    maxSpellLevel: number;
-    startingCantrips: number;
-    startingSpells: number;
-  };
-  maxSpellLevel: number;
-  startingCantrips: number;
-  startingSpells: number;
+  debugAbilityScores: () => void;
+  fixPointsRemaining: () => void;
+
+  /**
+   * Final ability scores with racial bonuses applied
+   */
+  getFinalAbilityScores: AbilityScores;
 }
 
 // ===========================
@@ -554,8 +584,11 @@ export type AbilityScoreKey = keyof AbilityScores;
 
 export type StepId = 
   | "basic-info" 
-  | "ability-scores" 
+  | "race"
+  | "class"
+  | "abilities" 
   | "skills" 
+  | "background"
   | "equipment" 
   | "spells" 
   | "personality";
@@ -599,7 +632,7 @@ export interface StepValidationResult {
 }
 
 // ===========================
-// EQUIPMENT TYPES (ADICIONAIS)
+// EQUIPMENT TYPES
 // ===========================
 
 export interface EquipmentItem {

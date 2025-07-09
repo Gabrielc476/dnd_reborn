@@ -1,20 +1,6 @@
 // ===========================
-// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO CORRIGIDA + SISTEMA DE MESCLAGEM RESTAURADO
+// OPTIMIZED CHARACTER CREATION HOOK - VERSÃO ORIGINAL + MAGIAS
 // src/hooks/useCharacterCreation.tsx
-// 
-// 🔧 CORREÇÕES APLICADAS:
-// - Loop infinito resolvido (Maximum update depth exceeded)
-// - Validação de ability scores corrigida com suporte a múltiplos formatos
-// - Bônus raciais aplicados corretamente
-// - Sistema de mesclagem API + dados locais restaurado
-// - Subraças e subclasses carregadas por raça/classe específica
-// - Sistema de sincronização de pontos restantes
-// - Funções de debug adicionadas
-//
-// 🛠️ PARA TESTAR:
-// Abra o console do navegador e use:
-// - debugAbilityScores() - mostra informações detalhadas sobre os pontos
-// - fixPointsRemaining() - força recálculo dos pontos restantes
 // ===========================
 "use client";
 
@@ -50,7 +36,7 @@ import {
 import { dndAPI } from "@/api/dndAPI";
 
 // ===========================
-// CONFIGURAÇÕES DE MAGIAS POR CLASSE
+// CONFIGURAÇÕES DE MAGIAS POR CLASSE - ✨ NOVO
 // ===========================
 
 const SPELL_CONFIG_BY_CLASS: Record<string, {
@@ -75,7 +61,7 @@ const SPELL_CONFIG_BY_CLASS: Record<string, {
 };
 
 // ===========================
-// FUNÇÕES DE VALIDAÇÃO DE MAGIAS
+// FUNÇÕES DE VALIDAÇÃO DE MAGIAS - ✨ NOVO
 // ===========================
 
 interface SpellValidationResult {
@@ -190,7 +176,7 @@ const initialCharacterData: CharacterCreationData = {
   level: 1,
   experience: 0,
   alignment: "",
-  abilityMethod: "point-buy", // ✅ CORRIGIDO: usar formato consistente
+  abilityMethod: "point-buy",
   abilityScores: {
     strength: 8,
     dexterity: 8,
@@ -266,7 +252,7 @@ const characterCreationSteps: CharacterCreationStep[] = [
 ];
 
 // ===========================
-// INDIVIDUAL QUERY HOOKS - COM SISTEMA DE MESCLAGEM API + DADOS LOCAIS
+// INDIVIDUAL QUERY HOOKS
 // ===========================
 
 function useRacesQuery() {
@@ -274,7 +260,6 @@ function useRacesQuery() {
     queryKey: ["dnd", "races"],
     queryFn: async () => {
       try {
-        // 🎯 A API automaticamente mescla dados da API oficial com dados locais
         const races = await dndAPI.getRaces();
         console.log("🌐 ===== RAÇAS CARREGADAS (API + DADOS LOCAIS) =====");
         console.log(`📊 Total: ${races.length} raças`);
@@ -295,29 +280,20 @@ function useSubracesQuery(enabled: boolean = true, raceIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "subraces", raceIndex],
     queryFn: async () => {
-      if (!raceIndex) return [];
-      
       try {
-        // 🎯 USAR O MÉTODO COM MESCLAGEM DE DADOS API + LOCAL
-        const subraces = await dndAPI.getRaceSubraces(raceIndex);
+        const subraces = await dndAPI.getSubraces();
         console.log("🌐 ===== SUB-RAÇAS CARREGADAS (API + DADOS LOCAIS) =====");
-        console.log(`📊 Total: ${subraces.length} sub-raças para ${raceIndex}`);
+        console.log(`📊 Total: ${subraces.length} sub-raças`);
         return subraces;
       } catch (error) {
         console.error("❌ Erro ao carregar sub-raças da API:", error);
         const { mockSubraces } = await import("@/data/mockSubRaces");
-        
-        // Filtrar por raça específica nos dados mock
-        const filteredSubraces = mockSubraces.filter(
-          subrace => subrace.race?.index === raceIndex
-        );
-        
         console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
-        console.log(`📊 Total: ${filteredSubraces.length} sub-raças dos dados locais para ${raceIndex}`);
-        return filteredSubraces;
+        console.log(`📊 Total: ${mockSubraces.length} sub-raças dos dados locais`);
+        return mockSubraces;
       }
     },
-    enabled: enabled && !!raceIndex,
+    enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes
   });
 }
@@ -347,29 +323,20 @@ function useSubclassesQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "subclasses", classIndex],
     queryFn: async () => {
-      if (!classIndex) return [];
-      
       try {
-        // 🎯 USAR O MÉTODO COM MESCLAGEM DE DADOS API + LOCAL
-        const subclasses = await dndAPI.getClassSubclasses(classIndex);
+        const subclasses = await dndAPI.getSubclasses();
         console.log("🌐 ===== SUBCLASSES CARREGADAS (API + DADOS LOCAIS) =====");
-        console.log(`📊 Total: ${subclasses.length} subclasses para ${classIndex}`);
+        console.log(`📊 Total: ${subclasses.length} subclasses`);
         return subclasses;
       } catch (error) {
         console.error("❌ Erro ao carregar subclasses da API:", error);
         const { mockSubclasses } = await import("@/data/mockSubClasses");
-        
-        // Filtrar por classe específica nos dados mock
-        const filteredSubclasses = mockSubclasses.filter(
-          subclass => subclass.class?.index === classIndex
-        );
-        
         console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
-        console.log(`📊 Total: ${filteredSubclasses.length} subclasses dos dados locais para ${classIndex}`);
-        return filteredSubclasses;
+        console.log(`📊 Total: ${mockSubclasses.length} subclasses dos dados locais`);
+        return mockSubclasses;
       }
     },
-    enabled: enabled && !!classIndex,
+    enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes
   });
 }
@@ -379,7 +346,6 @@ function useBackgroundsQuery() {
     queryKey: ["dnd", "backgrounds"],
     queryFn: async () => {
       try {
-        // 🎯 USAR O MÉTODO COM MESCLAGEM DE DADOS API + LOCAL
         const backgrounds = await dndAPI.getBackgrounds();
         console.log("🌐 ===== BACKGROUNDS CARREGADOS (API + DADOS LOCAIS) =====");
         console.log(`📊 Total: ${backgrounds.length} backgrounds`);
@@ -396,6 +362,9 @@ function useBackgroundsQuery() {
   });
 }
 
+// ===========================
+// HOOK DE MAGIAS CORRIGIDO - ✨ NOVO
+// ===========================
 function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
   return useQuery({
     queryKey: ["dnd", "spells", classIndex],
@@ -403,9 +372,8 @@ function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
       try {
         console.log(`🔍 ===== CARREGANDO MAGIAS PARA ${classIndex || 'TODAS AS CLASSES'} =====`);
         
-        // 🎯 A API já mescla dados oficiais com dados locais automaticamente
         const allSpells = await dndAPI.getSpells();
-        console.log(`📊 Total de magias da API (com mesclagem): ${allSpells.length}`);
+        console.log(`📊 Total de magias da API: ${allSpells.length}`);
         
         if (classIndex) {
           const classSpells = allSpells.filter(spell => {
@@ -432,7 +400,6 @@ function useSpellsQuery(enabled: boolean = true, classIndex?: string) {
           return classSpells;
         }
         
-        console.log(`📊 Total de magias mock: ${mockSpells.length}`);
         return mockSpells;
       }
     },
@@ -457,13 +424,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   const [characterData, setCharacterData] = useState(initialCharacterData);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // ✅ DEBUG: Log inicial dos dados
-  console.log("🚀 Hook initialized with data:", {
-    abilityMethod: characterData.abilityMethod,
-    abilityScores: characterData.abilityScores,
-    pointsRemaining: characterData.pointsRemaining
-  });
 
   // Search states with debouncing
   const [raceSearchTerm, setRaceSearchTerm] = useState("");
@@ -558,7 +518,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [spellsData, debouncedSpellSearch]);
 
   // ===========================
-  // INFORMAÇÕES DE MAGIAS PARA CLASSE ATUAL
+  // INFORMAÇÕES DE MAGIAS PARA CLASSE ATUAL - ✨ NOVO
   // ===========================
 
   const spellInfo = useMemo(() => {
@@ -592,7 +552,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     field: K,
     value: CharacterCreationData[K]
   ) => {
-    // Se mudou a classe, limpar magias inválidas
+    // Se mudou a classe, limpar magias inválidas - ✨ ADICIONADO
     if (field === 'selectedClass' && value) {
       const newClass = value as DndClass;
       const currentSpells = characterData.selectedSpells || [];
@@ -620,58 +580,17 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     }
 
     setCharacterData(prev => ({ ...prev, [field]: value }));
-  }, [characterData.selectedSpells?.length, spellsData.length]);
+  }, [characterData.selectedSpells, spellsData]);
 
-  // Ability Scores - VERSÃO SIMPLIFICADA E ROBUSTA
+  // Ability Scores
   const updateAbilityScore = useCallback((ability: keyof AbilityScores, value: number) => {
-    console.log(`🔧 updateAbilityScore called: ${ability} = ${value}`);
-    
-    setCharacterData(prev => {
-      const newScore = Math.max(8, Math.min(15, value)); // Point buy range
-      const oldScore = prev.abilityScores[ability];
-      
-      console.log(`🔧 Score change: ${ability} ${oldScore} → ${newScore}`);
-      
-      // Point costs for point-buy system
-      const pointCosts: Record<number, number> = {
-        8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
-      };
-      
-      let newPointsRemaining = prev.pointsRemaining;
-      
-      // Only calculate point costs for point-buy method
-      if (prev.abilityMethod === "point-buy" || prev.abilityMethod === "point_buy") {
-        const oldCost = pointCosts[oldScore] || 0;
-        const newCost = pointCosts[newScore] || 0;
-        const costDiff = newCost - oldCost;
-        
-        // Check if we have enough points
-        if (prev.pointsRemaining - costDiff < 0) {
-          console.log(`🔧 Not enough points: need ${costDiff}, have ${prev.pointsRemaining}`);
-          return prev; // Not enough points
-        }
-        
-        newPointsRemaining = prev.pointsRemaining - costDiff;
-        console.log(`🔧 Point calculation: ${oldCost} → ${newCost} (diff: ${costDiff}), remaining: ${prev.pointsRemaining} → ${newPointsRemaining}`);
-      }
-      
-      const newState = {
-        ...prev,
-        abilityScores: {
-          ...prev.abilityScores,
-          [ability]: newScore,
-        },
-        pointsRemaining: newPointsRemaining,
-      };
-      
-      console.log(`🔧 New state:`, {
-        abilityScores: newState.abilityScores,
-        pointsRemaining: newState.pointsRemaining,
-        method: newState.abilityMethod
-      });
-      
-      return newState;
-    });
+    setCharacterData(prev => ({
+      ...prev,
+      abilityScores: {
+        ...prev.abilityScores,
+        [ability]: Math.max(1, Math.min(20, value)),
+      },
+    }));
   }, []);
 
   // Skills
@@ -696,7 +615,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, []);
 
   // ===========================
-  // FUNÇÃO PARA TOGGLE DE MAGIAS
+  // FUNÇÃO PARA TOGGLE DE MAGIAS - ✨ NOVO
   // ===========================
 
   const toggleSpell = useCallback((spellIndex: string) => {
@@ -744,7 +663,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       updateCharacterData({ selectedSpells: newSelection });
       console.log(`✅ Magia ${spell.name} adicionada`);
     }
-  }, [characterData.selectedSpells?.length, characterData.selectedClass?.index, spellsData.length, updateCharacterData]);
+  }, [characterData.selectedSpells, characterData.selectedClass, spellsData, updateCharacterData]);
 
   // ===========================
   // UTILITY FUNCTIONS - CORRIGIDAS
@@ -754,7 +673,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return Math.floor((score - 10) / 2);
   }, []);
 
-  // ✅ FUNÇÃO CORRIGIDA: Calcula bônus raciais e aplica aos scores finais
   const getCombinedAbilityBonuses = useMemo((): Record<keyof AbilityScores, number> => {
     const bonuses: Record<keyof AbilityScores, number> = {
       strength: 0,
@@ -782,69 +700,29 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     }
 
     return bonuses;
-  }, [characterData.selectedRace?.index, characterData.selectedSubrace?.index]);
-
-  // ✅ FUNÇÃO AUXILIAR: Calcula scores finais (para uso interno)
-  const getFinalAbilityScores = useCallback((): AbilityScores => {
-    const bonuses = getCombinedAbilityBonuses;
-    return {
-      strength: characterData.abilityScores.strength + bonuses.strength,
-      dexterity: characterData.abilityScores.dexterity + bonuses.dexterity,
-      constitution: characterData.abilityScores.constitution + bonuses.constitution,
-      intelligence: characterData.abilityScores.intelligence + bonuses.intelligence,
-      wisdom: characterData.abilityScores.wisdom + bonuses.wisdom,
-      charisma: characterData.abilityScores.charisma + bonuses.charisma,
-    };
-  }, [
-    characterData.abilityScores.strength,
-    characterData.abilityScores.dexterity,
-    characterData.abilityScores.constitution,
-    characterData.abilityScores.intelligence,
-    characterData.abilityScores.wisdom,
-    characterData.abilityScores.charisma,
-    getCombinedAbilityBonuses
-  ]);
+  }, [characterData.selectedRace, characterData.selectedSubrace]);
 
   const calculateHitPoints = useCallback((): number => {
     if (!characterData.selectedClass) return 0;
     
-    // Aplicar bônus raciais diretamente
-    const bonuses = getCombinedAbilityBonuses;
-    const finalConstitution = characterData.abilityScores.constitution + bonuses.constitution;
+    const constitution = characterData.abilityScores.constitution;
     const level = characterData.level;
     const hitDie = characterData.selectedClass.hit_die;
     
-    const conModifier = getAbilityModifier(finalConstitution);
+    const conModifier = getAbilityModifier(constitution);
     const baseHP = hitDie + conModifier; // Max HP at level 1
     const additionalHP = (level - 1) * (Math.floor(hitDie / 2) + 1 + conModifier); // Average HP per level after 1st
     
     return Math.max(1, baseHP + additionalHP);
-  }, [
-    characterData.selectedClass?.index, 
-    characterData.selectedClass?.hit_die, 
-    characterData.level, 
-    characterData.abilityScores.constitution,
-    characterData.selectedRace?.index,
-    characterData.selectedSubrace?.index,
-    getCombinedAbilityBonuses,
-    getAbilityModifier
-  ]);
+  }, [characterData.selectedClass, characterData.abilityScores.constitution, characterData.level, getAbilityModifier]);
 
   const calculateArmorClass = useCallback((): number => {
-    // Aplicar bônus raciais diretamente
-    const bonuses = getCombinedAbilityBonuses;
-    const finalDexterity = characterData.abilityScores.dexterity + bonuses.dexterity;
-    const dexModifier = getAbilityModifier(finalDexterity);
+    const dexterity = characterData.abilityScores.dexterity;
+    const dexModifier = getAbilityModifier(dexterity);
     
     // Base AC (10 + Dex modifier for no armor)
     return 10 + dexModifier;
-  }, [
-    characterData.abilityScores.dexterity,
-    characterData.selectedRace?.index,
-    characterData.selectedSubrace?.index,
-    getCombinedAbilityBonuses,
-    getAbilityModifier
-  ]);
+  }, [characterData.abilityScores.dexterity, getAbilityModifier]);
 
   const getSpellcastingAbility = useCallback((classIndex?: string): keyof AbilityScores | null => {
     const targetClass = classIndex 
@@ -854,24 +732,26 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     if (!targetClass?.spellcasting) return null;
     
     return targetClass.spellcasting.spellcasting_ability.index as keyof AbilityScores;
-  }, [characterData.selectedClass?.index, characterData.selectedClass?.spellcasting, classesData.length]);
+  }, [characterData.selectedClass, classesData]);
 
-  // Função auxiliar para subrace/subclass - CORRIGIDAS PARA USAR DADOS JÁ FILTRADOS
+  // Função auxiliar para subrace/subclass
   const getAvailableSubraces = useCallback(() => {
     if (!characterData.selectedRace) return [];
-    // Os dados já vêm filtrados pela raceIndex na query
-    return subracesData;
-  }, [characterData.selectedRace?.index, subracesData]);
+    return subracesData.filter(subrace => 
+      subrace.race.index === characterData.selectedRace?.index
+    );
+  }, [characterData.selectedRace, subracesData]);
 
   const getAvailableSubclasses = useCallback(() => {
     if (!characterData.selectedClass) return [];
-    // Os dados já vêm filtrados pela classIndex na query
-    return subclassesData;
-  }, [characterData.selectedClass?.index, subclassesData]);
+    return subclassesData.filter(subclass => 
+      subclass.class.index === characterData.selectedClass?.index
+    );
+  }, [characterData.selectedClass, subclassesData]);
 
   const needsSubrace = useCallback(() => {
     return characterData.selectedRace && characterData.selectedRace.subraces?.length > 0;
-  }, [characterData.selectedRace?.index, characterData.selectedRace?.subraces?.length]);
+  }, [characterData.selectedRace]);
 
   const getSubclassLevel = useCallback((classIndex?: string) => {
     if (!classIndex) return 3;
@@ -898,7 +778,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     if (!characterData.selectedClass) return false;
     const subclassLevel = getSubclassLevel(characterData.selectedClass.index);
     return characterData.level >= subclassLevel;
-  }, [characterData.selectedClass?.index, characterData.level, getSubclassLevel]);
+  }, [characterData.selectedClass, characterData.level, getSubclassLevel]);
 
   const getAvailableSkills = useCallback(() => {
     if (!characterData.selectedClass) return [];
@@ -908,11 +788,11 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       .filter(option => option.option_type === "reference")
       .map(option => option.item)
       .filter(Boolean);
-  }, [characterData.selectedClass?.index, characterData.selectedClass?.proficiency_choices]);
+  }, [characterData.selectedClass]);
 
   const getSkillChoices = useCallback(() => {
     return characterData.selectedClass?.proficiency_choices?.[0]?.choose || 0;
-  }, [characterData.selectedClass?.proficiency_choices]);
+  }, [characterData.selectedClass]);
 
   // Função para gerar scores aleatórios
   const generateRandomAbilityScores = useCallback(() => {
@@ -932,7 +812,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     };
   }, []);
 
-  // Função para calcular pontos usados no point buy - ✅ ADICIONADA
+  // Função para calcular pontos usados no point buy
   const calculateAbilityScorePoints = useCallback((scores: AbilityScores) => {
     const pointCosts: Record<number, number> = {
       8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
@@ -943,14 +823,8 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     }, 0);
   }, []);
 
-  // ✅ NOVA FUNÇÃO: Recalcular pontos restantes baseado nos scores atuais
-  const recalculatePointsRemaining = useCallback((scores: AbilityScores): number => {
-    const usedPoints = calculateAbilityScorePoints(scores);
-    return 27 - usedPoints;
-  }, [calculateAbilityScorePoints]);
-
   // ===========================
-  // STEP VALIDATION - OTIMIZADA PARA EVITAR LOOPS
+  // STEP VALIDATION - ORIGINAL COM MAGIAS ADICIONADAS
   // ===========================
 
   const validateStep = useCallback((stepId: string): boolean => {
@@ -968,33 +842,10 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         return basicInfoValid;
 
       case "ability-scores":
-        // ✅ VALIDAÇÃO CORRIGIDA COM MÚLTIPLOS FORMATOS E LOGS DETALHADOS
-        console.log(`🔧 ability-scores debug:`, {
-          method: characterData.abilityMethod,
-          scores: characterData.abilityScores,
-          pointsRemaining: characterData.pointsRemaining
-        });
-        
-        if (characterData.abilityMethod === "standard") {
-          const totalPoints = Object.values(characterData.abilityScores).reduce((sum, score) => sum + score, 0);
-          const standardValid = totalPoints === 72;
-          console.log("🔧 ability-scores (standard) valid:", standardValid, "totalPoints:", totalPoints);
-          return standardValid;
-        } else if (characterData.abilityMethod === "point-buy" || characterData.abilityMethod === "point_buy") {
-          const pointBuyValid = characterData.pointsRemaining === 0;
-          console.log("🔧 ability-scores (point-buy) valid:", pointBuyValid, "pointsRemaining:", characterData.pointsRemaining);
-          return pointBuyValid;
-        } else if (characterData.abilityMethod === "rolled" || characterData.abilityMethod === "roll") {
-          const allScoresValid = Object.values(characterData.abilityScores).every(score => score >= 3 && score <= 18);
-          console.log("🔧 ability-scores (rolled) valid:", allScoresValid);
-          return allScoresValid;
-        } else {
-          // ✅ FALLBACK: assumir point-buy se método for desconhecido
-          console.log(`🔧 ability-scores: método desconhecido '${characterData.abilityMethod}', assumindo point-buy`);
-          const fallbackValid = characterData.pointsRemaining === 0;
-          console.log("🔧 ability-scores (fallback point-buy) valid:", fallbackValid);
-          return fallbackValid;
-        }
+        const totalPoints = Object.values(characterData.abilityScores).reduce((sum, score) => sum + score, 0);
+        const abilityValid = characterData.abilityMethod === "standard" ? totalPoints === 75 : totalPoints >= 60;
+        console.log("🔧 ability-scores valid:", abilityValid, "totalPoints:", totalPoints);
+        return abilityValid;
 
       case "skills":
         const skillsValid = characterData.selectedSkills.length === characterData.availableSkillChoices;
@@ -1002,14 +853,24 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         return skillsValid;
 
       case "equipment":
+        console.log("🔧 ===== EQUIPMENT VALIDATION DETAILED =====");
+        console.log("🔧 characterData.selectedEquipment:", characterData.selectedEquipment);
+        console.log("🔧 Type:", typeof characterData.selectedEquipment);
+        console.log("🔧 Is Array:", Array.isArray(characterData.selectedEquipment));
+        console.log("🔧 Length:", characterData.selectedEquipment?.length);
+        console.log("🔧 Truthy check:", !!characterData.selectedEquipment);
+        console.log("🔧 Length > 0 check:", (characterData.selectedEquipment?.length || 0) > 0);
+        
         const equipmentValid = characterData.selectedEquipment && 
                               Array.isArray(characterData.selectedEquipment) &&
                               characterData.selectedEquipment.length > 0;
         
-        console.log("🔧 equipment valid:", equipmentValid);
+        console.log("🔧 Final equipment valid result:", equipmentValid);
+        console.log("🔧 ============================================");
         return equipmentValid;
 
       case "spells":
+        // ✨ NOVA VALIDAÇÃO DE MAGIAS
         if (!characterData.selectedClass) {
           console.log("🔧 spells: Nenhuma classe selecionada");
           return false;
@@ -1026,18 +887,14 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         const currentSelection = characterData.selectedSpells || [];
         const validation = validateSpellSelection(classIndex, currentSelection, spellsData);
         
-        const hasMinimumCantrips = validation.cantripsCount >= classConfig.cantripsKnown;
-        const hasMinimumSpells = validation.spellsCount >= classConfig.spellsKnown;
-        const spellsValid = hasMinimumCantrips && hasMinimumSpells && validation.isValid;
-        
         console.log("🔧 spells validation:", {
-          valid: spellsValid,
+          valid: validation.isValid,
           cantrips: `${validation.cantripsCount}/${classConfig.cantripsKnown}`,
           spells: `${validation.spellsCount}/${classConfig.spellsKnown}`,
           errors: validation.errors
         });
         
-        return spellsValid;
+        return validation.isValid;
 
       case "personality":
         const personalityValid = (
@@ -1054,41 +911,34 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         return false;
     }
   }, [
-    // Dependências mínimas e estáveis
+    // 🔥 DEPENDÊNCIAS ESPECÍFICAS ao invés de characterData completo para evitar loop
     characterData.name,
-    characterData.selectedRace?.index,
-    characterData.selectedClass?.index,
-    characterData.selectedBackground?.index,
-    characterData.selectedSkills.length,
+    characterData.selectedRace,
+    characterData.selectedClass,
+    characterData.selectedBackground,
+    characterData.selectedSkills,
+    characterData.selectedEquipment,
+    characterData.selectedSpells,
+    characterData.personalityTraits,
+    characterData.ideals,
+    characterData.bonds,
+    characterData.flaws,
+    characterData.abilityScores,
     characterData.availableSkillChoices,
-    characterData.selectedEquipment?.length,
-    characterData.selectedSpells?.length,
-    characterData.personalityTraits.length,
-    characterData.ideals.length,
-    characterData.bonds.length,
-    characterData.flaws.length,
-    characterData.abilityMethod,
-    characterData.pointsRemaining,
-    characterData.abilityScores.strength,
-    characterData.abilityScores.dexterity,
-    characterData.abilityScores.constitution,
-    characterData.abilityScores.intelligence,
-    characterData.abilityScores.wisdom,
-    characterData.abilityScores.charisma,
-    spellsData.length
+    characterData.isSpellcaster,
+    spellsData
   ]);
 
   const validateCurrentStep = useCallback((): boolean => {
-    if (!currentStepData) return false;
-    return validateStep(currentStepData.id);
-  }, [currentStepData?.id, validateStep]);
+    return currentStepData ? validateStep(currentStepData.id) : false;
+  }, [currentStepData?.id, validateStep]); // 🔥 APENAS o ID, não o objeto completo
 
   const canProceed = useCallback((): boolean => {
     return validateCurrentStep();
   }, [validateCurrentStep]);
 
   // ===========================
-  // STEP NAVIGATION
+  // STEP NAVIGATION - ORIGINAL
   // ===========================
 
   const nextStep = useCallback(() => {
@@ -1110,7 +960,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [steps.length]);
 
   // ===========================
-  // CHARACTER ACTIONS
+  // CHARACTER ACTIONS - ORIGINAL
   // ===========================
 
   const resetCharacter = useCallback(() => {
@@ -1136,93 +986,16 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, [characterData]);
 
   // ===========================
-  // UPDATE STEP VALIDATION STATUS - SEM DEPENDÊNCIAS CIRCULARES
+  // UPDATE STEP VALIDATION STATUS - CORRIGIDO SEM LOOP INFINITO
   // ===========================
 
   useEffect(() => {
     console.log("🔄 ===== UPDATING STEP VALIDATION =====");
+    console.log("🔄 characterData.selectedEquipment:", characterData.selectedEquipment);
     
     setSteps(prev =>
       prev.map(step => {
-        // Validação inline para evitar dependências circulares
-        let isValid = false;
-        
-        switch (step.id) {
-          case "basic-info":
-            isValid = !!(
-              characterData.name.trim() &&
-              characterData.selectedRace &&
-              characterData.selectedClass &&
-              characterData.selectedBackground
-            );
-            break;
-
-          case "ability-scores":
-            // ✅ VALIDAÇÃO CORRIGIDA COM MÚLTIPLOS FORMATOS E FALLBACK
-            if (characterData.abilityMethod === "standard") {
-              // Standard array: scores should total 72 (15+14+13+12+10+8)
-              const totalPoints = Object.values(characterData.abilityScores).reduce((sum, score) => sum + score, 0);
-              isValid = totalPoints === 72;
-              console.log(`🔧 ability-scores (standard): total=${totalPoints}, valid=${isValid}`);
-            } else if (characterData.abilityMethod === "point-buy" || characterData.abilityMethod === "point_buy") {
-              // Point buy: all points should be used
-              isValid = characterData.pointsRemaining === 0;
-              console.log(`🔧 ability-scores (point-buy): remaining=${characterData.pointsRemaining}, valid=${isValid}`);
-            } else if (characterData.abilityMethod === "rolled" || characterData.abilityMethod === "roll") {
-              // Rolled: any valid scores are acceptable
-              const allScoresValid = Object.values(characterData.abilityScores).every(score => score >= 3 && score <= 18);
-              isValid = allScoresValid;
-              console.log(`🔧 ability-scores (rolled): valid=${isValid}`);
-            } else {
-              // ✅ FALLBACK: assumir point-buy se método for desconhecido
-              console.log(`🔧 ability-scores: método desconhecido '${characterData.abilityMethod}', assumindo point-buy`);
-              isValid = characterData.pointsRemaining === 0;
-              console.log(`🔧 ability-scores (fallback): remaining=${characterData.pointsRemaining}, valid=${isValid}`);
-            }
-            break;
-
-          case "skills":
-            isValid = characterData.selectedSkills.length === characterData.availableSkillChoices;
-            break;
-
-          case "equipment":
-            isValid = characterData.selectedEquipment && 
-                     Array.isArray(characterData.selectedEquipment) &&
-                     characterData.selectedEquipment.length > 0;
-            break;
-
-          case "spells":
-            if (!characterData.selectedClass) {
-              isValid = false;
-            } else {
-              const classIndex = characterData.selectedClass.index;
-              const classConfig = SPELL_CONFIG_BY_CLASS[classIndex];
-              
-              if (!classConfig || !classConfig.isSpellcaster) {
-                isValid = true; // Classe não é conjuradora
-              } else {
-                const currentSelection = characterData.selectedSpells || [];
-                const validation = validateSpellSelection(classIndex, currentSelection, spellsData);
-                const hasMinimumCantrips = validation.cantripsCount >= classConfig.cantripsKnown;
-                const hasMinimumSpells = validation.spellsCount >= classConfig.spellsKnown;
-                isValid = hasMinimumCantrips && hasMinimumSpells && validation.isValid;
-              }
-            }
-            break;
-
-          case "personality":
-            isValid = (
-              characterData.personalityTraits.length > 0 &&
-              characterData.ideals.length > 0 &&
-              characterData.bonds.length > 0 &&
-              characterData.flaws.length > 0
-            );
-            break;
-
-          default:
-            isValid = false;
-        }
-        
+        const isValid = validateStep(step.id);
         console.log(`🔄 Step ${step.id}: ${isValid ? '✅' : '❌'}`);
         
         return {
@@ -1232,28 +1005,41 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         };
       })
     );
+    
+    console.log("🔄 =====================================");
   }, [
-    // Apenas dependências primitivas para evitar loops
+    // 🔥 APENAS as propriedades que realmente importam para validação
     characterData.name,
     characterData.selectedRace?.index,
     characterData.selectedClass?.index,
     characterData.selectedBackground?.index,
-    characterData.selectedSkills.length,
-    characterData.availableSkillChoices,
+    characterData.selectedSkills?.length,
     characterData.selectedEquipment?.length,
     characterData.selectedSpells?.length,
-    characterData.personalityTraits.length,
-    characterData.ideals.length,
-    characterData.bonds.length,
-    characterData.flaws.length,
-    characterData.abilityMethod,
-    characterData.pointsRemaining,
+    characterData.personalityTraits?.length,
+    characterData.ideals?.length,
+    characterData.bonds?.length,
+    characterData.flaws?.length,
     JSON.stringify(characterData.abilityScores),
-    spellsData.length // Apenas o length, não o array completo
+    // 🔥 REMOVIDO validateStep para quebrar o ciclo
   ]);
 
+  // 🔥 FORÇAR VALIDAÇÃO IMEDIATA QUANDO EQUIPMENTS MUDAM - CORRIGIDO
+  useEffect(() => {
+    console.log("⚡ ===== EQUIPMENT CHANGED - FORCING VALIDATION =====");
+    console.log("⚡ selectedEquipment:", characterData.selectedEquipment);
+    
+    // Forçar validação do step equipment usando lógica inline
+    const equipmentValid = characterData.selectedEquipment && 
+                          Array.isArray(characterData.selectedEquipment) &&
+                          characterData.selectedEquipment.length > 0;
+    console.log("⚡ Equipment validation result:", equipmentValid);
+    
+    console.log("⚡ ================================================");
+  }, [characterData.selectedEquipment?.length]); // 🔥 APENAS o tamanho, não validateStep
+
   // ===========================
-  // ERROR HANDLING E SISTEMA DE MESCLAGEM - RESTAURADO
+  // ERROR HANDLING - ORIGINAL
   // ===========================
 
   useEffect(() => {
@@ -1275,7 +1061,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     if (backgroundsError) {
       console.warn("⚠️ ===== ERRO AO CARREGAR BACKGROUNDS DA API =====");
       errors.push("backgrounds");
-      fallbacks.push("📋 Backgrounds: dados locais (com mesclagem)");
+      fallbacks.push("📋 Backgrounds: dados locais");
     }
     
     if (spellsError) {
@@ -1287,101 +1073,50 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     if (subracesError) {
       console.warn("⚠️ ===== ERRO AO CARREGAR SUB-RAÇAS DA API =====");
       errors.push("sub-raças");
-      fallbacks.push("📋 Sub-raças: dados locais (com mesclagem)");
+      fallbacks.push("📋 Sub-raças: dados locais");
     }
 
     if (subclassesError) {
       console.warn("⚠️ ===== ERRO AO CARREGAR SUBCLASSES DA API =====");
       errors.push("subclasses");
-      fallbacks.push("📋 Subclasses: dados locais (com mesclagem)");
+      fallbacks.push("📋 Subclasses: dados locais");
     }
 
     if (fallbacks.length > 0) {
       console.log("🛡️ ===== RESUMO DOS FALLBACKS =====");
-      console.log("📊 Sistema de mesclagem API + dados locais ativo:");
+      console.log("📊 Dados sendo usados dos arquivos locais:");
       fallbacks.forEach(fallback => console.log(fallback));
-      console.log("🔧 A API automaticamente combina dados oficiais com dados customizados");
       console.log("===============================================");
     }
 
     if (errors.length === 0) {
       console.log("✅ ===== TODOS OS DADOS CARREGADOS DA API =====");
       console.log("🌐 Conexão com API D&D funcionando perfeitamente!");
-      console.log("🔧 Sistema de mesclagem API + dados locais funcionando!");
       console.log("===============================================");
     }
   }, [racesError, classesError, backgroundsError, spellsError, subracesError, subclassesError]);
 
   // ===========================
-  // SINCRONIZAÇÃO DE PONTOS RESTANTES - ✅ NOVO (COM PROTEÇÃO CONTRA LOOPS)
+  // AUTO-UPDATE EFFECT FOR CLASS CHANGES - CORRIGIDO
   // ===========================
-
-  useEffect(() => {
-    // Recalcular pontos restantes quando ability scores mudarem (apenas para point-buy)
-    if (characterData.abilityMethod === "point-buy" || characterData.abilityMethod === "point_buy") {
-      const correctPointsRemaining = recalculatePointsRemaining(characterData.abilityScores);
-      
-      // Só atualizar se realmente houver diferença significativa
-      if (Math.abs(correctPointsRemaining - characterData.pointsRemaining) > 0) {
-        console.log(`🔧 Sincronizando pontos: ${characterData.pointsRemaining} → ${correctPointsRemaining}`);
-        
-        // Usar timeout para evitar loop imediato
-        const timeoutId = setTimeout(() => {
-          setCharacterData(prev => {
-            // Double-check se ainda precisa da atualização
-            const currentCorrect = recalculatePointsRemaining(prev.abilityScores);
-            if (currentCorrect !== prev.pointsRemaining) {
-              return {
-                ...prev,
-                pointsRemaining: currentCorrect
-              };
-            }
-            return prev;
-          });
-        }, 100);
-        
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [
-    // Apenas os ability scores individuais para detectar mudanças
-    characterData.abilityScores.strength,
-    characterData.abilityScores.dexterity,
-    characterData.abilityScores.constitution,
-    characterData.abilityScores.intelligence,
-    characterData.abilityScores.wisdom,
-    characterData.abilityScores.charisma,
-    characterData.abilityMethod
-    // NÃO incluir pointsRemaining aqui para evitar loop
-  ]);
 
   useEffect(() => {
     if (characterData.selectedClass) {
       const isSpellcaster = !!characterData.selectedClass.spellcasting;
       const skillChoices = characterData.selectedClass.proficiency_choices?.[0]?.choose || 2;
       
-      // Só atualizar se realmente mudou para evitar loops
-      if (characterData.isSpellcaster !== isSpellcaster || 
-          characterData.availableSkillChoices !== skillChoices) {
-        
-        setCharacterData(prev => ({
-          ...prev,
-          isSpellcaster,
-          spellcastingAbility: isSpellcaster ? characterData.selectedClass?.spellcasting?.spellcasting_ability || null : null,
-          availableSkillChoices: skillChoices,
-          selectedSpells: isSpellcaster ? prev.selectedSpells : [],
-        }));
-      }
+      setCharacterData(prev => ({
+        ...prev,
+        isSpellcaster,
+        spellcastingAbility: isSpellcaster ? characterData.selectedClass?.spellcasting?.spellcasting_ability || null : null,
+        availableSkillChoices: skillChoices,
+        selectedSpells: isSpellcaster ? prev.selectedSpells : [],
+      }));
     }
-  }, [
-    characterData.selectedClass?.index, // Apenas o index
-    characterData.selectedClass?.spellcasting, // E spellcasting info
-    characterData.isSpellcaster, // Estado atual para comparação
-    characterData.availableSkillChoices // Estado atual para comparação
-  ]);
+  }, [characterData.selectedClass?.index]); // 🔥 APENAS o index para evitar loop
 
   // ===========================
-  // RETURN CONTEXT VALUE
+  // RETURN CONTEXT VALUE - ORIGINAL + MAGIAS
   // ===========================
 
   const contextValue: CharacterCreationContextType = {
@@ -1401,7 +1136,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     updateCharacterField,
     updateAbilityScore,
     toggleSkill,
-    toggleSpell,
+    toggleSpell, // ✨ NOVO
 
     // Data from API
     races: filteredRaces,
@@ -1445,7 +1180,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     isStepValid: validateStep,
 
     // ===========================
-    // UTILITY FUNCTIONS - CORRIGIDAS
+    // UTILITY FUNCTIONS (PRINCIPAIS) - TODAS ORIGINAIS
     // ===========================
     
     getCombinedAbilityBonuses,
@@ -1465,7 +1200,10 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     getSkillChoices,
     getSubclassLevel,
     
-    // Additional utility functions
+    // ===========================
+    // UTILITY FUNCTIONS (ADICIONAIS) - ORIGINAIS
+    // ===========================
+    
     calculateModifier: (score: number) => Math.floor((score - 10) / 2),
     getProficiencyBonus: (level: number) => Math.ceil(level / 4) + 1,
     getSkillModifier: (skill: string, scores: AbilityScores, isProficient = false) => {
@@ -1500,7 +1238,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     },
 
     // ===========================
-    // INFORMAÇÕES DE MAGIAS
+    // INFORMAÇÕES DE MAGIAS - ✨ NOVO
     // ===========================
     
     spellInfo,
@@ -1508,13 +1246,13 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     startingCantrips: spellInfo.startingCantrips,
     startingSpells: spellInfo.startingSpells,
     
-    // Dados de magias filtrados por classe
+    // Dados de magias filtrados por classe - ✨ NOVO
     availableSpells: spellsData,
     isSpellcaster: characterData.isSpellcaster,
     cantripsKnown: spellInfo.startingCantrips,
     spellsKnown: spellInfo.startingSpells,
     
-    // Funções de validação de magias
+    // Funções de validação de magias - ✨ NOVO
     validateSpellSelection: (spells?: string[]) => {
       const selection = spells || characterData.selectedSpells || [];
       const classIndex = characterData.selectedClass?.index;
@@ -1538,76 +1276,24 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       };
     },
 
-    // ✅ FUNÇÕES DE DEBUG SIMPLIFICADAS
-    debugAbilityScores: () => {
-      const pointCosts: Record<number, number> = {
-        8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
-      };
-      
-      const usedPoints = Object.values(characterData.abilityScores).reduce((total, score) => {
-        return total + (pointCosts[score] || 0);
-      }, 0);
-      
-      const correctRemaining = 27 - usedPoints;
-      const isValid = characterData.pointsRemaining === 0;
-      
-      console.log("🔧 ===== DEBUG ABILITY SCORES =====");
-      console.log("Method:", characterData.abilityMethod);
-      console.log("Scores:", characterData.abilityScores);
-      console.log("Points used:", usedPoints);
-      console.log("Points remaining (stored):", characterData.pointsRemaining);
-      console.log("Points remaining (calculated):", correctRemaining);
-      console.log("Is valid:", isValid);
-      console.log("Step validation result:", validateStep("ability-scores"));
-      console.log("==================================");
-      
-      return {
-        method: characterData.abilityMethod,
-        scores: characterData.abilityScores,
-        usedPoints,
-        storedRemaining: characterData.pointsRemaining,
-        calculatedRemaining: correctRemaining,
-        isValid,
-        stepValid: validateStep("ability-scores")
-      };
-    },
-
-    // ✅ FUNÇÃO PARA FORÇAR RECÁLCULO DOS PONTOS
-    fixPointsRemaining: () => {
-      const pointCosts: Record<number, number> = {
-        8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
-      };
-      
-      const usedPoints = Object.values(characterData.abilityScores).reduce((total, score) => {
-        return total + (pointCosts[score] || 0);
-      }, 0);
-      
-      const correctRemaining = 27 - usedPoints;
-      
-      console.log(`🔧 Corrigindo pontos: ${characterData.pointsRemaining} → ${correctRemaining}`);
-      
-      updateCharacterData({ pointsRemaining: correctRemaining });
-      
-      return correctRemaining;
-    },
-
-    recalculatePointsRemaining,
-
     error,
   };
 
-  // ✅ EXPOR FUNÇÕES DE DEBUG GLOBALMENTE PARA TESTE
-  if (typeof window !== 'undefined') {
-    (window as any).debugAbilityScores = contextValue.debugAbilityScores;
-    (window as any).fixPointsRemaining = contextValue.fixPointsRemaining;
-    console.log("🔧 Debug functions available: debugAbilityScores(), fixPointsRemaining()");
-  }
+  // 🚨 TESTE DIRETO - VALIDAÇÃO EQUIPMENT (dentro da função) - ORIGINAL
+  console.log("🧪 ===== TESTE DIRETO - EQUIPMENT VALIDATION =====");
+  console.log("🧪 characterData.selectedEquipment:", characterData.selectedEquipment);
+  console.log("🧪 Equipment valid?", 
+    characterData.selectedEquipment && 
+    Array.isArray(characterData.selectedEquipment) && 
+    characterData.selectedEquipment.length > 0
+  );
+  console.log("🧪 ================================================");
 
   return contextValue;
 };
 
 // ===========================
-// PROVIDER COMPONENT
+// PROVIDER COMPONENT - ORIGINAL
 // ===========================
 
 const CharacterCreationInternalProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -1635,7 +1321,7 @@ export const CharacterCreationProvider: React.FC<{ children: React.ReactNode }> 
 };
 
 // ===========================
-// CONTEXT HOOK
+// CONTEXT HOOK - ORIGINAL
 // ===========================
 
 export const useCharacterCreationContext = (): CharacterCreationContextType => {
@@ -1648,12 +1334,12 @@ export const useCharacterCreationContext = (): CharacterCreationContextType => {
   return context;
 };
 
-// Export individual hooks for flexibility - COM SISTEMA DE MESCLAGEM RESTAURADO
+// Export individual hooks for flexibility - ORIGINAL
 export {
-  useRacesQuery,           // ✅ Mescla dados da API com dados locais
-  useSubracesQuery,        // ✅ Filtra por raça específica + mesclagem
-  useClassesQuery,         // ✅ Mescla dados da API com dados locais
-  useSubclassesQuery,      // ✅ Filtra por classe específica + mesclagem
-  useBackgroundsQuery,     // ✅ Mescla dados da API com dados locais
-  useSpellsQuery,          // ✅ Filtra por classe + mesclagem de dados
+  useRacesQuery,
+  useSubracesQuery,
+  useClassesQuery,
+  useBackgroundsQuery,
+  useSpellsQuery,
+  useSubclassesQuery,
 };
