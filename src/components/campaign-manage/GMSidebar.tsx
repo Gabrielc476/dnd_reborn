@@ -1,6 +1,6 @@
 // ===========================
 // src/components/campaign-manage/GMSidebar.tsx
-// SIDEBAR COMPLETO COM SISTEMA DE NAVEGAÇÃO
+// SIDEBAR COMPLETO COM SISTEMA DE NAVEGAÇÃO + SEÇÃO DE PERSONAGENS
 // ===========================
 
 import React, { useState } from 'react';
@@ -34,13 +34,15 @@ import {
   RefreshCw,
   AlertTriangle,
   CheckCircle,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 
 // Tipo para as seções de navegação
 export type CampaignSection = 
   | 'overview' 
+  | 'characters'
   | 'npcs' 
   | 'encounters' 
   | 'sessions' 
@@ -167,6 +169,11 @@ const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => 
     }
   };
 
+  const handleCreateCharacter = () => {
+    // Redirecionar para página de criação de personagem da campanha
+    window.location.href = `/campaign/${campaign?.id}/create-character`;
+  };
+
   // ===========================
   // CONFIGURAÇÃO DAS SEÇÕES
   // ===========================
@@ -185,6 +192,13 @@ const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => 
           action: () => onNavigate('overview'), 
           icon: Home,
           highlight: currentSection === 'overview'
+        },
+        { 
+          label: 'Personagens', 
+          action: () => onNavigate('characters'), 
+          icon: User,
+          badge: campaign?.players?.filter(p => p.character_id).length || 0,
+          highlight: currentSection === 'characters'
         },
         { 
           label: 'Lista de NPCs', 
@@ -219,17 +233,72 @@ const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => 
           label: 'Tesouro & Loot', 
           action: () => onNavigate('loot'), 
           icon: Package,
+          badge: dashboard?.total_loot || 0,
           highlight: currentSection === 'loot',
           disabled: !isGM
         },
         { 
-          label: 'Mundo & Locais', 
+          label: 'Mundo & Exploração', 
           action: () => onNavigate('world'), 
           icon: Map,
           highlight: currentSection === 'world',
           disabled: !isGM
+        },
+        { 
+          label: 'Controle de Combate', 
+          action: () => onNavigate('combat'), 
+          icon: Sword,
+          highlight: currentSection === 'combat',
+          disabled: !isGM
         }
-      ].filter(item => !item.disabled) // Filtrar items desabilitados
+      ]
+    },
+
+    // CRIAÇÃO RÁPIDA
+    {
+      id: 'quick-create',
+      title: 'CRIAÇÃO RÁPIDA',
+      icon: Plus,
+      color: 'text-green-400',
+      isCollapsible: true,
+      items: [
+        { 
+          label: 'Novo Personagem', 
+          action: handleCreateCharacter,
+          icon: UserPlus,
+          bg: 'hover:bg-cyan-600/20'
+        },
+        { 
+          label: 'Novo NPC', 
+          action: handleCreateQuickNPC, 
+          icon: Users,
+          bg: 'hover:bg-blue-600/20'
+        },
+        { 
+          label: 'Novo Encontro', 
+          action: handleCreateQuickEncounter, 
+          icon: Sword,
+          bg: 'hover:bg-red-600/20'
+        },
+        { 
+          label: 'Adicionar Tesouro', 
+          action: () => {
+            console.log('Criar item de tesouro');
+            onNavigate('loot');
+          }, 
+          icon: Package,
+          bg: 'hover:bg-yellow-600/20'
+        },
+        { 
+          label: 'Nova Sessão', 
+          action: () => {
+            console.log('Criar nova sessão');
+            onNavigate('sessions');
+          }, 
+          icon: Calendar,
+          bg: 'hover:bg-purple-600/20'
+        }
+      ]
     },
 
     // AÇÕES RÁPIDAS
@@ -237,60 +306,11 @@ const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => 
       id: 'quick_actions',
       title: 'AÇÕES RÁPIDAS',
       icon: Zap,
-      color: 'text-green-400',
+      color: 'text-yellow-400',
       isCollapsible: true,
       items: [
         { 
-          label: 'Criar NPC', 
-          action: handleCreateQuickNPC, 
-          icon: Users,
-          disabled: isCreatingContent || !isGM,
-          bg: 'hover:bg-green-600/20'
-        },
-        { 
-          label: 'Novo Encontro', 
-          action: handleCreateQuickEncounter, 
-          icon: Sword,
-          disabled: isCreatingContent || !isGM,
-          bg: 'hover:bg-red-600/20'
-        },
-        { 
-          label: 'Registrar Sessão', 
-          action: () => onNavigate('sessions'), 
-          icon: Calendar,
-          disabled: isCreatingContent || !isGM,
-          bg: 'hover:bg-blue-600/20'
-        },
-        { 
-          label: 'Anotação Rápida', 
-          action: () => {
-            // Implementar modal de anotação rápida
-            console.log('Abrir modal de anotação');
-          }, 
-          icon: FileText,
-          bg: 'hover:bg-purple-600/20'
-        }
-      ].filter(item => !item.disabled) // Filtrar items desabilitados
-    },
-
-    // COMBATE E SESSÃO ATIVA
-    {
-      id: 'combat',
-      title: 'COMBATE & SESSÃO',
-      icon: Sword,
-      color: 'text-red-400',
-      isCollapsible: true,
-      items: [
-        { 
-          label: 'Tracker de Combate', 
-          action: () => onNavigate('combat'), 
-          icon: Sword, 
-          badge: dashboard?.active_encounters?.length || 0,
-          disabled: isCreatingContent,
-          highlight: currentSection === 'combat'
-        },
-        { 
-          label: 'Rolagem Rápida', 
+          label: 'Rolagem de Dados', 
           action: handleQuickDiceRoll, 
           icon: Dice6,
           bg: 'hover:bg-yellow-600/20'
@@ -418,7 +438,7 @@ const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => 
   // Filtrar seções baseado nas permissões
   const visibleSections = sidebarSections.filter(section => {
     // Se não é GM, esconder seções que requerem permissões GM
-    if (!isGM && ['quick_actions', 'combat', 'world', 'management'].includes(section.id)) {
+    if (!isGM && ['quick_actions', 'world', 'management'].includes(section.id)) {
       return false;
     }
     return true;
@@ -437,72 +457,54 @@ const GMSidebar: React.FC<GMSidebarProps> = ({ onNavigate, currentSection }) => 
               {campaign?.name || 'Campanha'}
             </h2>
             <p className="text-sm text-gray-400 truncate">
-              {isGM ? 'Mesa do Mestre' : 'Aventureiro'}
+              {isGM ? 'Mestre da Campanha' : 'Jogador'}
             </p>
           </div>
         </div>
 
-        {/* Stats rápidas */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-800/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-bold text-blue-400">
-              {campaign?.players?.length || 0}
-            </div>
-            <div className="text-xs text-gray-400">Jogadores</div>
+        {/* Status da Campanha */}
+        <div className="bg-gray-700/30 rounded-lg p-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-400">Status:</span>
+            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+              campaign?.status === 'ativa' 
+                ? 'bg-green-500/20 text-green-400' 
+                : 'bg-yellow-500/20 text-yellow-400'
+            }`}>
+              {campaign?.status || 'Carregando...'}
+            </span>
           </div>
-          <div className="bg-gray-800/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-bold text-red-400">
-              {dashboard?.total_encounters || 0}
-            </div>
-            <div className="text-xs text-gray-400">Encontros</div>
-          </div>
-          <div className="bg-gray-800/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-bold text-purple-400">
-              {dashboard?.total_npcs || 0}
-            </div>
-            <div className="text-xs text-gray-400">NPCs</div>
-          </div>
-          <div className="bg-gray-800/30 rounded-lg p-3 text-center">
-            <div className="text-lg font-bold text-yellow-400">
-              {dashboard?.total_sessions || 0}
-            </div>
-            <div className="text-xs text-gray-400">Sessões</div>
+          <div className="flex items-center justify-between text-sm mt-2">
+            <span className="text-gray-400">Jogadores:</span>
+            <span className="text-white font-medium">
+              {campaign?.players?.length || 0}/{campaign?.max_players || 0}
+            </span>
           </div>
         </div>
-
-        {/* Status da Sessão Ativa */}
-        {dashboard?.active_encounters && dashboard.active_encounters.length > 0 && (
-          <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <div className="flex items-center space-x-2">
-              <Activity className="w-4 h-4 text-red-400 animate-pulse" />
-              <span className="text-sm font-medium text-red-400">
-                Combate Ativo
-              </span>
-            </div>
-            <p className="text-xs text-red-300 mt-1">
-              {dashboard.active_encounters.length} encontro(s) em andamento
-            </p>
-          </div>
-        )}
       </div>
 
-      {/* Seções de Ferramentas */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Seções do Sidebar */}
+      <div className="flex-1 overflow-y-auto">
         {visibleSections.map((section) => (
-          <div key={section.id} className="bg-gray-800/30 rounded-lg overflow-hidden">
+          <div key={section.id} className="border-b border-gray-700/30">
             {/* Header da Seção */}
             <button
               onClick={() => section.isCollapsible && toggleSection(section.id)}
-              className="w-full p-3 flex items-center justify-between text-left hover:bg-gray-700/30 transition-colors"
+              className={`w-full p-4 text-left flex items-center justify-between hover:bg-gray-700/30 transition-colors ${
+                section.isCollapsible ? 'cursor-pointer' : 'cursor-default'
+              }`}
             >
               <div className="flex items-center space-x-3">
                 <section.icon className={`w-5 h-5 ${section.color}`} />
-                <span className="text-sm font-semibold text-gray-300">
+                <span className={`text-sm font-semibold tracking-wide ${section.color}`}>
                   {section.title}
                 </span>
               </div>
+              
               {section.isCollapsible && (
-                <div className="text-gray-500">
+                <div className={`text-gray-400 transition-transform duration-200 ${
+                  collapsedSections.has(section.id) ? '' : 'rotate-90'
+                }`}>
                   {collapsedSections.has(section.id) ? 
                     <ChevronRight className="w-4 h-4" /> : 
                     <ChevronDown className="w-4 h-4" />
