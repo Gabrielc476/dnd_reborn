@@ -4,18 +4,11 @@
 // ===========================
 
 import { useState, useCallback, useMemo } from 'react';
+import { AbilityScores, AbilityScoreKey } from '@/types/characterCreation';
 
 export type AbilityMethod = 'point-buy' | 'standard-array' | 'roll';
 
-export interface AbilityScores {
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
-}
-
+// Tipos específicos do hook que estendem os tipos base
 export interface AbilityModifiers {
   strength: number;
   dexterity: number;
@@ -45,7 +38,7 @@ export const useAbilityScores = () => {
   const [method, setMethod] = useState<AbilityMethod>('point-buy');
   const [scores, setScores] = useState<AbilityScores>(INITIAL_SCORES);
   const [pointsUsed, setPointsUsed] = useState(0);
-  const [standardArrayAssigned, setStandardArrayAssigned] = useState<Record<string, number | null>>({
+  const [standardArrayAssigned, setStandardArrayAssigned] = useState<Record<AbilityScoreKey, number | null>>({
     strength: null,
     dexterity: null,
     constitution: null,
@@ -53,6 +46,7 @@ export const useAbilityScores = () => {
     wisdom: null,
     charisma: null,
   });
+  const [rolledScores, setRolledScores] = useState<number[]>([]);
 
   const maxPoints = 27;
 
@@ -70,15 +64,115 @@ export const useAbilityScores = () => {
     };
   }, [scores]);
 
-  // Calcular pontos usados no point-buy
-  const calculatePointsUsed = useCallback((currentScores: AbilityScores) => {
-    return Object.values(currentScores).reduce((total, score) => {
+  // Calcular pontos gastos no Point Buy
+  const calculatePointsUsed = useCallback((abilityScores: AbilityScores) => {
+    return Object.values(abilityScores).reduce((total, score) => {
       return total + (POINT_BUY_COSTS[score] || 0);
     }, 0);
   }, []);
 
-  // Atualizar método
-  const updateMethod = useCallback((newMethod: AbilityMethod) => {
+  // Atualizar pontos gastos quando scores mudam
+  useMemo(() => {
+    if (method === 'point-buy') {
+      const newPointsUsed = calculatePointsUsed(scores);
+      setPointsUsed(newPointsUsed);
+    }
+  }, [scores, method, calculatePointsUsed]);
+
+  // Atualizar score individual (Point Buy)
+  const updateScore = useCallback((ability: AbilityScoreKey, newScore: number) => {
+    if (method !== 'point-buy') return;
+
+    const clampedScore = Math.max(8, Math.min(15, newScore));
+    const tempScores = { ...scores, [ability]: clampedScore };
+    const tempPointsUsed = calculatePointsUsed(tempScores);
+
+    if (tempPointsUsed <= maxPoints) {
+      setScores(tempScores);
+    }
+  }, [method, scores, calculatePointsUsed, maxPoints]);
+
+  // Incrementar score
+  const incrementScore = useCallback((ability: AbilityScoreKey) => {
+    updateScore(ability, scores[ability] + 1);
+  }, [updateScore, scores]);
+
+  // Decrementar score
+  const decrementScore = useCallback((ability: AbilityScoreKey) => {
+    updateScore(ability, scores[ability] - 1);
+  }, [updateScore, scores]);
+
+  // Verificar se pode incrementar
+  const canIncrement = useCallback((ability: AbilityScoreKey) => {
+    if (method !== 'point-buy') return false;
+    
+    const currentScore = scores[ability];
+    if (currentScore >= 15) return false;
+    
+    const nextCost = POINT_BUY_COSTS[currentScore + 1] || 0;
+    const currentCost = POINT_BUY_COSTS[currentScore] || 0;
+    const additionalCost = nextCost - currentCost;
+    
+    return pointsUsed + additionalCost <= maxPoints;
+  }, [method, scores, pointsUsed, maxPoints]);
+
+  // Verificar se pode decrementar
+  const canDecrement = useCallback((ability: AbilityScoreKey) => {
+    if (method !== 'point-buy') return false;
+    return scores[ability] > 8;
+  }, [method, scores]);
+
+  // Assignar valor do Standard Array
+  const assignStandardArrayValue = useCallback((ability: AbilityScoreKey, value: number) => {
+    if (method !== 'standard-array') return;
+
+    // Remover o valor de qualquer habilidade que já o tenha
+    const newAssigned = { ...standardArrayAssigned };
+    Object.keys(newAssigned).forEach(key => {
+      if (newAssigned[key as AbilityScoreKey] === value) {
+        newAssigned[key as AbilityScoreKey] = null;
+      }
+    });
+
+    // Assignar o novo valor
+    newAssigned[ability] = value;
+    setStandardArrayAssigned(newAssigned);
+
+    // Atualizar scores
+    const newScores = { ...INITIAL_SCORES };
+    Object.entries(newAssigned).forEach(([key, val]) => {
+      if (val !== null) {
+        newScores[key as AbilityScoreKey] = val;
+      }
+    });
+    setScores(newScores);
+  }, [method, standardArrayAssigned]);
+
+  // Gerar scores aleatórios
+  const rollAbilityScores = useCallback(() => {
+    const rollOneStat = () => {
+      const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
+      rolls.sort((a, b) => b - a);
+      return rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
+    };
+
+    const newRolledScores = Array.from({ length: 6 }, rollOneStat);
+    setRolledScores(newRolledScores);
+
+    // Assignar automaticamente aos atributos
+    const newScores: AbilityScores = {
+      strength: newRolledScores[0],
+      dexterity: newRolledScores[1],
+      constitution: newRolledScores[2],
+      intelligence: newRolledScores[3],
+      wisdom: newRolledScores[4],
+      charisma: newRolledScores[5],
+    };
+    setScores(newScores);
+  }, []);
+
+  // Trocar método
+  const changeMethod = useCallback((newMethod: AbilityMethod) => {
     setMethod(newMethod);
     
     if (newMethod === 'point-buy') {
@@ -94,109 +188,26 @@ export const useAbilityScores = () => {
         wisdom: null,
         charisma: null,
       });
+    } else if (newMethod === 'roll') {
+      rollAbilityScores();
     }
-  }, []);
-
-  // Point Buy: Atualizar atributo específico
-  const updateAbilityScore = useCallback((ability: keyof AbilityScores, newValue: number) => {
-    if (method !== 'point-buy') return;
-
-    const clampedValue = Math.max(8, Math.min(15, newValue));
-    const newScores = { ...scores, [ability]: clampedValue };
-    const newPointsUsed = calculatePointsUsed(newScores);
-    
-    if (newPointsUsed <= maxPoints) {
-      setScores(newScores);
-      setPointsUsed(newPointsUsed);
-    }
-  }, [method, scores, calculatePointsUsed, maxPoints]);
-
-  // Point Buy: Incrementar/Decrementar
-  const incrementAbility = useCallback((ability: keyof AbilityScores) => {
-    updateAbilityScore(ability, scores[ability] + 1);
-  }, [updateAbilityScore, scores]);
-
-  const decrementAbility = useCallback((ability: keyof AbilityScores) => {
-    updateAbilityScore(ability, scores[ability] - 1);
-  }, [updateAbilityScore, scores]);
-
-  // Standard Array: Atribuir valor
-  const assignStandardArrayValue = useCallback((ability: keyof AbilityScores, value: number) => {
-    if (method !== 'standard-array') return;
-
-    // Remover valor anterior se existir
-    const newAssigned = { ...standardArrayAssigned };
-    const oldValue = newAssigned[ability];
-    
-    // Verificar se o valor já está sendo usado por outro atributo
-    const valueInUse = Object.entries(newAssigned).find(([key, val]) => 
-      key !== ability && val === value
-    );
-    
-    if (valueInUse) return; // Valor já está em uso
-
-    newAssigned[ability] = value;
-    
-    // Se havia um valor anterior, disponibilizar para reutilização
-    if (oldValue !== null) {
-      // O valor anterior agora está disponível
-    }
-
-    setStandardArrayAssigned(newAssigned);
-    
-    // Atualizar scores
-    const newScores = { ...INITIAL_SCORES };
-    Object.entries(newAssigned).forEach(([key, val]) => {
-      if (val !== null) {
-        newScores[key as keyof AbilityScores] = val;
-      }
-    });
-    
-    setScores(newScores);
-  }, [method, standardArrayAssigned]);
-
-  // Standard Array: Valores disponíveis
-  const availableStandardArrayValues = useMemo(() => {
-    const used = Object.values(standardArrayAssigned).filter(v => v !== null);
-    return STANDARD_ARRAY.filter(value => !used.includes(value));
-  }, [standardArrayAssigned]);
-
-  // Roll: Gerar valores aleatórios
-  const rollAbilityScores = useCallback(() => {
-    if (method !== 'roll') return;
-
-    const rollStat = () => {
-      const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
-      rolls.sort((a, b) => b - a);
-      return rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
-    };
-
-    const newScores: AbilityScores = {
-      strength: rollStat(),
-      dexterity: rollStat(),
-      constitution: rollStat(),
-      intelligence: rollStat(),
-      wisdom: rollStat(),
-      charisma: rollStat(),
-    };
-
-    setScores(newScores);
-  }, [method]);
+  }, [rollAbilityScores]);
 
   // Validação
   const isValid = useMemo(() => {
     if (method === 'point-buy') {
       return pointsUsed <= maxPoints;
     } else if (method === 'standard-array') {
-      return Object.values(standardArrayAssigned).every(v => v !== null);
+      return Object.values(standardArrayAssigned).every(val => val !== null);
     } else if (method === 'roll') {
-      return Object.values(scores).every(v => v >= 3 && v <= 18);
+      return rolledScores.length === 6;
     }
     return false;
-  }, [method, pointsUsed, maxPoints, standardArrayAssigned, scores]);
+  }, [method, pointsUsed, maxPoints, standardArrayAssigned, rolledScores]);
 
   // Reset
   const reset = useCallback(() => {
+    setMethod('point-buy');
     setScores(INITIAL_SCORES);
     setPointsUsed(0);
     setStandardArrayAssigned({
@@ -207,74 +218,51 @@ export const useAbilityScores = () => {
       wisdom: null,
       charisma: null,
     });
+    setRolledScores([]);
   }, []);
 
-  // Aplicar bônus raciais
-  const applyRacialBonuses = useCallback((racialBonuses: Partial<AbilityScores>) => {
-    setScores(prev => {
-      const newScores = { ...prev };
-      Object.entries(racialBonuses).forEach(([ability, bonus]) => {
-        if (bonus && ability in newScores) {
-          newScores[ability as keyof AbilityScores] += bonus;
-        }
-      });
-      return newScores;
-    });
-  }, []);
+  // Helpers
+  const getRemainingPoints = useMemo(() => {
+    return maxPoints - pointsUsed;
+  }, [maxPoints, pointsUsed]);
 
-  // Obter atributos finais (com bônus raciais)
-  const getFinalScores = useCallback((racialBonuses?: Partial<AbilityScores>): AbilityScores => {
-    if (!racialBonuses) return scores;
-    
-    const finalScores = { ...scores };
-    Object.entries(racialBonuses).forEach(([ability, bonus]) => {
-      if (bonus && ability in finalScores) {
-        finalScores[ability as keyof AbilityScores] += bonus;
-      }
-    });
-    return finalScores;
-  }, [scores]);
+  const getAvailableStandardArrayValues = useMemo(() => {
+    const assigned = Object.values(standardArrayAssigned).filter(val => val !== null);
+    return STANDARD_ARRAY.filter(val => !assigned.includes(val));
+  }, [standardArrayAssigned]);
 
   return {
     // State
     method,
     scores,
-    modifiers,
     pointsUsed,
-    pointsRemaining: maxPoints - pointsUsed,
     standardArrayAssigned,
-    availableStandardArrayValues,
+    rolledScores,
+    modifiers,
     
     // Actions
-    updateMethod,
-    updateAbilityScore,
-    incrementAbility,
-    decrementAbility,
+    updateScore,
+    incrementScore,
+    decrementScore,
     assignStandardArrayValue,
     rollAbilityScores,
-    applyRacialBonuses,
+    changeMethod,
+    
+    // Validation
+    canIncrement,
+    canDecrement,
+    isValid,
     
     // Utils
-    isValid,
     reset,
-    getFinalScores,
+    
+    // Computed values
+    remainingPoints: getRemainingPoints,
+    availableStandardArrayValues: getAvailableStandardArrayValues,
     
     // Constants
     maxPoints,
-    STANDARD_ARRAY,
-    POINT_BUY_COSTS,
-    
-    // Helpers
-    canIncrement: (ability: keyof AbilityScores) => {
-      if (method !== 'point-buy') return false;
-      const currentScore = scores[ability];
-      if (currentScore >= 15) return false;
-      const newCost = POINT_BUY_COSTS[currentScore + 1] - POINT_BUY_COSTS[currentScore];
-      return pointsUsed + newCost <= maxPoints;
-    },
-    
-    canDecrement: (ability: keyof AbilityScores) => {
-      return method === 'point-buy' && scores[ability] > 8;
-    },
+    standardArray: STANDARD_ARRAY,
+    pointBuyCosts: POINT_BUY_COSTS,
   };
 };

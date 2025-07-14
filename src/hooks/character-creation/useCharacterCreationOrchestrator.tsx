@@ -9,8 +9,18 @@ import { useAbilityScores } from './useAbilityScores';
 import { useCharacterSkills } from './useCharacterSkills';
 import useCharacterEquipment from './useCharacterEquipment';
 import useCharacterPersonality from './useCharacterPersonality';
+import useCharacterSpells from './useCharacterSpells';
 import { useCharacterSteps } from './useCharacterSteps';
 import { useCharacterAPI } from './useCharacterAPI';
+import { 
+  CharacterCreationData, 
+  AbilityScores, 
+  DndClass, 
+  DndRace,
+  DndSubrace,
+  DndBackground,
+  DndSubclass
+} from '@/types/characterCreation';
 
 export interface CharacterCreationOrchestrator {
   // Hooks individuais
@@ -19,6 +29,7 @@ export interface CharacterCreationOrchestrator {
   skills: ReturnType<typeof useCharacterSkills>;
   equipment: ReturnType<typeof useCharacterEquipment>;
   personality: ReturnType<typeof useCharacterPersonality>;
+  spells: ReturnType<typeof useCharacterSpells>;
   steps: ReturnType<typeof useCharacterSteps>;
   api: ReturnType<typeof useCharacterAPI>;
   
@@ -41,7 +52,7 @@ export interface CharacterCreationOrchestrator {
   };
   
   // Data para API
-  getAPIData: () => any;
+  getAPIData: () => CharacterCreationData;
 }
 
 export const useCharacterCreationOrchestrator = (campaignId?: string): CharacterCreationOrchestrator => {
@@ -51,6 +62,7 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
   const skills = useCharacterSkills();
   const equipment = useCharacterEquipment();
   const personality = useCharacterPersonality();
+  const spells = useCharacterSpells();
   const steps = useCharacterSteps();
   const api = useCharacterAPI();
 
@@ -84,89 +96,123 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
     steps.updateStepValidity('personality', personality.isValid);
   }, [personality.isValid, steps.updateStepValidity]);
 
+  useEffect(() => {
+    steps.updateStepValidity('spells', spells.isValid);
+  }, [spells.isValid, steps.updateStepValidity]);
+
   // Configurar steps baseado nas escolhas (ex: magias)
   useEffect(() => {
     if (basics.basics.selectedClass) {
-      const isSpellcaster = !!basics.basics.selectedClass.spellcasting_ability;
-      steps.configureStepsForCharacter({ selectedClass: basics.basics.selectedClass });
+      const characterClass = basics.basics.selectedClass as DndClass;
+      const isSpellcaster = !!characterClass.spellcasting;
+      
+      steps.configureStepsForCharacter({ 
+        selectedClass: basics.basics.selectedClass,
+        isSpellcaster 
+      });
+      
+      // Configurar conjuração se for uma classe conjuradora
+      if (isSpellcaster) {
+        const spellcastingAbilityKey = characterClass.spellcasting.spellcasting_ability.index as AbilityScoreKey;
+        const abilityModifier = abilities.modifiers[spellcastingAbilityKey];
+        spells.configureSpellcasting(characterClass, basics.basics.level, abilityModifier);
+      }
     }
-  }, [basics.basics.selectedClass, steps.configureStepsForCharacter]);
+  }, [basics.basics.selectedClass, basics.basics.level, abilities.modifiers, steps.configureStepsForCharacter, spells.configureSpellcasting]);
+
+  // Atualizar valores dinâmicos do hook de spells
+  useEffect(() => {
+    if (spells.isSpellcaster && spells.spellcastingAbility) {
+      const abilityModifier = abilities.modifiers[spells.spellcastingAbility];
+      spells.updateDynamicValues(
+        abilityModifier,
+        basics.proficiencyBonus,
+        basics.basics.selectedClass as DndClass
+      );
+    }
+  }, [
+    abilities.modifiers, 
+    basics.proficiencyBonus, 
+    basics.basics.selectedClass, 
+    spells.isSpellcaster, 
+    spells.spellcastingAbility,
+    spells.updateDynamicValues
+  ]);
 
   // Aplicar modificadores raciais quando raça muda
   useEffect(() => {
     if (basics.basics.selectedRace) {
+      const race = basics.basics.selectedRace as DndRace;
+      const subrace = basics.basics.selectedSubrace as DndSubrace;
+      
       // Aqui você aplicaria os bônus raciais nos atributos
-      // Exemplo: abilities.applyRacialBonuses(basics.basics.selectedRace.ability_bonuses);
+      // abilities.applyRacialBonuses(race.ability_bonuses, subrace?.ability_bonuses);
     }
-  }, [basics.basics.selectedRace]);
+  }, [basics.basics.selectedRace, basics.basics.selectedSubrace]);
 
   // Aplicar habilidades de classe quando classe muda
   useEffect(() => {
     if (basics.basics.selectedClass) {
-      const classSkills = basics.basics.selectedClass.proficiency_choices?.[0]?.from?.options || [];
-      const choicesCount = basics.basics.selectedClass.proficiency_choices?.[0]?.choose || 2;
-      skills.applyClassProficiencies(classSkills, choicesCount);
+      const characterClass = basics.basics.selectedClass as DndClass;
+      const classSkills = characterClass.proficiency_choices?.[0]?.from?.options?.map(
+        option => option.item.index
+      ) || [];
+      const choicesCount = characterClass.proficiency_choices?.[0]?.choose || 2;
+      
+      skills.setClassSkills(classSkills, choicesCount);
     }
-  }, [basics.basics.selectedClass]);
+  }, [basics.basics.selectedClass, skills.setClassSkills]);
 
-  // Aplicar habilidades de background quando background muda
+  // Aplicar habilidades do background quando background muda
   useEffect(() => {
     if (basics.basics.selectedBackground) {
-      const backgroundSkills = basics.basics.selectedBackground.skill_proficiencies || [];
-      skills.applyBackgroundProficiencies(backgroundSkills);
+      const background = basics.basics.selectedBackground as DndBackground;
+      const backgroundSkills = background.proficiencies?.map(prof => prof.index) || [];
       
-      // Aplicar opções de personalidade do background
-      if (basics.basics.selectedBackground.personality_options) {
-        personality.setBackgroundOptions(basics.basics.selectedBackground.personality_options);
+      skills.setBackgroundSkills(backgroundSkills);
+      
+      // Configurar opções de personalidade do background se disponível
+      if (background.personality_options) {
+        personality.setBackgroundOptions(background.personality_options);
       }
     }
-  }, [basics.basics.selectedBackground]);
+  }, [basics.basics.selectedBackground, skills.setBackgroundSkills, personality.setBackgroundOptions]);
 
   // ===========================
   // COMPUTED VALUES
   // ===========================
 
+  // Calcular estatísticas finais
   const computedStats = useMemo(() => {
-    const proficiencyBonus = Math.ceil(basics.basics.level / 4) + 1;
-    const finalAbilities = abilities.getFinalScores(basics.basics.selectedRace?.ability_bonuses);
-    const constitutionMod = Math.floor((finalAbilities.constitution - 10) / 2);
-    
+    const level = basics.basics.level;
+    const proficiencyBonus = basics.proficiencyBonus;
+    const finalAbilityScores = abilities.scores;
+    const modifiers = abilities.modifiers;
+
     // Hit Points
-    const baseHP = basics.basics.selectedClass?.hit_die || 8;
-    const hitPoints = baseHP + constitutionMod + ((basics.basics.level - 1) * (Math.floor(baseHP / 2) + 1 + constitutionMod));
-    
-    // Armor Class
-    let armorClass = 10 + abilities.modifiers.dexterity;
-    if (equipment.equippedArmorAC) {
-      const armor = equipment.equippedArmorAC;
-      armorClass = armor.base;
-      if (armor.dex_bonus) {
-        const dexBonus = armor.max_bonus ? 
-          Math.min(abilities.modifiers.dexterity, armor.max_bonus) : 
-          abilities.modifiers.dexterity;
-        armorClass += dexBonus;
-      }
-    }
-    if (equipment.equippedShield) {
-      armorClass += 2; // Escudo adiciona +2
-    }
-    
+    const hitDie = (basics.basics.selectedClass as DndClass)?.hit_die || 8;
+    const hitPoints = hitDie + modifiers.constitution + ((level - 1) * (Math.floor(hitDie / 2) + 1 + modifiers.constitution));
+
+    // Armor Class (base)
+    const baseAC = 10 + modifiers.dexterity;
+    const armorClass = equipment.equippedArmorAC + modifiers.dexterity + (equipment.equippedShield ? 2 : 0);
+
     // Saving Throws
+    const classProfs = (basics.basics.selectedClass as DndClass)?.saving_throws || [];
     const savingThrows: Record<string, number> = {};
-    Object.entries(abilities.modifiers).forEach(([ability, modifier]) => {
-      savingThrows[ability] = modifier;
-      // Adicionar proficiência se a classe der
-      if (basics.basics.selectedClass?.saving_throws?.includes(ability)) {
-        savingThrows[ability] += proficiencyBonus;
-      }
+    Object.keys(finalAbilityScores).forEach(ability => {
+      const modifier = modifiers[ability as keyof AbilityScores];
+      const isProficient = classProfs.some(prof => prof.index === ability);
+      savingThrows[ability] = modifier + (isProficient ? proficiencyBonus : 0);
     });
-    
+
     // Skill Bonuses
     const skillBonuses: Record<string, number> = {};
-    skills.ALL_SKILLS.forEach(skill => {
-      skillBonuses[skill.name] = skills.getSkillBonus(skill.name, abilities.modifiers, proficiencyBonus);
+    skills.allSkills.forEach(skill => {
+      const modifier = skills.getSkillModifier(skill.key, finalAbilityScores, proficiencyBonus);
+      skillBonuses[skill.key] = modifier;
     });
-    
+
     return {
       hitPoints,
       armorClass,
@@ -174,68 +220,116 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
       savingThrows,
       skillBonuses,
     };
-  }, [basics.basics, abilities, equipment.equippedArmorAC, equipment.equippedShield, skills]);
+  }, [
+    basics.basics.level,
+    basics.basics.selectedClass,
+    basics.proficiencyBonus,
+    abilities.scores,
+    abilities.modifiers,
+    equipment.equippedArmorAC,
+    equipment.equippedShield,
+    skills.allSkills,
+    skills.getSkillModifier,
+  ]);
 
-  // ===========================
-  // VALIDAÇÃO GLOBAL
-  // ===========================
+  // Validação geral
+  const validateAll = useCallback(() => {
+    return (
+      basics.isValid &&
+      abilities.isValid &&
+      skills.isValid &&
+      equipment.isValid &&
+      personality.isValid &&
+      spells.isValid
+    );
+  }, [basics.isValid, abilities.isValid, skills.isValid, equipment.isValid, personality.isValid, spells.isValid]);
 
   const isValid = useMemo(() => {
-    return basics.isValid && abilities.isValid && skills.isValid && equipment.isValid && personality.isValid;
-  }, [basics.isValid, abilities.isValid, skills.isValid, equipment.isValid, personality.isValid]);
+    return validateAll();
+  }, [validateAll]);
 
   const isComplete = useMemo(() => {
-    return steps.isWizardComplete;
-  }, [steps.isWizardComplete]);
+    return steps.isComplete;
+  }, [steps.isComplete]);
 
   // ===========================
-  // AÇÕES PRINCIPAIS
+  // DATA CONVERSION
   // ===========================
 
-  const validateAll = useCallback(() => {
-    const basicsValid = basics.validate();
-    const abilitiesValid = abilities.isValid;
-    const skillsValid = skills.isValid;
-    const equipmentValid = equipment.isValid;
-    const personalityValid = personality.isValid;
-    
-    return basicsValid && abilitiesValid && skillsValid && equipmentValid && personalityValid;
-  }, [basics, abilities.isValid, skills.isValid, equipment.isValid, personality.isValid]);
+  // Converter dados para formato da API
+  const getAPIData = useCallback((): CharacterCreationData => {
+    const basicsData = basics.basics;
+    const personalityData = personality.getPersonalityForAPI();
+    const spellsData = spells.getSpellsForAPI();
 
-  const getAPIData = useCallback(() => {
-    const finalAbilities = abilities.getFinalScores(basics.basics.selectedRace?.ability_bonuses);
-    
     return {
-      name: basics.basics.name,
-      race: basics.basics.selectedRace?.index,
-      subrace: basics.basics.selectedSubrace?.index,
-      character_class: basics.basics.selectedClass?.index,
-      subclass: basics.basics.selectedSubclass?.index,
-      background: basics.basics.selectedBackground?.index,
-      alignment: basics.basics.alignment,
-      level: basics.basics.level,
-      ability_scores: finalAbilities,
-      skills: skills.allProficiencies,
-      hit_points: computedStats.hitPoints,
-      armor_class: computedStats.armorClass,
-      equipment: equipment.equipment,
-      personality: personality.personalityStrings,
-      campaign_id: campaignId,
+      // Basic Info
+      name: basicsData.name,
+      level: basicsData.level,
+      experience: 0,
+      
+      // Character Choices
+      selectedRace: basicsData.selectedRace,
+      selectedSubrace: basicsData.selectedSubrace,
+      selectedClass: basicsData.selectedClass,
+      selectedSubclass: basicsData.selectedSubclass,
+      selectedBackground: basicsData.selectedBackground,
+      alignment: basicsData.alignment || null,
+      
+      // Ability Scores
+      abilityMethod: abilities.method,
+      abilityScores: abilities.scores,
+      pointsRemaining: abilities.remainingPoints,
+      
+      // Combat Stats
+      hitPoints: computedStats.hitPoints,
+      armorClass: computedStats.armorClass,
+      
+      // Skills & Proficiencies
+      selectedSkills: skills.selectedSkills,
+      availableSkillChoices: skills.availableChoices,
+      proficiencies: skills.skillProficiencies.map(p => p.skill),
+      languages: [], // TODO: implementar languages
+      
+      // Equipment
+      selectedEquipment: equipment.equipment.map(eq => eq.index),
+      
+      // Spellcasting
+      isSpellcaster: spellsData.isSpellcaster,
+      spellcastingAbility: spellsData.spellcastingAbility,
+      selectedSpells: [...spellsData.cantrips, ...spellsData.spells],
+      knownSpells: spells.spellsKnown,
+      spellSlots: spellsData.spellSlots,
+      
+      // Personality
+      personalityTraits: personalityData.traits,
+      ideals: personalityData.ideals,
+      bonds: personalityData.bonds,
+      flaws: personalityData.flaws,
+      
+      // Additional Info
+      backstory: '',
+      notes: '',
     };
-  }, [basics.basics, abilities, skills.allProficiencies, computedStats, equipment.equipment, personality.personalityStrings, campaignId]);
+  }, [basics.basics, abilities, skills, equipment, personality, spells, computedStats]);
 
+  // ===========================
+  // MAIN ACTIONS
+  // ===========================
+
+  // Salvar personagem
   const saveCharacter = useCallback(async (campaignIdOverride?: string) => {
     if (!validateAll()) {
       throw new Error('Personagem inválido. Verifique todos os campos obrigatórios.');
     }
     
     const characterData = getAPIData();
-    if (campaignIdOverride) {
-      characterData.campaign_id = campaignIdOverride;
+    if (campaignIdOverride || campaignId) {
+      // characterData.campaign_id = campaignIdOverride || campaignId;
     }
     
     return await api.createCharacter(characterData);
-  }, [validateAll, getAPIData, api.createCharacter]);
+  }, [validateAll, getAPIData, campaignId, api.createCharacter]);
 
   const resetAll = useCallback(() => {
     basics.reset();
@@ -243,8 +337,9 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
     skills.reset();
     equipment.reset();
     personality.reset();
+    spells.reset();
     steps.reset();
-  }, [basics, abilities, skills, equipment, personality, steps]);
+  }, [basics, abilities, skills, equipment, personality, spells, steps]);
 
   // ===========================
   // RETURN OBJECT
@@ -257,6 +352,7 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
     skills,
     equipment,
     personality,
+    spells,
     steps,
     api,
     
@@ -290,6 +386,7 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
       basicsData: basics.basics,
       abilitiesData: abilities.scores,
       skillsData: skills.allProficiencies,
+      spellsData: spells.getSpellsForAPI(),
       stepsData: steps.steps,
     },
   };

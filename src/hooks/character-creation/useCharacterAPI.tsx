@@ -5,9 +5,18 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  CharacterCreationData,
+  DndRace,
+  DndClass,
+  DndBackground,
+  DndSpell,
+  APIResponse,
+  CreateCharacterResponse
+} from '@/types/characterCreation';
 
-// Tipos
-interface CreateCharacterData {
+// Interface para dados de criação que vai para a API
+interface CreateCharacterRequest {
   name: string;
   race: string;
   subrace?: string;
@@ -27,8 +36,8 @@ interface CreateCharacterData {
   skills: string[];
   hit_points: number;
   armor_class: number;
-  equipment?: any[];
-  spells?: any[];
+  equipment?: string[];
+  spells?: string[];
   personality?: {
     traits: string[];
     ideals: string[];
@@ -38,21 +47,14 @@ interface CreateCharacterData {
   campaign_id?: string;
 }
 
-interface UpdateCharacterData extends Partial<CreateCharacterData> {
+interface UpdateCharacterRequest extends Partial<CreateCharacterRequest> {
   id: string;
-}
-
-interface APIResponse<T> {
-  success: boolean;
-  data?: T;
-  message?: string;
-  error?: string;
 }
 
 // Simulação de API - substitua pelas suas chamadas reais
 const characterAPI = {
   // Criar personagem
-  async createCharacter(data: CreateCharacterData): Promise<APIResponse<any>> {
+  async createCharacter(data: CreateCharacterRequest): Promise<APIResponse<any>> {
     try {
       const response = await fetch('/api/characters', {
         method: 'POST',
@@ -78,7 +80,7 @@ const characterAPI = {
   },
 
   // Atualizar personagem
-  async updateCharacter(data: UpdateCharacterData): Promise<APIResponse<any>> {
+  async updateCharacter(data: UpdateCharacterRequest): Promise<APIResponse<any>> {
     try {
       const response = await fetch(`/api/characters/${data.id}`, {
         method: 'PUT',
@@ -124,7 +126,7 @@ const characterAPI = {
   },
 
   // Deletar personagem
-  async deleteCharacter(id: string): Promise<APIResponse<boolean>> {
+  async deleteCharacter(id: string): Promise<APIResponse<any>> {
     try {
       const response = await fetch(`/api/characters/${id}`, {
         method: 'DELETE',
@@ -134,7 +136,7 @@ const characterAPI = {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      return { success: true, data: true };
+      return { success: true };
     } catch (error) {
       console.error('Erro ao deletar personagem:', error);
       return { 
@@ -144,19 +146,14 @@ const characterAPI = {
     }
   },
 
-  // Listar personagens de uma campanha
-  async getCampaignCharacters(campaignId: string): Promise<APIResponse<any[]>> {
+  // API D&D - Raças
+  async getRaces(): Promise<APIResponse<DndRace[]>> {
     try {
-      const response = await fetch(`/api/campaigns/${campaignId}/characters`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
+      const response = await fetch('/api/dnd/races');
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
       return { success: true, data: result };
     } catch (error) {
-      console.error('Erro ao obter personagens da campanha:', error);
       return { 
         success: false, 
         error: error instanceof Error ? error.message : 'Erro desconhecido' 
@@ -164,41 +161,38 @@ const characterAPI = {
     }
   },
 
-  // Obter dados D&D 5e
-  async getRaces(): Promise<APIResponse<any[]>> {
-    try {
-      const response = await fetch('/api/dnd/races');
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const result = await response.json();
-      return { success: true, data: result };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
-    }
-  },
-
-  async getClasses(): Promise<APIResponse<any[]>> {
+  // API D&D - Classes
+  async getClasses(): Promise<APIResponse<DndClass[]>> {
     try {
       const response = await fetch('/api/dnd/classes');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      };
     }
   },
 
-  async getBackgrounds(): Promise<APIResponse<any[]>> {
+  // API D&D - Backgrounds
+  async getBackgrounds(): Promise<APIResponse<DndBackground[]>> {
     try {
       const response = await fetch('/api/dnd/backgrounds');
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      };
     }
   },
 
-  async getSpells(classIndex?: string): Promise<APIResponse<any[]>> {
+  // API D&D - Magias
+  async getSpells(classIndex?: string): Promise<APIResponse<DndSpell[]>> {
     try {
       const url = classIndex ? `/api/dnd/spells?class=${classIndex}` : '/api/dnd/spells';
       const response = await fetch(url);
@@ -206,7 +200,25 @@ const characterAPI = {
       const result = await response.json();
       return { success: true, data: result };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Erro desconhecido' };
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      };
+    }
+  },
+
+  // Obter personagens de uma campanha
+  async getCampaignCharacters(campaignId: string): Promise<APIResponse<any[]>> {
+    try {
+      const response = await fetch(`/api/campaigns/${campaignId}/characters`);
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      const result = await response.json();
+      return { success: true, data: result };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Erro desconhecido' 
+      };
     }
   },
 };
@@ -216,107 +228,130 @@ export const useCharacterAPI = () => {
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // Mutation para criar personagem
+  // Mutations
   const createCharacterMutation = useMutation({
     mutationFn: characterAPI.createCharacter,
-    onSuccess: (data) => {
-      if (data.success) {
-        // Invalidar queries relacionadas
-        queryClient.invalidateQueries({ queryKey: ['characters'] });
-        queryClient.invalidateQueries({ queryKey: ['campaign-characters'] });
-      }
-    },
-  });
-
-  // Mutation para atualizar personagem
-  const updateCharacterMutation = useMutation({
-    mutationFn: characterAPI.updateCharacter,
-    onSuccess: (data, variables) => {
-      if (data.success) {
-        // Invalidar queries relacionadas
-        queryClient.invalidateQueries({ queryKey: ['character', variables.id] });
-        queryClient.invalidateQueries({ queryKey: ['characters'] });
-      }
-    },
-  });
-
-  // Mutation para deletar personagem
-  const deleteCharacterMutation = useMutation({
-    mutationFn: characterAPI.deleteCharacter,
     onSuccess: () => {
-      // Invalidar queries relacionadas
       queryClient.invalidateQueries({ queryKey: ['characters'] });
       queryClient.invalidateQueries({ queryKey: ['campaign-characters'] });
     },
   });
 
-  // Criar personagem
-  const createCharacter = useCallback(async (data: CreateCharacterData) => {
+  const updateCharacterMutation = useMutation({
+    mutationFn: characterAPI.updateCharacter,
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['character', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-characters'] });
+    },
+  });
+
+  const deleteCharacterMutation = useMutation({
+    mutationFn: characterAPI.deleteCharacter,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['characters'] });
+      queryClient.invalidateQueries({ queryKey: ['campaign-characters'] });
+    },
+  });
+
+  // Actions
+  const createCharacter = useCallback(async (data: CharacterCreationData) => {
     setLoading(true);
     setError(null);
     
     try {
-      const result = await createCharacterMutation.mutateAsync(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao criar personagem');
-      }
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      // Converter CharacterCreationData para CreateCharacterRequest
+      const requestData: CreateCharacterRequest = {
+        name: data.name,
+        race: data.selectedRace?.index || '',
+        subrace: data.selectedSubrace?.index,
+        character_class: data.selectedClass?.index || '',
+        subclass: data.selectedSubclass?.index,
+        background: data.selectedBackground?.index || '',
+        alignment: data.alignment || '',
+        level: data.level,
+        ability_scores: data.abilityScores,
+        skills: data.selectedSkills,
+        hit_points: data.hitPoints,
+        armor_class: data.armorClass,
+        equipment: data.selectedEquipment,
+        spells: data.selectedSpells,
+        personality: data.personalityTraits.length > 0 ? {
+          traits: data.personalityTraits,
+          ideals: data.ideals,
+          bonds: data.bonds,
+          flaws: data.flaws,
+        } : undefined,
+      };
+
+      const result = await createCharacterMutation.mutateAsync(requestData);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar personagem';
       setError(errorMessage);
-      throw err;
+      throw error;
     } finally {
       setLoading(false);
     }
   }, [createCharacterMutation]);
 
-  // Atualizar personagem
-  const updateCharacter = useCallback(async (data: UpdateCharacterData) => {
+  const updateCharacter = useCallback(async (id: string, data: Partial<CharacterCreationData>) => {
     setLoading(true);
     setError(null);
     
     try {
-      const result = await updateCharacterMutation.mutateAsync(data);
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao atualizar personagem');
-      }
-      return result.data;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      const updateData: UpdateCharacterRequest = {
+        id,
+        name: data.name,
+        race: data.selectedRace?.index,
+        subrace: data.selectedSubrace?.index,
+        character_class: data.selectedClass?.index,
+        subclass: data.selectedSubclass?.index,
+        background: data.selectedBackground?.index,
+        alignment: data.alignment || undefined,
+        level: data.level,
+        ability_scores: data.abilityScores,
+        skills: data.selectedSkills,
+        hit_points: data.hitPoints,
+        armor_class: data.armorClass,
+        equipment: data.selectedEquipment,
+        spells: data.selectedSpells,
+      };
+
+      const result = await updateCharacterMutation.mutateAsync(updateData);
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar personagem';
       setError(errorMessage);
-      throw err;
+      throw error;
     } finally {
       setLoading(false);
     }
   }, [updateCharacterMutation]);
 
-  // Deletar personagem
   const deleteCharacter = useCallback(async (id: string) => {
     setLoading(true);
     setError(null);
     
     try {
       const result = await deleteCharacterMutation.mutateAsync(id);
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao deletar personagem');
-      }
-      return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      return result;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar personagem';
       setError(errorMessage);
-      throw err;
+      throw error;
     } finally {
       setLoading(false);
     }
   }, [deleteCharacterMutation]);
 
-  // Queries para dados D&D
+  // Queries
   const useRacesQuery = () => useQuery({
     queryKey: ['dnd', 'races'],
     queryFn: async () => {
       const result = await characterAPI.getRaces();
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.data || [];
     },
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
@@ -326,7 +361,7 @@ export const useCharacterAPI = () => {
     queryFn: async () => {
       const result = await characterAPI.getClasses();
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -336,7 +371,7 @@ export const useCharacterAPI = () => {
     queryFn: async () => {
       const result = await characterAPI.getBackgrounds();
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -346,7 +381,7 @@ export const useCharacterAPI = () => {
     queryFn: async () => {
       const result = await characterAPI.getSpells(classIndex);
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.data || [];
     },
     enabled: !!classIndex,
     staleTime: 5 * 60 * 1000,
@@ -367,7 +402,7 @@ export const useCharacterAPI = () => {
     queryFn: async () => {
       const result = await characterAPI.getCampaignCharacters(campaignId);
       if (!result.success) throw new Error(result.error);
-      return result.data;
+      return result.data || [];
     },
     enabled: !!campaignId,
   });
@@ -405,6 +440,9 @@ export const useCharacterAPI = () => {
     refetchRaces: () => queryClient.invalidateQueries({ queryKey: ['dnd', 'races'] }),
     refetchClasses: () => queryClient.invalidateQueries({ queryKey: ['dnd', 'classes'] }),
     refetchBackgrounds: () => queryClient.invalidateQueries({ queryKey: ['dnd', 'backgrounds'] }),
+    refetchSpells: (classIndex?: string) => queryClient.invalidateQueries({ 
+      queryKey: ['dnd', 'spells', classIndex] 
+    }),
     refetchCharacter: (id: string) => queryClient.invalidateQueries({ queryKey: ['character', id] }),
   };
 };

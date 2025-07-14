@@ -4,31 +4,14 @@
 // ===========================
 
 import { useState, useCallback, useMemo } from 'react';
+import { EquipmentItem, DndReference } from '@/types/characterCreation';
 
-export interface Equipment {
-  id: string;
-  name: string;
-  type: 'weapon' | 'armor' | 'shield' | 'tool' | 'item' | 'adventuring-gear';
-  description?: string;
-  cost?: {
-    quantity: number;
-    unit: 'gp' | 'sp' | 'cp' | 'ep' | 'pp';
-  };
-  weight?: number;
-  properties?: string[];
-  damage?: {
-    dice_count: number;
-    dice_sides: number;
-    type: string;
-  };
-  armor_class?: {
-    base: number;
-    dex_bonus?: boolean;
-    max_bonus?: number;
-  };
+// Interface específica do hook que estende EquipmentItem
+export interface Equipment extends EquipmentItem {
   quantity: number;
   equipped?: boolean;
   proficient?: boolean;
+  source?: 'class' | 'background' | 'race' | 'purchased' | 'custom';
 }
 
 export interface StartingEquipment {
@@ -53,7 +36,7 @@ const useCharacterEquipment = () => {
     };
 
     setEquipment(prev => {
-      const existingIndex = prev.findIndex(eq => eq.id === item.id);
+      const existingIndex = prev.findIndex(eq => eq.index === item.index);
       if (existingIndex >= 0) {
         // Se já existe, aumentar quantidade
         return prev.map((eq, index) => 
@@ -69,10 +52,10 @@ const useCharacterEquipment = () => {
   }, []);
 
   // Remover equipamento
-  const removeEquipment = useCallback((id: string, quantityToRemove?: number) => {
+  const removeEquipment = useCallback((index: string, quantityToRemove?: number) => {
     setEquipment(prev => {
       return prev.reduce((acc, item) => {
-        if (item.id === id) {
+        if (item.index === index) {
           const newQuantity = item.quantity - (quantityToRemove || item.quantity);
           if (newQuantity > 0) {
             acc.push({ ...item, quantity: newQuantity, equipped: false });
@@ -87,30 +70,35 @@ const useCharacterEquipment = () => {
   }, []);
 
   // Atualizar quantidade
-  const updateQuantity = useCallback((id: string, newQuantity: number) => {
+  const updateQuantity = useCallback((index: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeEquipment(id);
+      removeEquipment(index);
       return;
     }
 
     setEquipment(prev => prev.map(item => 
-      item.id === id ? { ...item, quantity: newQuantity } : item
+      item.index === index ? { ...item, quantity: newQuantity } : item
     ));
   }, [removeEquipment]);
 
-  // Equipar/Desequipar item
-  const toggleEquipped = useCallback((id: string) => {
+  // Toggle equipado
+  const toggleEquipped = useCallback((index: string) => {
     setEquipment(prev => prev.map(item => {
-      if (item.id === id) {
+      if (item.index === index) {
         const newEquipped = !item.equipped;
         
-        // Lógica especial para armaduras - só uma pode estar equipada
-        if (newEquipped && item.type === 'armor') {
-          // Desequipar outras armaduras
-          return prev.map(eq => ({
-            ...eq,
-            equipped: eq.id === id ? true : (eq.type === 'armor' ? false : eq.equipped)
-          }));
+        // Lógica para desequipar outros itens do mesmo tipo se necessário
+        if (newEquipped && item.equipment_category) {
+          // Para armaduras, desequipar outras armaduras
+          if (item.equipment_category.index === 'armor') {
+            return prev.map(eq => 
+              eq.equipment_category?.index === 'armor' && eq.index !== index
+                ? { ...eq, equipped: false }
+                : eq.index === index
+                ? { ...eq, equipped: newEquipped }
+                : eq
+            );
+          }
         }
         
         return { ...item, equipped: newEquipped };
@@ -119,144 +107,161 @@ const useCharacterEquipment = () => {
     }));
   }, []);
 
-  // Definir equipamento inicial de classe
+  // Configurar equipamento da classe
   const setClassEquipment = useCallback((classEquipment: Equipment[]) => {
-    // Remover equipamentos anteriores de classe
-    setEquipment(prev => prev.filter(item => 
-      !classEquipment.some(classItem => classItem.id === item.id)
-    ));
+    // Remover equipamentos antigos da classe
+    setEquipment(prev => prev.filter(item => item.source !== 'class'));
     
-    // Adicionar novos equipamentos de classe
-    classEquipment.forEach(item => {
-      addEquipment(item);
-    });
-  }, [addEquipment]);
+    // Adicionar novos equipamentos da classe
+    const equipmentWithSource = classEquipment.map(item => ({
+      ...item,
+      source: 'class' as const
+    }));
+    
+    setEquipment(prev => [...prev, ...equipmentWithSource]);
+  }, []);
 
-  // Definir equipamento inicial de background
+  // Configurar equipamento do background
   const setBackgroundEquipment = useCallback((backgroundEquipment: Equipment[]) => {
-    backgroundEquipment.forEach(item => {
-      addEquipment(item);
-    });
-  }, [addEquipment]);
+    // Remover equipamentos antigos do background
+    setEquipment(prev => prev.filter(item => item.source !== 'background'));
+    
+    // Adicionar novos equipamentos do background
+    const equipmentWithSource = backgroundEquipment.map(item => ({
+      ...item,
+      source: 'background' as const
+    }));
+    
+    setEquipment(prev => [...prev, ...equipmentWithSource]);
+  }, []);
 
-  // Definir equipamento racial
+  // Configurar equipamento racial
   const setRacialEquipment = useCallback((racialEquipment: Equipment[]) => {
-    racialEquipment.forEach(item => {
-      addEquipment(item);
-    });
-  }, [addEquipment]);
+    // Remover equipamentos antigos da raça
+    setEquipment(prev => prev.filter(item => item.source !== 'race'));
+    
+    // Adicionar novos equipamentos da raça
+    const equipmentWithSource = racialEquipment.map(item => ({
+      ...item,
+      source: 'race' as const
+    }));
+    
+    setEquipment(prev => [...prev, ...equipmentWithSource]);
+  }, []);
 
-  // Comprar equipamento com ouro
-  const purchaseEquipment = useCallback((item: Equipment, quantity: number = 1) => {
-    if (!item.cost) return false;
+  // Comprar equipamento
+  const purchaseEquipment = useCallback((item: Equipment) => {
+    const cost = item.cost?.quantity || 0;
     
-    const totalCost = convertToGold(item.cost) * quantity;
-    if (totalCost > remainingGold) return false;
+    if (remainingGold >= cost) {
+      setRemainingGold(prev => prev - cost);
+      addEquipment({ ...item, source: 'purchased' });
+      return true;
+    }
     
-    setRemainingGold(prev => prev - totalCost);
-    addEquipment({ ...item, quantity });
-    return true;
+    return false;
   }, [remainingGold, addEquipment]);
 
   // Vender equipamento
-  const sellEquipment = useCallback((id: string, quantity: number = 1) => {
-    const item = equipment.find(eq => eq.id === id);
-    if (!item || !item.cost || item.quantity < quantity) return false;
+  const sellEquipment = useCallback((index: string, quantity: number = 1) => {
+    const item = equipment.find(eq => eq.index === index);
+    if (!item || item.quantity < quantity) return false;
     
-    const sellPrice = (convertToGold(item.cost) * quantity) / 2; // Metade do preço
-    setRemainingGold(prev => prev + sellPrice);
-    removeEquipment(id, quantity);
+    const sellPrice = Math.floor((item.cost?.quantity || 0) * 0.5); // 50% do valor
+    setRemainingGold(prev => prev + (sellPrice * quantity));
+    
+    if (item.quantity === quantity) {
+      removeEquipment(index);
+    } else {
+      updateQuantity(index, item.quantity - quantity);
+    }
+    
     return true;
-  }, [equipment, removeEquipment]);
+  }, [equipment, removeEquipment, updateQuantity]);
 
-  // Converter preço para ouro
-  const convertToGold = useCallback((cost: Equipment['cost']): number => {
-    if (!cost) return 0;
+  // Toggle método de equipamento
+  const toggleEquipmentMethod = useCallback(() => {
+    setUseStartingEquipment(prev => !prev);
     
-    const rates = {
-      cp: 0.01,
-      sp: 0.1,
-      ep: 0.5,
-      gp: 1,
-      pp: 10,
+    if (!useStartingEquipment) {
+      // Mudando para starting equipment - limpar compras
+      setEquipment(prev => prev.filter(item => item.source !== 'purchased'));
+      setRemainingGold(0);
+    } else {
+      // Mudando para gold - definir gold inicial
+      setRemainingGold(startingGold);
+    }
+  }, [useStartingEquipment, startingGold]);
+
+  // Helpers para conversão de moeda
+  const convertToGold = useCallback((cost: { quantity: number; unit: string }) => {
+    const conversions: Record<string, number> = {
+      'cp': 0.01,
+      'sp': 0.1,
+      'ep': 0.5,
+      'gp': 1,
+      'pp': 10
     };
     
-    return cost.quantity * (rates[cost.unit] || 0);
+    return cost.quantity * (conversions[cost.unit] || 1);
   }, []);
 
-  // Calcular peso total
+  // Computed values
   const totalWeight = useMemo(() => {
     return equipment.reduce((total, item) => {
       return total + ((item.weight || 0) * item.quantity);
     }, 0);
   }, [equipment]);
 
-  // Calcular valor total
   const totalValue = useMemo(() => {
     return equipment.reduce((total, item) => {
-      if (!item.cost) return total;
-      return total + (convertToGold(item.cost) * item.quantity);
+      if (item.cost) {
+        return total + (convertToGold(item.cost) * item.quantity);
+      }
+      return total;
     }, 0);
   }, [equipment, convertToGold]);
 
-  // Obter AC da armadura equipada
   const equippedArmorAC = useMemo(() => {
     const equippedArmor = equipment.find(item => 
-      item.type === 'armor' && item.equipped && item.armor_class
+      item.equipped && 
+      item.equipment_category?.index === 'armor' &&
+      item.armor_class
     );
-    return equippedArmor?.armor_class || null;
+    
+    return equippedArmor?.armor_class?.base || 10;
   }, [equipment]);
 
-  // Obter escudo equipado
   const equippedShield = useMemo(() => {
     return equipment.find(item => 
-      item.type === 'shield' && item.equipped
+      item.equipped && 
+      item.equipment_category?.index === 'armor' &&
+      item.gear_category?.index === 'shields'
     );
   }, [equipment]);
 
-  // Obter armas equipadas
   const equippedWeapons = useMemo(() => {
     return equipment.filter(item => 
-      item.type === 'weapon' && item.equipped
+      item.equipped && 
+      item.equipment_category?.index === 'weapon'
     );
   }, [equipment]);
 
-  // Agrupar por tipo
   const equipmentByType = useMemo(() => {
-    const grouped: Record<string, Equipment[]> = {};
-    equipment.forEach(item => {
-      if (!grouped[item.type]) {
-        grouped[item.type] = [];
+    return equipment.reduce((acc, item) => {
+      const category = item.equipment_category?.index || 'misc';
+      if (!acc[category]) {
+        acc[category] = [];
       }
-      grouped[item.type].push(item);
-    });
-    return grouped;
+      acc[category].push(item);
+      return acc;
+    }, {} as Record<string, Equipment[]>);
   }, [equipment]);
 
-  // Calcular capacidade de carga (baseado na força)
+  // Capacidade de carga
   const getCarryingCapacity = useCallback((strengthScore: number) => {
-    return {
-      normal: strengthScore * 15,
-      push: strengthScore * 30,
-      maximum: strengthScore * 30,
-    };
+    return strengthScore * 15; // Regra básica do D&D 5e
   }, []);
-
-  // Alternar entre equipamento inicial e compra com ouro
-  const toggleEquipmentMethod = useCallback((useStarting: boolean) => {
-    setUseStartingEquipment(useStarting);
-    if (useStarting) {
-      // Limpar equipamentos comprados
-      setEquipment(prev => prev.filter(item => 
-        !equipmentByType.purchasedEquipment?.includes(item)
-      ));
-    } else {
-      // Limpar equipamentos iniciais e definir ouro
-      setEquipment([]);
-      // Definir ouro inicial baseado na classe (isso deveria vir da classe selecionada)
-      setRemainingGold(startingGold);
-    }
-  }, [equipmentByType, startingGold]);
 
   // Reset
   const reset = useCallback(() => {
@@ -273,9 +278,11 @@ const useCharacterEquipment = () => {
       return true;
     } else {
       // Com compra, verificar se tem pelo menos uma arma e armadura
-      const hasWeapon = equipment.some(item => item.type === 'weapon');
-      const hasArmor = equipment.some(item => item.type === 'armor') || 
-                      equipment.some(item => item.type === 'shield');
+      const hasWeapon = equipment.some(item => item.equipment_category?.index === 'weapon');
+      const hasArmor = equipment.some(item => 
+        item.equipment_category?.index === 'armor' || 
+        item.gear_category?.index === 'shields'
+      );
       return hasWeapon && hasArmor;
     }
   }, [useStartingEquipment, equipment]);
@@ -318,9 +325,9 @@ const useCharacterEquipment = () => {
     reset,
     
     // Filters
-    getEquipmentByType: (type: Equipment['type']) => equipment.filter(item => item.type === type),
+    getEquipmentByType: (type: string) => equipment.filter(item => item.equipment_category?.index === type),
     getEquippedItems: () => equipment.filter(item => item.equipped),
-    hasEquipment: (id: string) => equipment.some(item => item.id === id),
+    hasEquipment: (index: string) => equipment.some(item => item.index === index),
   };
 };
 

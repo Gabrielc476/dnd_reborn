@@ -4,7 +4,9 @@
 // ===========================
 
 import { useState, useCallback, useMemo } from 'react';
+import { PersonalityOption } from '@/types/characterCreation';
 
+// Interface específica do hook para traits de personalidade
 export interface PersonalityTrait {
   id: string;
   text: string;
@@ -126,12 +128,66 @@ const useCharacterPersonality = () => {
     }));
   }, []);
 
-  // Definir opções do background
-  const setBackgroundOptions = useCallback((options: PersonalityOptions) => {
+  // Configurar opções do background
+  const setBackgroundOptions = useCallback((backgroundPersonality: PersonalityOption[]) => {
+    const options: PersonalityOptions = {
+      traits: [],
+      ideals: [],
+      bonds: [],
+      flaws: [],
+    };
+
+    backgroundPersonality.forEach(option => {
+      if (option.trait) {
+        options.traits.push(option.trait);
+      }
+      if (option.ideal) {
+        options.ideals.push(option.ideal.description);
+      }
+      if (option.bond) {
+        options.bonds.push(option.bond);
+      }
+      if (option.flaw) {
+        options.flaws.push(option.flaw);
+      }
+    });
+
     setAvailableOptions(options);
   }, []);
 
-  // Adicionar entrada personalizada
+  // Adicionar personalidade do background
+  const addBackgroundPersonality = useCallback((
+    type: keyof PersonalityData,
+    text: string
+  ) => {
+    switch (type) {
+      case 'traits':
+        addTrait(text, 'background');
+        break;
+      case 'ideals':
+        addIdeal(text, 'background');
+        break;
+      case 'bonds':
+        addBond(text, 'background');
+        break;
+      case 'flaws':
+        addFlaw(text, 'background');
+        break;
+    }
+  }, [addTrait, addIdeal, addBond, addFlaw]);
+
+  // Atualizar entrada customizada
+  const updateCustomEntry = useCallback((
+    type: keyof PersonalityData,
+    value: string
+  ) => {
+    setCustomEntries(prev => ({
+      ...prev,
+      [type]: value,
+    }));
+  }, []);
+
+  // Adicionar entrada customizada
   const addCustomEntry = useCallback((type: keyof PersonalityData) => {
     const text = customEntries[type].trim();
     if (!text) return;
@@ -158,58 +214,38 @@ const useCharacterPersonality = () => {
     }));
   }, [customEntries, addTrait, addIdeal, addBond, addFlaw]);
 
-  // Atualizar entrada personalizada
-  const updateCustomEntry = useCallback((type: keyof PersonalityData, value: string) => {
-    setCustomEntries(prev => ({
-      ...prev,
-      [type]: value,
-    }));
-  }, []);
+  // Gerar personalidade aleatória do background
+  const generateRandomPersonality = useCallback(() => {
+    const getRandomItem = (array: string[]) => {
+      return array[Math.floor(Math.random() * array.length)];
+    };
 
-  // Adicionar opção do background
-  const addBackgroundOption = useCallback((type: keyof PersonalityData, text: string) => {
-    switch (type) {
-      case 'traits':
-        addTrait(text, 'background');
-        break;
-      case 'ideals':
-        addIdeal(text, 'background');
-        break;
-      case 'bonds':
-        addBond(text, 'background');
-        break;
-      case 'flaws':
-        addFlaw(text, 'background');
-        break;
-    }
-  }, [addTrait, addIdeal, addBond, addFlaw]);
-
-  // Gerar aleatoriamente do background
-  const generateRandomFromBackground = useCallback((type: keyof PersonalityData) => {
-    const options = availableOptions[type];
-    if (options.length === 0) return;
-
-    const randomOption = options[Math.floor(Math.random() * options.length)];
-    addBackgroundOption(type, randomOption);
-  }, [availableOptions, addBackgroundOption]);
-
-  // Limpar seção
-  const clearSection = useCallback((type: keyof PersonalityData) => {
+    // Limpar personalidade atual do background
     setPersonality(prev => ({
-      ...prev,
-      [type]: [],
+      traits: prev.traits.filter(t => t.source !== 'background'),
+      ideals: prev.ideals.filter(t => t.source !== 'background'),
+      bonds: prev.bonds.filter(t => t.source !== 'background'),
+      flaws: prev.flaws.filter(t => t.source !== 'background'),
     }));
-  }, []);
+
+    // Adicionar itens aleatórios
+    if (availableOptions.traits.length > 0) {
+      addBackgroundPersonality('traits', getRandomItem(availableOptions.traits));
+    }
+    if (availableOptions.ideals.length > 0) {
+      addBackgroundPersonality('ideals', getRandomItem(availableOptions.ideals));
+    }
+    if (availableOptions.bonds.length > 0) {
+      addBackgroundPersonality('bonds', getRandomItem(availableOptions.bonds));
+    }
+    if (availableOptions.flaws.length > 0) {
+      addBackgroundPersonality('flaws', getRandomItem(availableOptions.flaws));
+    }
+  }, [availableOptions, addBackgroundPersonality]);
 
   // Validação
   const isValid = useMemo(() => {
-    // Personalidade é opcional, então sempre válida
-    // Mas pode ter regras específicas se necessário
-    return true;
-  }, []);
-
-  // Verificar se está completo (pelo menos um item em cada categoria)
-  const isComplete = useMemo(() => {
+    // Verificar se há pelo menos um item de cada tipo
     return (
       personality.traits.length > 0 &&
       personality.ideals.length > 0 &&
@@ -218,21 +254,15 @@ const useCharacterPersonality = () => {
     );
   }, [personality]);
 
-  // Obter resumo
-  const getSummary = useMemo(() => {
-    return {
-      traits: personality.traits.length,
-      ideals: personality.ideals.length,
-      bonds: personality.bonds.length,
-      flaws: personality.flaws.length,
-      total: personality.traits.length + personality.ideals.length + 
-             personality.bonds.length + personality.flaws.length,
-    };
-  }, [personality]);
-
   // Reset
   const reset = useCallback(() => {
     setPersonality({
+      traits: [],
+      ideals: [],
+      bonds: [],
+      flaws: [],
+    });
+    setAvailableOptions({
       traits: [],
       ideals: [],
       bonds: [],
@@ -244,42 +274,41 @@ const useCharacterPersonality = () => {
       bonds: '',
       flaws: '',
     });
-    setAvailableOptions({
-      traits: [],
-      ideals: [],
-      bonds: [],
-      flaws: [],
-    });
   }, []);
 
-  // Carregar dados existentes
-  const loadPersonality = useCallback((data: Partial<PersonalityData>) => {
-    setPersonality(prev => ({
-      ...prev,
-      ...data,
-    }));
-  }, []);
-
-  // Exportar como strings (para API)
-  const getPersonalityStrings = useMemo(() => {
+  // Helpers para obter estatísticas
+  const getPersonalityStats = useMemo(() => {
     return {
-      traits: personality.traits.map(t => t.text),
-      ideals: personality.ideals.map(i => i.text),
-      bonds: personality.bonds.map(b => b.text),
-      flaws: personality.flaws.map(f => f.text),
+      totalTraits: personality.traits.length,
+      totalIdeals: personality.ideals.length,
+      totalBonds: personality.bonds.length,
+      totalFlaws: personality.flaws.length,
+      totalItems: personality.traits.length + personality.ideals.length + 
+                  personality.bonds.length + personality.flaws.length,
+      backgroundItems: [
+        ...personality.traits.filter(t => t.source === 'background'),
+        ...personality.ideals.filter(t => t.source === 'background'),
+        ...personality.bonds.filter(t => t.source === 'background'),
+        ...personality.flaws.filter(t => t.source === 'background'),
+      ].length,
+      customItems: [
+        ...personality.traits.filter(t => t.source === 'custom'),
+        ...personality.ideals.filter(t => t.source === 'custom'),
+        ...personality.bonds.filter(t => t.source === 'custom'),
+        ...personality.flaws.filter(t => t.source === 'custom'),
+      ].length,
     };
   }, [personality]);
 
-  // Verificar se tem opções do background
-  const hasBackgroundOptions = useMemo(() => {
-    return Object.values(availableOptions).some(options => options.length > 0);
-  }, [availableOptions]);
-
-  // Obter opções não utilizadas
-  const getUnusedBackgroundOptions = useCallback((type: keyof PersonalityData) => {
-    const usedTexts = personality[type].map(item => item.text);
-    return availableOptions[type].filter(option => !usedTexts.includes(option));
-  }, [personality, availableOptions]);
+  // Obter personalidade em formato simplificado para API
+  const getPersonalityForAPI = useCallback(() => {
+    return {
+      traits: personality.traits.map(t => t.text),
+      ideals: personality.ideals.map(t => t.text),
+      bonds: personality.bonds.map(t => t.text),
+      flaws: personality.flaws.map(t => t.text),
+    };
+  }, [personality]);
 
   return {
     // State
@@ -295,32 +324,22 @@ const useCharacterPersonality = () => {
     removePersonalityItem,
     updatePersonalityItem,
     setBackgroundOptions,
-    addCustomEntry,
+    addBackgroundPersonality,
     updateCustomEntry,
-    addBackgroundOption,
-    generateRandomFromBackground,
-    clearSection,
+    addCustomEntry,
+    generateRandomPersonality,
     
-    // Computed
+    // Validation
     isValid,
-    isComplete,
-    summary: getSummary,
-    personalityStrings: getPersonalityStrings,
-    hasBackgroundOptions,
-    
-    // Helpers
-    getUnusedBackgroundOptions,
-    canAddCustom: (type: keyof PersonalityData) => customEntries[type].trim().length > 0,
-    getItemsBySource: (type: keyof PersonalityData, source: 'background' | 'custom') => 
-      personality[type].filter(item => item.source === source),
     
     // Utils
     reset,
-    loadPersonality,
+    getPersonalityStats,
+    getPersonalityForAPI,
     
-    // Constants
-    maxRecommendedPerSection: 3,
-    minRecommendedPerSection: 1,
+    // Helpers
+    hasBackgroundOptions: Object.values(availableOptions).some(arr => arr.length > 0),
+    canAddCustom: (type: keyof PersonalityData) => customEntries[type].trim().length > 0,
   };
 };
 

@@ -3,16 +3,26 @@
 // Hook para gerenciar informações básicas do personagem
 // ===========================
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { 
+  AbilityScores, 
+  DndRace, 
+  DndSubrace, 
+  DndClass, 
+  DndSubclass, 
+  DndBackground,
+  AlignmentType 
+} from '@/types/characterCreation';
 
+// Interface específica do hook, usando os tipos corretos
 export interface CharacterBasics {
   name: string;
-  selectedRace: any | null;
-  selectedSubrace: any | null;
-  selectedClass: any | null;
-  selectedSubclass: any | null;
-  selectedBackground: any | null;
-  alignment: string;
+  selectedRace: DndRace | null;
+  selectedSubrace: DndSubrace | null;
+  selectedClass: DndClass | null;
+  selectedSubclass: DndSubclass | null;
+  selectedBackground: DndBackground | null;
+  alignment: AlignmentType | '';
   level: number;
 }
 
@@ -40,7 +50,7 @@ export const useCharacterBasics = () => {
   }, [errors.name]);
 
   // Atualizar raça
-  const updateRace = useCallback((race: any) => {
+  const updateRace = useCallback((race: DndRace | null) => {
     setBasics(prev => ({ 
       ...prev, 
       selectedRace: race,
@@ -52,12 +62,12 @@ export const useCharacterBasics = () => {
   }, [errors.race]);
 
   // Atualizar sub-raça
-  const updateSubrace = useCallback((subrace: any) => {
+  const updateSubrace = useCallback((subrace: DndSubrace | null) => {
     setBasics(prev => ({ ...prev, selectedSubrace: subrace }));
   }, []);
 
   // Atualizar classe
-  const updateClass = useCallback((characterClass: any) => {
+  const updateClass = useCallback((characterClass: DndClass | null) => {
     setBasics(prev => ({ 
       ...prev, 
       selectedClass: characterClass,
@@ -69,12 +79,12 @@ export const useCharacterBasics = () => {
   }, [errors.class]);
 
   // Atualizar subclasse
-  const updateSubclass = useCallback((subclass: any) => {
+  const updateSubclass = useCallback((subclass: DndSubclass | null) => {
     setBasics(prev => ({ ...prev, selectedSubclass: subclass }));
   }, []);
 
   // Atualizar background
-  const updateBackground = useCallback((background: any) => {
+  const updateBackground = useCallback((background: DndBackground | null) => {
     setBasics(prev => ({ ...prev, selectedBackground: background }));
     if (errors.background) {
       setErrors(prev => ({ ...prev, background: '' }));
@@ -82,7 +92,7 @@ export const useCharacterBasics = () => {
   }, [errors.background]);
 
   // Atualizar alinhamento
-  const updateAlignment = useCallback((alignment: string) => {
+  const updateAlignment = useCallback((alignment: AlignmentType | '') => {
     setBasics(prev => ({ ...prev, alignment }));
   }, []);
 
@@ -116,7 +126,7 @@ export const useCharacterBasics = () => {
   }, [basics]);
 
   // Verificar se está válido
-  const isValid = useCallback(() => {
+  const isValid = useMemo(() => {
     return !!(
       basics.name.trim() && 
       basics.selectedRace && 
@@ -136,6 +146,19 @@ export const useCharacterBasics = () => {
     setBasics(prev => ({ ...prev, ...data }));
   }, []);
 
+  // Helpers computados
+  const canChooseSubrace = useMemo(() => {
+    return !!(basics.selectedRace?.subraces && basics.selectedRace.subraces.length > 0);
+  }, [basics.selectedRace]);
+
+  const canChooseSubclass = useMemo(() => {
+    return basics.level >= 3 && !!(basics.selectedClass?.subclasses && basics.selectedClass.subclasses.length > 0);
+  }, [basics.level, basics.selectedClass]);
+
+  const proficiencyBonus = useMemo(() => {
+    return Math.floor((basics.level - 1) / 4) + 2;
+  }, [basics.level]);
+
   return {
     // State
     basics,
@@ -153,15 +176,15 @@ export const useCharacterBasics = () => {
     
     // Validation
     validate,
-    isValid: isValid(),
+    isValid,
     
     // Utils
     reset,
     loadData,
     
     // Computed values
-    modifierBonus: Math.floor((basics.level - 1) / 4) + 2,
-    canChooseSubrace: !!basics.selectedRace?.subraces?.length,
-    canChooseSubclass: basics.level >= 3 && !!basics.selectedClass?.subclasses?.length,
+    proficiencyBonus,
+    canChooseSubrace,
+    canChooseSubclass,
   };
 };
