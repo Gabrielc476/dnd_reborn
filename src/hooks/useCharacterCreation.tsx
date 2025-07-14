@@ -17,6 +17,8 @@
 // - 🆕 DETECÇÃO DE CONJURADORES CORRIGIDA: Clérigo agora é detectado corretamente
 // - 🆕 SUPORTE A MÚLTIPLAS VARIAÇÕES: cleric, clerigo, clérico, etc.
 // - 🔥 CORREÇÃO CRÍTICA: Import de SPELL_CONFIG_BY_CLASS adicionado
+// - 🔥 VALIDAÇÃO DE ABILITY SCORES CORRIGIDA
+// - 🔥 QUERYCLIENT PROVIDER CORRIGIDO
 //
 // 🛠️ PARA TESTAR:
 // Abra o console do navegador e use:
@@ -58,7 +60,6 @@ import {
 } from "react";
 import {
   useQuery,
-  useQueryClient,
   QueryClient,
   QueryClientProvider,
 } from "@tanstack/react-query";
@@ -130,70 +131,52 @@ function validateSpellSelection(
   const warnings: string[] = [];
 
   if (!classConfig || !classConfig.isSpellcaster) {
-    return { 
-      isValid: false, 
-      errors: ["Classe não é conjuradora"], 
-      warnings: [], 
-      cantripsCount: 0, 
-      spellsCount: 0, 
-      maxCantrips: 0, 
-      maxSpells: 0 
+    return {
+      isValid: true,
+      errors: [],
+      warnings: ["Classe não é conjuradora"],
+      cantripsCount: 0,
+      spellsCount: 0,
+      maxCantrips: 0,
+      maxSpells: 0
     };
   }
 
-  let cantripsCount = 0;
-  let spellsCount = 0;
-
-  for (const spellIndex of selectedSpells) {
+  const spellsByLevel = selectedSpells.reduce((acc, spellIndex) => {
     const spell = availableSpells.find(s => s.index === spellIndex);
-    if (!spell) {
-      errors.push(`Magia ${spellIndex} não encontrada`);
-      continue;
+    if (spell) {
+      if (spell.level === 0) {
+        acc.cantrips += 1;
+      } else {
+        acc.spells += 1;
+      }
     }
+    return acc;
+  }, { cantrips: 0, spells: 0 });
 
-    if (!canClassAccessSpell(classIndex, spell)) {
-      errors.push(`${spell.name} não está disponível para ${classIndex}`);
-      continue;
-    }
-
-    if (spell.level === 0) {
-      cantripsCount++;
-    } else {
-      spellsCount++;
-    }
+  // Validar número de cantrips
+  if (spellsByLevel.cantrips > classConfig.startingCantrips) {
+    errors.push(`Muitos cantrips selecionados: ${spellsByLevel.cantrips}/${classConfig.startingCantrips}`);
   }
 
-  // Verificar limites
-  if (cantripsCount > classConfig.cantripsKnown) {
-    errors.push(`Muitos cantrips selecionados (${cantripsCount}/${classConfig.cantripsKnown})`);
-  }
-
-  if (spellsCount > classConfig.spellsKnown) {
-    errors.push(`Muitas magias selecionadas (${spellsCount}/${classConfig.spellsKnown})`);
-  }
-
-  // Verificar mínimos (opcional)
-  if (cantripsCount < classConfig.cantripsKnown) {
-    warnings.push(`Considere selecionar mais cantrips (${cantripsCount}/${classConfig.cantripsKnown})`);
-  }
-
-  if (spellsCount < classConfig.spellsKnown) {
-    warnings.push(`Considere selecionar mais magias (${spellsCount}/${classConfig.spellsKnown})`);
+  // Validar número de magias
+  if (spellsByLevel.spells > classConfig.startingSpells) {
+    errors.push(`Muitas magias selecionadas: ${spellsByLevel.spells}/${classConfig.startingSpells}`);
   }
 
   return {
     isValid: errors.length === 0,
     errors,
     warnings,
-    cantripsCount,
-    spellsCount,
-    maxCantrips: classConfig.cantripsKnown,
-    maxSpells: classConfig.spellsKnown,
+    cantripsCount: spellsByLevel.cantrips,
+    spellsCount: spellsByLevel.spells,
+    maxCantrips: classConfig.startingCantrips,
+    maxSpells: classConfig.startingSpells
   };
 }
 
 // ===========================
-// CUSTOM DEBOUNCE HOOK
+// HOOK DE DEBOUNCE
 // ===========================
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -213,7 +196,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 // ===========================
-// QUERY CLIENT
+// QUERY CLIENT - MOVIDO PARA ANTES DOS HOOKS
 // ===========================
 
 const queryClient = new QueryClient({
@@ -344,49 +327,31 @@ const useSpellsQuery = (enabled: boolean = true, classIndex?: string) => {
     queryKey: ["dnd", "spells", classIndex],
     queryFn: async () => {
       try {
-        console.log(`🔍 ===== CARREGANDO MAGIAS PARA ${classIndex || 'TODAS AS CLASSES'} =====`);
-        
-        // Carregar todas as magias (API não tem método getSpellsByClass)
         const allSpells = await dndAPI.getSpells();
-        console.log(`📊 Total de magias da API: ${allSpells.length}`);
         
-        if (classIndex) {
-          // Filtrar magias por classe após carregar todas
-          const classSpells = allSpells.filter(spell => {
-            const hasClass = spell.classes?.some(cls => cls.index === classIndex);
-            return hasClass;
-          });
-          
-          console.log(`🎯 Magias filtradas para ${classIndex}: ${classSpells.length}`);
-          return classSpells;
+        // Se não há classe selecionada, retorna todas as magias
+        if (!classIndex) {
+          console.log(`📚 All spells loaded: ${allSpells.length}`);
+          return allSpells;
         }
         
-        return allSpells;
+        // Filtrar magias para a classe específica
+        const classSpells = allSpells.filter(spell => 
+          spell.classes?.some(spellClass => spellClass.index === classIndex)
+        );
         
+        console.log(`📚 Spells for ${classIndex}: ${classSpells.length}/${allSpells.length} total`);
+        return classSpells;
       } catch (error) {
-        console.error("❌ Erro ao carregar magias da API:", error);
-        
-        // Fallback para dados mock
-        try {
-          console.log("🔄 ===== USANDO DADOS MOCK COMO FALLBACK =====");
-          
-          if (classIndex) {
-            const classSpells = mockSpells.filter(spell => 
-              spell.classes?.some(cls => cls.index === classIndex)
-            );
-            console.log(`📊 Magias mock para ${classIndex}: ${classSpells.length}`);
-            return classSpells;
-          }
-          
-          console.log(`📊 Total de magias mock: ${mockSpells.length}`);
-          return mockSpells;
-        } catch (mockError) {
-          console.error("❌ Erro ao carregar dados mock:", mockError);
-          return [];
-        }
+        console.error("Error loading spells:", error);
+        // Fallback para dados mock filtrados por classe se especificada
+        const fallbackSpells = classIndex 
+          ? mockSpells.filter(spell => spell.classes?.some(c => c.index === classIndex))
+          : mockSpells;
+        return fallbackSpells;
       }
     },
-    enabled: !!classIndex,
+    enabled: enabled,
     staleTime: 30 * 60 * 1000, // 30 minutes
   });
 };
@@ -558,74 +523,73 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     console.log("🎯 Classe selecionada:", {
       name: selectedClass.name,
       index: selectedClass.index,
-      hasSpellcasting: !!selectedClass.spellcasting,
-      configKeysAvailable: Object.keys(SPELL_CONFIG_BY_CLASS).length
+      hasSpellcasting: !!selectedClass.spellcasting
     });
 
-    // Estratégia 1: Verificar nossa configuração usando as funções utilitárias
-    let classConfig = getSpellConfigForClass(selectedClass.index || '');
-    
-    // Se não encontrou pelo index, tentar pelo nome
-    if (!classConfig) {
-      classConfig = findSpellConfigByName(selectedClass.name || '');
-    }
-
-    if (classConfig) {
-      const key = selectedClass.index || selectedClass.name || 'unknown';
-      console.log(`✅ Encontrado na configuração:`, classConfig);
-      
-      return {
-        isSpellcaster: classConfig.isSpellcaster,
-        source: `config-${key.toLowerCase()}`,
-        classIndex: key.toLowerCase(),
-        classConfig: classConfig
-      };
-    }
-
-    console.log("⚠️ Configuração não encontrada, tentando estratégias alternativas");
-
-    // Estratégia 2: Verificar propriedade spellcasting da API
-    if (selectedClass.spellcasting) {
-      console.log("✅ Classe tem propriedade spellcasting da API:", selectedClass.spellcasting);
-      
-      // Algumas classes podem ter spellcasting mas não conjuram no nível 1
-      const isLevel1Caster = selectedClass.spellcasting.level <= 1;
-      
-      return {
-        isSpellcaster: isLevel1Caster,
-        source: `api-spellcasting-level-${selectedClass.spellcasting.level}`,
+    // Estratégia 1: Verificar se tem propriedade spellcasting na API
+    if (selectedClass.spellcasting && selectedClass.spellcasting.level <= 1) {
+      console.log("✅ Detectado via API spellcasting");
+      return { 
+        isSpellcaster: true, 
+        source: "api-spellcasting",
+        classIndex: selectedClass.index,
         hasApiSpellcasting: true
       };
     }
 
-    // Estratégia 3: Fallback baseado em nomes conhecidos de conjuradores
-    const spellcasterNames = [
-      'mago', 'wizard', 'feiticeiro', 'sorcerer', 
-      'clerigo', 'cleric', 'clérico', 'druida', 'druid',
-      'bardo', 'bard', 'bruxo', 'warlock'
+    // Estratégia 2: Verificar em SPELL_CONFIG_BY_CLASS (com proteção)
+    if (typeof SPELL_CONFIG_BY_CLASS !== 'undefined') {
+      const classConfig = getSpellConfigForClass(selectedClass.index);
+      if (classConfig && classConfig.isSpellcaster) {
+        console.log("✅ Detectado via SPELL_CONFIG_BY_CLASS:", classConfig);
+        return { 
+          isSpellcaster: true, 
+          source: "spell-config",
+          classIndex: selectedClass.index,
+          classConfig,
+          hasApiSpellcasting: !!selectedClass.spellcasting
+        };
+      }
+    }
+
+    // Estratégia 3: Lista hardcoded de classes conjuradoras (fallback)
+    const spellcasterClasses = [
+      'wizard', 'mago',
+      'sorcerer', 'feiticeiro', 'sorcerer',
+      'cleric', 'clerigo', 'clérico', 'priest',
+      'druid', 'druida',
+      'bard', 'bardo',
+      'warlock', 'bruxo', 'feiticeiro-patrono'
     ];
 
-    const className = selectedClass.name?.toLowerCase() || '';
-    const isKnownSpellcaster = spellcasterNames.some(name => 
-      className.includes(name) || className.replace(/[^a-z]/g, '').includes(name.replace(/[^a-z]/g, ''))
+    const className = selectedClass.name.toLowerCase();
+    const classIndex = selectedClass.index.toLowerCase();
+    
+    const isSpellcasterByName = spellcasterClasses.some(spellcasterName => 
+      className.includes(spellcasterName) || classIndex.includes(spellcasterName)
     );
 
-    if (isKnownSpellcaster) {
-      console.log(`✅ Detectado como conjurador por nome: '${className}'`);
-      return {
-        isSpellcaster: true,
-        source: `fallback-name-${className}`
+    if (isSpellcasterByName) {
+      console.log("✅ Detectado via lista hardcoded");
+      return { 
+        isSpellcaster: true, 
+        source: "hardcoded-list",
+        classIndex: selectedClass.index,
+        hasApiSpellcasting: !!selectedClass.spellcasting
       };
     }
 
-    console.log("❌ Não detectado como conjurador por nenhuma estratégia");
-    console.log("===============================================");
-    
-    return { isSpellcaster: false, source: "not-detected" };
+    console.log("❌ Não é uma classe conjuradora");
+    return { 
+      isSpellcaster: false, 
+      source: "not-spellcaster",
+      classIndex: selectedClass.index,
+      hasApiSpellcasting: !!selectedClass.spellcasting
+    };
   }, []);
 
   // ===========================
-  // API DATA QUERIES
+  // DATA QUERIES
   // ===========================
 
   const { data: racesData = [], isLoading: isLoadingRaces } = useRacesQuery();
@@ -633,312 +597,58 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   const { data: backgroundsData = [], isLoading: isLoadingBackgrounds } = useBackgroundsQuery();
   
   const { data: subracesData = [], isLoading: isLoadingSubraces } = useSubracesQuery(
-    !!characterData.selectedRace?.index, 
+    true, 
     characterData.selectedRace?.index
   );
   
   const { data: subclassesData = [], isLoading: isLoadingSubclasses } = useSubclassesQuery(
-    !!characterData.selectedClass?.index,
+    true, 
     characterData.selectedClass?.index
   );
   
   const { data: spellsData = [], isLoading: isLoadingSpells } = useSpellsQuery(
-    !!characterData.selectedClass?.index,
+    characterData.isSpellcaster, 
     characterData.selectedClass?.index
   );
 
-  const isLoading = isLoadingRaces || isLoadingClasses || isLoadingBackgrounds || loading;
+  // ===========================
+  // COMPUTED VALUES
+  // ===========================
+
+  const isLoading = isLoadingRaces || isLoadingClasses || isLoadingBackgrounds;
+
+  const currentStepData = useMemo(() => {
+    return steps[currentStep] || null;
+  }, [steps, currentStep]);
+
+  const progress = useMemo(() => {
+    return ((currentStep + 1) / steps.length) * 100;
+  }, [currentStep, steps.length]);
 
   // ===========================
-  // FILTERED DATA FOR SEARCH
+  // FILTERED DATA WITH SEARCH
   // ===========================
 
   const filteredRaces = useMemo(() => {
+    if (!debouncedRaceSearch) return racesData;
     return racesData.filter(race =>
       race.name.toLowerCase().includes(debouncedRaceSearch.toLowerCase())
     );
   }, [racesData, debouncedRaceSearch]);
 
   const filteredClasses = useMemo(() => {
+    if (!debouncedClassSearch) return classesData;
     return classesData.filter(cls =>
       cls.name.toLowerCase().includes(debouncedClassSearch.toLowerCase())
     );
   }, [classesData, debouncedClassSearch]);
 
   const filteredSpells = useMemo(() => {
+    if (!debouncedSpellSearch) return spellsData;
     return spellsData.filter(spell =>
-      spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase()) ||
-      (Array.isArray(spell.desc) ? 
-        spell.desc.join(' ') : spell.desc || '')
-        .toLowerCase().includes(debouncedSpellSearch.toLowerCase())
+      spell.name.toLowerCase().includes(debouncedSpellSearch.toLowerCase())
     );
   }, [spellsData, debouncedSpellSearch]);
-
-  // ===========================
-  // INFORMAÇÕES DE MAGIAS PARA CLASSE ATUAL - CORRIGIDAS
-  // ===========================
-
-  const spellcasterInfo = useMemo(() => {
-    return detectSpellcaster(characterData.selectedClass);
-  }, [characterData.selectedClass, detectSpellcaster]);
-
-  const spellInfo = useMemo(() => {
-    if (!spellcasterInfo.isSpellcaster) {
-      console.log("🚫 Classe não é conjuradora:", spellcasterInfo.source);
-      return { 
-        maxSpellLevel: 0, 
-        startingCantrips: 0, 
-        startingSpells: 0,
-        spellcastingAbility: null
-      };
-    }
-
-    // Tentar buscar na nossa configuração primeiro
-    let classConfig = spellcasterInfo.classConfig;
-    
-    // Se não encontrou na configuração, tentar com o index da classe
-    if (!classConfig && characterData.selectedClass) {
-      classConfig = getSpellConfigForClass(characterData.selectedClass.index || '');
-      
-      // Se ainda não encontrou, tentar pelo nome
-      if (!classConfig) {
-        classConfig = findSpellConfigByName(characterData.selectedClass.name || '');
-      }
-    }
-
-    // Fallback para valores padrão de conjurador
-    if (!classConfig) {
-      console.log("⚠️ Usando valores padrão para conjurador desconhecido");
-      classConfig = {
-        cantripsKnown: 3,
-        spellsKnown: 2,
-        maxSpellLevel: 1,
-        spellcastingAbility: 'wis'
-      };
-    }
-
-    const result = {
-      maxSpellLevel: classConfig.maxSpellLevel,
-      startingCantrips: classConfig.cantripsKnown,
-      startingSpells: classConfig.spellsKnown,
-      spellcastingAbility: classConfig.spellcastingAbility
-    };
-
-    console.log("🎯 Informações de magias calculadas:", result);
-    return result;
-  }, [spellcasterInfo, characterData.selectedClass]);
-
-  // ===========================
-  // FUNÇÕES DE VALIDAÇÃO DE MAGIAS
-  // ===========================
-
-  // Validação atual baseada no contexto
-  const validateCurrentSpellSelection = useCallback((): SpellValidationResult => {
-    if (!characterData.selectedClass?.index) {
-      return { isValid: true, errors: [], warnings: [], cantripsCount: 0, spellsCount: 0, maxCantrips: 0, maxSpells: 0 };
-    }
-    
-    const classIndex = characterData.selectedClass.index;
-    const selectedSpells = characterData.selectedSpells || [];
-    
-    return validateSpellSelection(classIndex, selectedSpells, spellsData);
-  }, [characterData.selectedClass?.index, characterData.selectedSpells, spellsData]);
-
-  // Versão com parâmetros para uso interno
-  const validateSpellSelectionWithParams = useCallback((
-    classIndex: string,
-    selectedSpells: string[],
-    availableSpells: DndSpell[]
-  ): SpellValidationResult => {
-    return validateSpellSelection(classIndex, selectedSpells, availableSpells);
-  }, []);
-
-  const getAbilityModifier = useCallback((score: number): number => {
-    return Math.floor((score - 10) / 2);
-  }, []);
-
-  // ✅ FUNÇÃO CORRIGIDA: Calcula bônus raciais e aplica aos scores finais
-  const getCombinedAbilityBonuses = useMemo((): Record<keyof AbilityScores, number> => {
-    const bonuses: Record<keyof AbilityScores, number> = {
-      strength: 0,
-      dexterity: 0,
-      constitution: 0,
-      intelligence: 0,
-      wisdom: 0,
-      charisma: 0,
-    };
-
-    // Race bonuses
-    if (characterData.selectedRace) {
-      characterData.selectedRace.ability_bonuses.forEach(bonus => {
-        const key = bonus.ability_score.index as keyof AbilityScores;
-        bonuses[key] = (bonuses[key] || 0) + bonus.bonus;
-      });
-    }
-
-    // Subrace bonuses
-    if (characterData.selectedSubrace) {
-      characterData.selectedSubrace.ability_bonuses.forEach(bonus => {
-        const key = bonus.ability_score.index as keyof AbilityScores;
-        bonuses[key] = (bonuses[key] || 0) + bonus.bonus;
-      });
-    }
-
-    return bonuses;
-  }, [characterData.selectedRace?.index, characterData.selectedSubrace?.index]);
-
-  // ✅ FUNÇÃO AUXILIAR: Calcula scores finais (para uso interno)
-  const getFinalAbilityScores = useCallback((): AbilityScores => {
-    const bonuses = getCombinedAbilityBonuses;
-    return {
-      strength: characterData.abilityScores.strength + bonuses.strength,
-      dexterity: characterData.abilityScores.dexterity + bonuses.dexterity,
-      constitution: characterData.abilityScores.constitution + bonuses.constitution,
-      intelligence: characterData.abilityScores.intelligence + bonuses.intelligence,
-      wisdom: characterData.abilityScores.wisdom + bonuses.wisdom,
-      charisma: characterData.abilityScores.charisma + bonuses.charisma,
-    };
-  }, [
-    characterData.abilityScores.strength,
-    characterData.abilityScores.dexterity,
-    characterData.abilityScores.constitution,
-    characterData.abilityScores.intelligence,
-    characterData.abilityScores.wisdom,
-    characterData.abilityScores.charisma,
-    getCombinedAbilityBonuses
-  ]);
-
-  // ✅ NOVA FUNÇÃO: Calcula HP baseado na classe e constituição final
-  const calculateHitPoints = useCallback((): number => {
-    if (!characterData.selectedClass) {
-      console.log("🔍 calculateHitPoints: Nenhuma classe selecionada, retornando 0");
-      return 0;
-    }
-    
-    // Aplicar bônus raciais diretamente
-    const bonuses = getCombinedAbilityBonuses;
-    const finalConstitution = characterData.abilityScores.constitution + bonuses.constitution;
-    const level = characterData.level;
-    const hitDie = characterData.selectedClass.hit_die;
-    
-    const conModifier = getAbilityModifier(finalConstitution);
-    const baseHP = hitDie + conModifier; // Max HP at level 1
-    const additionalHP = (level - 1) * (Math.floor(hitDie / 2) + 1 + conModifier); // Average HP per level after 1st
-    
-    const totalHP = Math.max(1, baseHP + additionalHP);
-    
-    console.log(`🔍 calculateHitPoints:`, {
-      class: characterData.selectedClass.name,
-      hitDie,
-      level,
-      constitution: characterData.abilityScores.constitution,
-      racialBonus: bonuses.constitution,
-      finalConstitution,
-      conModifier,
-      baseHP,
-      additionalHP,
-      totalHP
-    });
-    
-    return totalHP;
-  }, [
-    characterData.selectedClass?.index, 
-    characterData.selectedClass?.hit_die, 
-    characterData.level, 
-    characterData.abilityScores.constitution,
-    characterData.selectedRace?.index,
-    characterData.selectedSubrace?.index,
-    getCombinedAbilityBonuses,
-    getAbilityModifier
-  ]);
-
-  // ✅ NOVA FUNÇÃO: Calcula CA baseado na destreza final
-  const calculateArmorClass = useCallback((): number => {
-    // Aplicar bônus raciais diretamente
-    const bonuses = getCombinedAbilityBonuses;
-    const finalDexterity = characterData.abilityScores.dexterity + bonuses.dexterity;
-    const dexModifier = getAbilityModifier(finalDexterity);
-    
-    // Base AC (10 + Dex modifier for no armor)
-    const totalAC = 10 + dexModifier;
-    
-    console.log(`🔍 calculateArmorClass:`, {
-      dexterity: characterData.abilityScores.dexterity,
-      racialBonus: bonuses.dexterity,
-      finalDexterity,
-      dexModifier,
-      totalAC
-    });
-    
-    return totalAC;
-  }, [
-    characterData.abilityScores.dexterity,
-    characterData.selectedRace?.index,
-    characterData.selectedSubrace?.index,
-    getCombinedAbilityBonuses,
-    getAbilityModifier
-  ]);
-
-  // ===========================
-  // 🆕 SISTEMA DE SINCRONIZAÇÃO DE STATS
-  // ===========================
-
-  // ✅ NOVA FUNCIONALIDADE: Auto-sincronização de HP e CA calculados
-  useEffect(() => {
-    // Só recalcular se temos dados suficientes para cálculo válido
-    const shouldCalculate = characterData.selectedClass && 
-      Object.values(characterData.abilityScores).some(score => score > 0);
-    
-    if (shouldCalculate) {
-      const newHP = calculateHitPoints();
-      const newAC = calculateArmorClass();
-      
-      // Só atualizar se os valores realmente mudaram (evita loops)
-      if (newHP !== characterData.hitPoints || newAC !== characterData.armorClass) {
-        console.log(`🔄 Auto-atualizando stats: HP ${characterData.hitPoints} → ${newHP}, AC ${characterData.armorClass} → ${newAC}`);
-        
-        // Usar setTimeout para evitar loop de atualização
-        const timeoutId = setTimeout(() => {
-          setCharacterData(prev => ({
-            ...prev,
-            hitPoints: newHP,
-            armorClass: newAC
-          }));
-        }, 50);
-        
-        return () => clearTimeout(timeoutId);
-      }
-    }
-  }, [
-    // Dependencies que afetam HP e AC
-    characterData.selectedClass?.index,
-    characterData.selectedClass?.hit_die,
-    characterData.level,
-    characterData.abilityScores.constitution,
-    characterData.abilityScores.dexterity,
-    characterData.selectedRace?.index,
-    characterData.selectedSubrace?.index,
-    calculateHitPoints,
-    calculateArmorClass
-    // NÃO incluir hitPoints e armorClass aqui para evitar loop
-  ]);
-
-  const getSpellcastingAbility = useCallback((classIndex?: string): keyof AbilityScores | null => {
-    const targetClass = classIndex 
-      ? classesData.find(c => c.index === classIndex) 
-      : characterData.selectedClass;
-    
-    if (!targetClass?.spellcasting) return null;
-    
-    const ability = targetClass.spellcasting.spellcasting_ability;
-    const abilityMap: Record<string, keyof AbilityScores> = {
-      'int': 'intelligence',
-      'wis': 'wisdom', 
-      'cha': 'charisma'
-    };
-    
-    return abilityMap[ability] || null;
-  }, [characterData.selectedClass?.index, classesData.length]);
 
   // ===========================
   // UTILITY FUNCTIONS FOR ABILITIES
@@ -973,7 +683,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, []);
 
   // ===========================
-  // VALIDATION FUNCTIONS
+  // VALIDATION FUNCTIONS - CORRIGIDAS
   // ===========================
 
   const recalculatePointsRemaining = useCallback((scores: AbilityScores): number => {
@@ -981,6 +691,7 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     return 27 - pointsUsed;
   }, [calculateAbilityScorePoints]);
 
+  // ✅ CORREÇÃO PRINCIPAL: Função validateStep corrigida
   const validateStep = useCallback((stepId: string): boolean => {
     switch (stepId) {
       case "basic-info":
@@ -992,10 +703,31 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         );
         
       case "ability-scores":
+        // ✅ CORREÇÃO: Recalcular pontos para garantir sincronização
         if (characterData.abilityMethod === "point-buy" || characterData.abilityMethod === "point_buy") {
-          return characterData.pointsRemaining === 0 && Object.values(characterData.abilityScores).every(score => score >= 8 && score <= 15);
+          const actualPointsRemaining = recalculatePointsRemaining(characterData.abilityScores);
+          
+          // Verificar se todos os pontos foram gastos
+          const allPointsUsed = actualPointsRemaining === 0;
+          
+          // Verificar se todos os scores estão na faixa válida
+          const validScores = Object.values(characterData.abilityScores)
+            .every(score => score >= 8 && score <= 15);
+          
+          console.log("🔍 Point-buy validation:", {
+            actualPointsRemaining,
+            storedPointsRemaining: characterData.pointsRemaining,
+            allPointsUsed,
+            validScores,
+            abilityScores: characterData.abilityScores
+          });
+          
+          return allPointsUsed && validScores;
+        } else {
+          // Para outros métodos (rolled, standard)
+          return Object.values(characterData.abilityScores)
+            .every(score => score >= 3 && score <= 20);
         }
-        return Object.values(characterData.abilityScores).every(score => score >= 3 && score <= 20);
         
       case "skills":
         return characterData.selectedSkills.length <= characterData.availableSkillChoices;
@@ -1029,8 +761,17 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     characterData.hitPoints,
     characterData.armorClass,
     characterData.isSpellcaster,
-    validateCurrentSpellSelection
+    recalculatePointsRemaining
   ]);
+
+  const validateCurrentStep = useCallback((): boolean => {
+    if (!currentStepData) return false;
+    return validateStep(currentStepData.id);
+  }, [currentStepData?.id, validateStep]);
+
+  const canProceed = useCallback((): boolean => {
+    return validateCurrentStep();
+  }, [validateCurrentStep]);
 
   // ===========================
   // CHARACTER DATA UPDATES
@@ -1057,111 +798,53 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
         const spell = spellsData.find(s => s.index === spellIndex);
         return spell && canClassAccessSpell(newClass.index, spell);
       });
+
+      // Detectar se a nova classe é conjuradora
+      const spellcasterInfo = detectSpellcaster(newClass);
       
       setCharacterData(prev => ({
         ...prev,
         [field]: value,
         selectedSpells: validSpells,
-        isSpellcaster: detectSpellcaster(newClass).isSpellcaster
+        isSpellcaster: spellcasterInfo.isSpellcaster,
+        spellcastingAbility: spellcasterInfo.isSpellcaster ? getSpellcastingAbility(newClass.index) : null
       }));
-      return;
+    } else {
+      setCharacterData(prev => ({ ...prev, [field]: value }));
     }
-    
-    setCharacterData(prev => ({ ...prev, [field]: value }));
   }, [characterData.selectedSpells, spellsData, detectSpellcaster]);
 
-  const updateAbilityScore = useCallback((ability: keyof AbilityScores, newScore: number) => {
-    console.log(`🔄 updateAbilityScore: ${ability} = ${newScore}`);
-    
-    const newScores = { ...characterData.abilityScores, [ability]: newScore };
-    const newPointsRemaining = recalculatePointsRemaining(newScores);
-    
+  const updateAbilityScore = useCallback((ability: keyof AbilityScores, value: number) => {
     setCharacterData(prev => ({
       ...prev,
-      abilityScores: newScores,
-      pointsRemaining: newPointsRemaining,
+      abilityScores: {
+        ...prev.abilityScores,
+        [ability]: value
+      }
     }));
-  }, [characterData.abilityScores, recalculatePointsRemaining]);
+  }, []);
 
   const toggleSkill = useCallback((skillKey: string) => {
-    const isSelected = characterData.selectedSkills.includes(skillKey);
-    const newSkills = isSelected
-      ? characterData.selectedSkills.filter(s => s !== skillKey)
-      : [...characterData.selectedSkills, skillKey];
-    
-    setCharacterData(prev => ({
-      ...prev,
-      selectedSkills: newSkills,
-    }));
-  }, [characterData.selectedSkills]);
+    setCharacterData(prev => {
+      const isSelected = prev.selectedSkills.includes(skillKey);
+      const newSkills = isSelected
+        ? prev.selectedSkills.filter(s => s !== skillKey)
+        : [...prev.selectedSkills, skillKey];
+      
+      return { ...prev, selectedSkills: newSkills };
+    });
+  }, []);
 
   const toggleSpell = useCallback((spellIndex: string) => {
-    const isSelected = characterData.selectedSpells.includes(spellIndex);
-    const newSpells = isSelected
-      ? characterData.selectedSpells.filter(s => s !== spellIndex)
-      : [...characterData.selectedSpells, spellIndex];
-    
-    setCharacterData(prev => ({
-      ...prev,
-      selectedSpells: newSpells,
-    }));
-  }, [characterData.selectedSpells]);
-
-  // ===========================
-  // STEP MANAGEMENT
-  // ===========================
-
-  const currentStepData = steps[currentStep];
-  const progress = ((currentStep + 1) / steps.length) * 100;
-
-  // ✅ SINCRONIZAÇÃO COM DETECÇÃO DE CONJURADORES E SKILLS
-  useEffect(() => {
-    const spellcasterDetection = detectSpellcaster(characterData.selectedClass);
-    const isSpellcaster = spellcasterDetection.isSpellcaster;
-    
-    // Calcular choices de skills da classe
-    const skillChoices = characterData.selectedClass?.skill_choices?.choose || 2;
-    
-    // ✅ Só atualizar se mudou realmente para evitar loops
-    if (
-      characterData.isSpellcaster !== isSpellcaster ||
-      characterData.availableSkillChoices !== skillChoices ||
-      (isSpellcaster && characterData.spellcastingAbility !== spellInfo?.spellcastingAbility)
-    ) {
-      console.log("🔄 Sincronizando detecção de conjurador e skills:", {
-        previousIsSpellcaster: characterData.isSpellcaster,
-        newIsSpellcaster: isSpellcaster,
-        previousSkillChoices: characterData.availableSkillChoices,
-        newSkillChoices: skillChoices,
-        spellcastingAbility: spellInfo?.spellcastingAbility
-      });
+    setCharacterData(prev => {
+      const isSelected = prev.selectedSpells.includes(spellIndex);
+      const newSpells = isSelected
+        ? prev.selectedSpells.filter(s => s !== spellIndex)
+        : [...prev.selectedSpells, spellIndex];
       
-      setCharacterData(prev => ({
-        ...prev,
-        isSpellcaster,
-        spellcastingAbility: isSpellcaster ? spellInfo?.spellcastingAbility || null : null,
-        availableSkillChoices: skillChoices,
-        selectedSpells: isSpellcaster ? prev.selectedSpells : [],
-      }));
-    }
-  }, [
-    characterData.selectedClass?.index,
-    characterData.selectedClass?.name, 
-    characterData.selectedClass?.spellcasting,
-    characterData.isSpellcaster,
-    characterData.availableSkillChoices,
-    spellInfo?.spellcastingAbility,
-    detectSpellcaster
-  ]);
-
-  const validateCurrentStep = useCallback((): boolean => {
-    if (!currentStepData) return false;
-    return validateStep(currentStepData.id);
-  }, [currentStepData?.id, validateStep]);
-
-  const canProceed = useCallback((): boolean => {
-    return validateCurrentStep();
-  }, [validateCurrentStep]);
+      return { ...prev, selectedSpells: newSpells };
+    });
+  }, []);
 
   // ===========================
   // STEP NAVIGATION
@@ -1239,11 +922,95 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     } finally {
       setLoading(false);
     }
-  }, [characterData, calculateHitPoints, calculateArmorClass, getFinalAbilityScores, getAbilityModifier]);
+  }, [characterData]);
 
   // ===========================
   // UTILITY FUNCTIONS
   // ===========================
+
+  const getAbilityModifier = useCallback((score: number): number => {
+    return Math.floor((score - 10) / 2);
+  }, []);
+
+  const getCombinedAbilityBonuses = useCallback((): AbilityScores => {
+    const bonuses: AbilityScores = {
+      strength: 0,
+      dexterity: 0,
+      constitution: 0,
+      intelligence: 0,
+      wisdom: 0,
+      charisma: 0,
+    };
+
+    // Racial bonuses
+    if (characterData.selectedRace?.ability_bonuses) {
+      characterData.selectedRace.ability_bonuses.forEach(bonus => {
+        const abilityKey = bonus.ability_score.index as keyof AbilityScores;
+        if (abilityKey && bonuses.hasOwnProperty(abilityKey)) {
+          bonuses[abilityKey] += bonus.bonus;
+        }
+      });
+    }
+
+    // Subrace bonuses
+    if (characterData.selectedSubrace?.ability_bonuses) {
+      characterData.selectedSubrace.ability_bonuses.forEach(bonus => {
+        const abilityKey = bonus.ability_score.index as keyof AbilityScores;
+        if (abilityKey && bonuses.hasOwnProperty(abilityKey)) {
+          bonuses[abilityKey] += bonus.bonus;
+        }
+      });
+    }
+
+    return bonuses;
+  }, [characterData.selectedRace, characterData.selectedSubrace]);
+
+  const getFinalAbilityScores = useCallback((): AbilityScores => {
+    const racialBonuses = getCombinedAbilityBonuses();
+    
+    return {
+      strength: characterData.abilityScores.strength + racialBonuses.strength,
+      dexterity: characterData.abilityScores.dexterity + racialBonuses.dexterity,
+      constitution: characterData.abilityScores.constitution + racialBonuses.constitution,
+      intelligence: characterData.abilityScores.intelligence + racialBonuses.intelligence,
+      wisdom: characterData.abilityScores.wisdom + racialBonuses.wisdom,
+      charisma: characterData.abilityScores.charisma + racialBonuses.charisma,
+    };
+  }, [characterData.abilityScores, getCombinedAbilityBonuses]);
+
+  const calculateHitPoints = useCallback((): number => {
+    if (!characterData.selectedClass) return 0;
+    
+    const finalScores = getFinalAbilityScores();
+    const constitutionMod = getAbilityModifier(finalScores.constitution);
+    const hitDie = characterData.selectedClass.hit_die || 8;
+    
+    return hitDie + constitutionMod;
+  }, [characterData.selectedClass, getFinalAbilityScores, getAbilityModifier]);
+
+  const calculateArmorClass = useCallback((): number => {
+    const finalScores = getFinalAbilityScores();
+    const dexterityMod = getAbilityModifier(finalScores.dexterity);
+    
+    return 10 + dexterityMod;
+  }, [getFinalAbilityScores, getAbilityModifier]);
+
+  const getSpellcastingAbility = useCallback((classIndex: string): keyof AbilityScores | null => {
+    const targetClass = classIndex 
+      ? classesData.find(c => c.index === classIndex) 
+      : characterData.selectedClass;
+    
+    if (!targetClass?.spellcasting) return null;
+    
+    const ability = targetClass.spellcasting.spellcasting_ability;
+    const abilityMap: Record<string, keyof AbilityScores> = {
+      'int': 'intelligence',
+      'wis': 'wisdom', 
+      'cha': 'charisma'
+    };
+    
+    return abilityMap[ability] || null;
+  }, [characterData.selectedClass?.index, classesData.length]);
 
   const getAvailableSubraces = useCallback(() => subracesData, [subracesData]);
   const getAvailableSubclasses = useCallback(() => subclassesData, [subclassesData]);
@@ -1290,63 +1057,132 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
   }, []);
 
   // ===========================
+  // SPELL VALIDATION FUNCTIONS
+  // ===========================
+
+  const validateCurrentSpellSelection = useCallback((): SpellValidationResult => {
+    if (!characterData.selectedClass) {
+      return {
+        isValid: true,
+        errors: [],
+        warnings: [],
+        cantripsCount: 0,
+        spellsCount: 0,
+        maxCantrips: 0,
+        maxSpells: 0
+      };
+    }
+
+    return validateSpellSelection(
+      characterData.selectedClass.index,
+      characterData.selectedSpells,
+      filteredSpells
+    );
+  }, [characterData.selectedClass, characterData.selectedSpells, filteredSpells]);
+
+  const validateSpellSelectionWithParams = useCallback((
+    classIndex: string,
+    selectedSpells: string[],
+    availableSpells: DndSpell[]
+  ): SpellValidationResult => {
+    return validateSpellSelection(classIndex, selectedSpells, availableSpells);
+  }, []);
+
+  // ===========================
+  // SPELL INFO COMPUTATION
+  // ===========================
+
+  const spellInfo = useMemo(() => {
+    if (!characterData.selectedClass) {
+      return {
+        isSpellcaster: false,
+        maxSpellLevel: 0,
+        startingCantrips: 0,
+        startingSpells: 0,
+        spellcastingAbility: null
+      };
+    }
+
+    const classConfig = getSpellConfigForClass(characterData.selectedClass.index);
+    const detectionResult = detectSpellcaster(characterData.selectedClass);
+
+    return {
+      isSpellcaster: detectionResult.isSpellcaster,
+      maxSpellLevel: classConfig?.maxSpellLevel || 9,
+      startingCantrips: classConfig?.startingCantrips || 0,
+      startingSpells: classConfig?.startingSpells || 0,
+      spellcastingAbility: getSpellcastingAbility(characterData.selectedClass.index)
+    };
+  }, [characterData.selectedClass, detectSpellcaster, getSpellcastingAbility]);
+
+  // ===========================
+  // AUTO-UPDATE SPELL CASTER STATUS
+  // ===========================
+
+  useEffect(() => {
+    if (characterData.selectedClass) {
+      const spellcasterInfo = detectSpellcaster(characterData.selectedClass);
+      
+      if (spellcasterInfo.isSpellcaster !== characterData.isSpellcaster) {
+        console.log("🔄 Atualizando status de conjurador:", spellcasterInfo);
+        
+        setCharacterData(prev => ({
+          ...prev,
+          isSpellcaster: spellcasterInfo.isSpellcaster,
+          spellcastingAbility: spellcasterInfo.isSpellcaster ? spellInfo.spellcastingAbility : null,
+          availableSkillChoices: getSkillChoices(),
+          selectedSpells: spellcasterInfo.isSpellcaster ? prev.selectedSpells : [],
+        }));
+      }
+    }
+  }, [
+    characterData.selectedClass?.index,
+    characterData.selectedClass?.name, 
+    characterData.selectedClass?.spellcasting,
+    characterData.isSpellcaster,
+    characterData.availableSkillChoices,
+    spellInfo?.spellcastingAbility,
+    detectSpellcaster
+  ]);
+
+  // ===========================
+  // ✅ SINCRONIZAÇÃO AUTOMÁTICA DOS PONTOS RESTANTES - NOVA FUNCIONALIDADE
+  // ===========================
+
+  useEffect(() => {
+    if (characterData.abilityMethod === "point-buy") {
+      const correctPoints = recalculatePointsRemaining(characterData.abilityScores);
+      
+      if (correctPoints !== characterData.pointsRemaining) {
+        console.log("🔄 Sincronizando pontos:", {
+          stored: characterData.pointsRemaining,
+          calculated: correctPoints
+        });
+        
+        setCharacterData(prev => ({
+          ...prev,
+          pointsRemaining: correctPoints
+        }));
+      }
+    }
+  }, [
+    characterData.abilityScores,
+    characterData.abilityMethod,
+    characterData.pointsRemaining,
+    recalculatePointsRemaining
+  ]);
+
+  // ===========================
   // STEP VALIDATION WITH LIVE UPDATES
   // ===========================
 
-  // ✅ Recalcular validação dos steps em tempo real
   const updatedSteps = useMemo(() => {
     return steps.map(step => {
-      let isValid = false;
-      
-      switch (step.id) {
-        case "basic-info":
-          isValid = !!(
-            characterData.name &&
-            characterData.selectedRace &&
-            characterData.selectedClass &&
-            characterData.selectedBackground
-          );
-          break;
-          
-        case "ability-scores":
-          if (characterData.abilityMethod === "point-buy" || characterData.abilityMethod === "point_buy") {
-            isValid = characterData.pointsRemaining === 0 && 
-              Object.values(characterData.abilityScores).every(score => score >= 8 && score <= 15);
-          } else {
-            isValid = Object.values(characterData.abilityScores).every(score => score >= 3 && score <= 20);
-          }
-          break;
-          
-        case "skills":
-          isValid = characterData.selectedSkills.length <= characterData.availableSkillChoices;
-          break;
-          
-        case "equipment":
-          isValid = characterData.hitPoints > 0 && characterData.armorClass >= 10;
-          break;
-          
-        case "spells":
-          if (characterData.isSpellcaster) {
-            const validation = validateCurrentSpellSelection();
-            isValid = validation.isValid;
-          } else {
-            const spellCount = characterData.selectedSpells?.length || 0;
-            isValid = spellCount >= 0;
-          }
-          break;
-          
-        case "personality":
-          isValid = true; // Personality is optional
-          break;
-          
-        default:
-          isValid = false;
-      }
-      
+      const isValid = validateStep(step.id);
       return { ...step, isValid };
     });
   }, [
-    // Dependencies for step validation
+    validateStep,
     steps,
     characterData.name,
     characterData.selectedRace?.index,
@@ -1364,7 +1200,6 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
     characterData.availableSkillChoices,
     characterData.isSpellcaster,
     characterData.selectedSpells?.length,
-    validateCurrentSpellSelection
   ]);
 
   // ===========================
@@ -1421,66 +1256,37 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       console.log("🔍 ===== DEBUG SPELLS =====");
       console.log("Is Spellcaster:", characterData.isSpellcaster);
       console.log("Selected Class:", characterData.selectedClass?.name);
-      console.log("Selected Spells:", characterData.selectedSpells);
-      console.log("Available Spells Count:", spellsData.length);
       console.log("Spell Info:", spellInfo);
-      
-      if (characterData.selectedClass && characterData.isSpellcaster) {
-        const validation = validateCurrentSpellSelection();
-        console.log("Spell Validation:", validation);
-      }
-      
-      console.log("validateSpellSelection function:", typeof validateCurrentSpellSelection);
+      console.log("Selected Spells:", characterData.selectedSpells);
+      console.log("Available Spells:", filteredSpells.length);
+      console.log("Spell Validation:", validateCurrentSpellSelection());
       console.log("===============================");
     };
 
     (window as any).debugSpellcaster = () => {
       console.log("🔍 ===== DEBUG SPELLCASTER DETECTION =====");
-      console.log("Selected Class:", characterData.selectedClass?.name);
-      console.log("Class Index:", characterData.selectedClass?.index);
-      console.log("Has API Spellcasting:", !!characterData.selectedClass?.spellcasting);
-      
       if (characterData.selectedClass) {
         const detection = detectSpellcaster(characterData.selectedClass);
         console.log("Detection Result:", detection);
-        console.log("Current isSpellcaster state:", characterData.isSpellcaster);
-        console.log("Spell Info:", spellInfo);
+        console.log("Current Character Data:", {
+          isSpellcaster: characterData.isSpellcaster,
+          spellcastingAbility: characterData.spellcastingAbility
+        });
+      } else {
+        console.log("❌ No class selected");
       }
-      
-      console.log("Available spell config keys:", Object.keys(SPELL_CONFIG_BY_CLASS));
-      console.log("=========================================");
-    };
-
-    return () => {
-      // Cleanup
-      delete (window as any).debugAbilityScores;
-      delete (window as any).fixPointsRemaining;
-      delete (window as any).debugStats;
-      delete (window as any).forceStatsUpdate;
-      delete (window as any).debugSpells;
-      delete (window as any).debugSpellcaster;
+      console.log("==========================================");
     };
   }, [
-    characterData.abilityMethod,
-    characterData.abilityScores,
-    characterData.pointsRemaining,
-    characterData.hitPoints,
-    characterData.armorClass,
-    characterData.selectedClass?.name,
-    characterData.selectedRace?.name,
-    characterData.selectedSubrace?.name,
-    characterData.isSpellcaster,
-    characterData.selectedSpells?.length,
-    spellsData.length,
-    spellcasterInfo.isSpellcaster,
-    spellInfo.startingCantrips,
-    spellInfo.startingSpells,
+    characterData,
     calculateAbilityScorePoints,
     recalculatePointsRemaining,
     getCombinedAbilityBonuses,
     getFinalAbilityScores,
     calculateHitPoints,
     calculateArmorClass,
+    spellInfo,
+    filteredSpells,
     validateCurrentSpellSelection,
     detectSpellcaster
   ]);
@@ -1596,56 +1402,41 @@ export const useCharacterCreation = (): CharacterCreationContextType => {
       
       return abilityMod + profBonus;
     },
+    getReference: (type: string, index: string) => ({ index, name: index, url: `/api/${type}/${index}` }),
+    getFinalAbilityScores: getFinalAbilityScores(),
+    
+    // Debug functions (available globally via window)
+    debugAbilityScores: () => (window as any).debugAbilityScores?.(),
+    fixPointsRemaining: () => (window as any).fixPointsRemaining?.(),
   };
-
-  // ✅ LOG FINAL DE DEBUG
-  console.log("🔧 useCharacterCreation Context Value criado com:", {
-    currentStep: contextValue.currentStep,
-    characterName: contextValue.characterData.name,
-    selectedRace: contextValue.characterData.selectedRace?.name,
-    selectedClass: contextValue.characterData.selectedClass?.name,
-    hitPoints: contextValue.characterData.hitPoints,
-    armorClass: contextValue.characterData.armorClass,
-    racesCount: contextValue.races.length,
-    classesCount: contextValue.classes.length,
-    spellsCount: contextValue.spells.length,
-    isSpellcaster: contextValue.characterData.isSpellcaster,
-    hasValidateSpellSelection: typeof contextValue.validateSpellSelection === 'function',
-    "🔍 Funcões de debug disponíveis no console": ["debugAbilityScores()", "fixPointsRemaining()", "debugStats()", "forceStatsUpdate()", "debugSpells()", "debugSpellcaster()"],
-    "🔧 Status da API": "getSpells() funciona e filtra magias por classe",
-    "🎯 Validação de magias": "validateSpellSelection() disponível no contexto",
-    "🛠️ Detecção de conjuradores": "Corrigida - Clérigo detectado corretamente",
-    "🔥 SPELL_CONFIG_BY_CLASS": "Importado e funcionando corretamente"
-  });
 
   return contextValue;
 };
 
 // ===========================
-// PROVIDER COMPONENT
+// PROVIDER COMPONENT - CORRIGIDO
 // ===========================
 
-const CharacterCreationInternalProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const contextValue = useCharacterCreation();
-
-  return (
-    <CharacterCreationContext.Provider value={contextValue}>
-      {children}
-    </CharacterCreationContext.Provider>
-  );
-};
-
-export const CharacterCreationProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const CharacterCreationProvider: React.FC<{ 
+  children: React.ReactNode; 
+  campaignId?: string 
+}> = ({ children, campaignId }) => {
   return (
     <QueryClientProvider client={queryClient}>
       <CharacterCreationInternalProvider>
         {children}
       </CharacterCreationInternalProvider>
     </QueryClientProvider>
+  );
+};
+
+const CharacterCreationInternalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const contextValue = useCharacterCreation();
+
+  return (
+    <CharacterCreationContext.Provider value={contextValue}>
+      {children}
+    </CharacterCreationContext.Provider>
   );
 };
 
@@ -1672,3 +1463,5 @@ export {
   useBackgroundsQuery,     // ✅ Mescla dados da API com dados locais
   useSpellsQuery,          // ✅ Filtra por classe + corrigido para usar getSpells()
 };
+
+export default useCharacterCreation;
