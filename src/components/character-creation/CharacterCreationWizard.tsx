@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION WIZARD - ARQUIVO COMPLETO CORRIGIDO
+// CHARACTER CREATION WIZARD - ATUALIZADO PARA USAR NOVOS HOOKS
 // src/components/character-creation/CharacterCreationWizard.tsx
 // ===========================
 
@@ -20,7 +20,10 @@ import {
   Settings,
   Info,
   CheckCircle,
-  Circle
+  Circle,
+  Save,
+  RotateCcw,
+  Loader2
 } from "lucide-react";
 
 // Step components
@@ -34,44 +37,59 @@ import PersonalityStep from "./steps/PersonalityStep";
 interface CharacterCreationWizardProps {
   onComplete?: (characterData: any) => void;
   onCancel?: () => void;
+  campaignContext?: {
+    id: string;
+    name: string;
+    setting?: string;
+    world_name?: string;
+  };
 }
 
 export default function CharacterCreationWizard({ 
   onComplete, 
-  onCancel 
+  onCancel,
+  campaignContext
 }: CharacterCreationWizardProps) {
   const {
+    // Step management via context
     currentStep,
     steps,
-    nextStep: nextStepAction,
-    prevStep: prevStepAction,
+    nextStep,
+    prevStep,
     goToStep,
+    
+    // Character data
     characterData,
+    
+    // Loading e errors
     loading,
     error,
     
-    // Validação - 🔥 ESTAS FUNÇÕES AGORA FUNCIONAM CORRETAMENTE
+    // Validation - usando as funções do contexto
     validateCurrentStep,
     canProceed,
     validateStep,
     
-    // Ações
+    // Actions
     resetCharacter,
     createCharacter,
     
-    // Utilitários
-    getCombinedAbilityBonuses,
+    // Utility functions
     calculateHitPoints,
     calculateArmorClass,
   } = useCharacterCreationContext();
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [creationError, setCreationError] = useState<string | null>(null);
 
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === steps.length - 1;
 
-  // Configuração dos steps com novo design
+  // ===========================
+  // STEP CONFIGURATION
+  // ===========================
+
   const stepConfig = {
     "basic-info": {
       icon: User,
@@ -80,113 +98,110 @@ export default function CharacterCreationWizard({
     },
     "ability-scores": {
       icon: Zap,
-      color: "from-yellow-500 to-orange-500",
-      gradient: "bg-gradient-to-br from-yellow-500/20 to-orange-500/20"
+      color: "from-yellow-500 to-orange-600",
+      gradient: "bg-gradient-to-br from-yellow-500/20 to-orange-600/20"
     },
     "skills": {
       icon: Shield,
-      color: "from-green-500 to-emerald-500",
-      gradient: "bg-gradient-to-br from-green-500/20 to-emerald-500/20"
+      color: "from-green-500 to-emerald-600",
+      gradient: "bg-gradient-to-br from-green-500/20 to-emerald-600/20"
     },
     "equipment": {
       icon: Sword,
-      color: "from-red-500 to-rose-500",
-      gradient: "bg-gradient-to-br from-red-500/20 to-rose-500/20"
+      color: "from-purple-500 to-violet-600",
+      gradient: "bg-gradient-to-br from-purple-500/20 to-violet-600/20"
     },
     "spells": {
       icon: Sparkles,
-      color: "from-purple-500 to-violet-500",
-      gradient: "bg-gradient-to-br from-purple-500/20 to-violet-500/20"
+      color: "from-pink-500 to-rose-600",
+      gradient: "bg-gradient-to-br from-pink-500/20 to-rose-600/20"
     },
     "personality": {
       icon: Heart,
-      color: "from-pink-500 to-rose-500",
-      gradient: "bg-gradient-to-br from-pink-500/20 to-rose-500/20"
+      color: "from-red-500 to-pink-600",
+      gradient: "bg-gradient-to-br from-red-500/20 to-pink-600/20"
     }
   };
 
   // ===========================
-  // 🔥 NAVEGAÇÃO CORRIGIDA
+  // HANDLERS
   // ===========================
 
-  const handleNextStep = () => {
-    // Agora a validação funciona corretamente para o step de equipment
+  const handleNext = () => {
     if (canProceed()) {
-      nextStepAction();
-    } else {
-      // Debug para identificar problemas
-      console.warn("❌ Não é possível prosseguir:", {
-        currentStep: steps[currentStep]?.title,
-        stepId: steps[currentStep]?.id,
-        isValid: validateCurrentStep(),
-        characterData: {
-          selectedEquipment: characterData.selectedEquipment,
-          equipmentCount: characterData.selectedEquipment?.length || 0
-        }
-      });
+      nextStep();
     }
   };
 
-  const handlePrevStep = () => {
-    prevStepAction();
+  const handlePrev = () => {
+    if (!isFirstStep) {
+      prevStep();
+    }
   };
 
-  // Handler para finalizar criação
-  const handleComplete = async () => {
-    if (!canProceed()) return;
-    
+  const handleFinish = async () => {
     setIsCreating(true);
+    setCreationError(null);
+    
     try {
-      await createCharacter();
+      const result = await createCharacter();
+      console.log("✅ Personagem criado:", result);
+      
       if (onComplete) {
-        onComplete(characterData);
+        onComplete(result);
       }
     } catch (error) {
       console.error("❌ Erro ao criar personagem:", error);
+      setCreationError(error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
       setIsCreating(false);
     }
   };
 
-  // Componente do indicador de step
-  const StepIndicator = ({ step, index, isActive, isCompleted }) => {
-    const stepInfo = stepConfig[step.id] || stepConfig["basic-info"];
-    const Icon = stepInfo.icon;
-    
-    return (
-      <div 
-        className={`relative flex items-center cursor-pointer transition-all duration-300 ${
-          isActive ? 'scale-105' : 'hover:scale-102'
-        }`}
-        onClick={() => goToStep(index)}
-      >
-        {/* Connection Line */}
-        {index < steps.length - 1 && (
-          <div className={`absolute left-8 top-8 w-px h-16 transition-colors duration-300 ${
-            isCompleted || index < currentStep
-              ? 'bg-green-400'
-              : 'bg-gray-600'
-          }`} />
-        )}
+  const handleReset = () => {
+    if (confirm("Tem certeza que deseja reiniciar? Todos os dados serão perdidos.")) {
+      resetCharacter();
+    }
+  };
 
-        {/* Step Circle */}
-        <div className={`relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+  // ===========================
+  // SIDEBAR STEP COMPONENT
+  // ===========================
+
+  const SidebarStep = ({ step, index }: { step: any; index: number }) => {
+    const isActive = index === currentStep;
+    const isCompleted = validateStep(step.id);
+    const isPast = index < currentStep;
+    const config = stepConfig[step.id as keyof typeof stepConfig] || stepConfig["basic-info"];
+    const StepIcon = config.icon;
+
+    return (
+      <div
+        onClick={() => goToStep(index)}
+        className={`flex items-center space-x-3 p-4 rounded-xl transition-all duration-200 cursor-pointer group ${
           isActive
-            ? `bg-gradient-to-br ${stepInfo.color} shadow-lg shadow-blue-500/25`
+            ? 'bg-gradient-to-r from-indigo-500/20 to-purple-600/20 border border-indigo-400/30 shadow-lg'
             : isCompleted
-              ? 'bg-gradient-to-br from-green-500 to-emerald-600 shadow-lg shadow-green-500/25'
-              : 'bg-gray-700/80 border border-gray-600/50'
+            ? 'bg-green-500/10 border border-green-400/20 hover:bg-green-500/20'
+            : isPast
+            ? 'bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700/50'
+            : 'bg-gray-800/30 border border-gray-700/20 opacity-60'
+        }`}
+      >
+        {/* Step Icon */}
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+          isActive
+            ? `bg-gradient-to-br ${config.color} shadow-lg`
+            : isCompleted
+            ? 'bg-green-500/20 text-green-400'
+            : 'bg-gray-700/50 text-gray-400'
         }`}>
-          {isCompleted && !isActive ? (
-            <CheckCircle className="w-8 h-8 text-white" />
-          ) : (
-            <Icon className={`w-8 h-8 ${isActive || isCompleted ? 'text-white' : 'text-gray-400'}`} />
-          )}
+          <StepIcon className="w-5 h-5 text-white" />
         </div>
 
         {/* Step Info */}
-        <div className="ml-4 flex-1">
-          <h3 className={`font-semibold transition-colors ${
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-medium transition-colors ${
             isActive ? 'text-white' : isCompleted ? 'text-green-400' : 'text-gray-400'
           }`}>
             {step.title}
@@ -200,7 +215,7 @@ export default function CharacterCreationWizard({
 
         {/* Validation Status */}
         <div className="ml-4">
-          {validateStep(step.id) ? (
+          {isCompleted ? (
             <CheckCircle className="w-5 h-5 text-green-400" />
           ) : (
             <Circle className="w-5 h-5 text-gray-500" />
@@ -210,10 +225,13 @@ export default function CharacterCreationWizard({
     );
   };
 
-  // Renderizar componente do step atual
+  // ===========================
+  // RENDER CURRENT STEP
+  // ===========================
+
   const renderCurrentStep = () => {
     const stepId = steps[currentStep]?.id;
-    const stepInfo = stepConfig[stepId] || stepConfig["basic-info"];
+    const stepInfo = stepConfig[stepId as keyof typeof stepConfig] || stepConfig["basic-info"];
     const StepIcon = stepInfo.icon;
 
     return (
@@ -250,8 +268,8 @@ export default function CharacterCreationWizard({
                     <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
                       <AlertCircle className="w-8 h-8 text-gray-400" />
                     </div>
-                    <h3 className="text-white font-semibold text-lg mb-2">Step não encontrado</h3>
-                    <p className="text-gray-400">O step "{stepId}" ainda não foi implementado.</p>
+                    <h3 className="text-lg font-medium text-gray-300 mb-2">Step não encontrado</h3>
+                    <p className="text-gray-500">O step "{stepId}" não está implementado.</p>
                   </div>
                 );
             }
@@ -261,121 +279,69 @@ export default function CharacterCreationWizard({
     );
   };
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-white text-xl font-semibold mb-2">Carregando...</h2>
-          <p className="text-gray-400">Preparando o criador de personagens</p>
-        </div>
-      </div>
-    );
-  }
+  // ===========================
+  // RENDER PRINCIPAL
+  // ===========================
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 relative overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
-      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
-      <div className="absolute top-0 -right-4 w-72 h-72 bg-yellow-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
-      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
-
-      {/* Main Layout */}
-      <div className="relative z-10 flex min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent)] pointer-events-none" />
+      
+      <div className="relative z-10 flex h-screen">
         {/* Sidebar */}
         {showSidebar && (
-          <div className="w-80 bg-gray-900/80 backdrop-blur-sm border-r border-gray-700/50 p-6 overflow-y-auto">
+          <div className="w-80 bg-gray-900/95 backdrop-blur-xl border-r border-gray-700/50 flex flex-col">
             {/* Header */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h1 className="text-2xl font-bold text-white">Criador de Personagem</h1>
-                <button
-                  onClick={() => setShowSidebar(false)}
-                  className="p-2 text-gray-400 hover:text-white transition-colors"
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
+            <div className="p-6 border-b border-gray-700/50">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
+                  <User className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className="text-lg font-bold text-white">Criar Personagem</h1>
+                  {campaignContext && (
+                    <p className="text-sm text-gray-400">{campaignContext.name}</p>
+                  )}
+                </div>
               </div>
-              
-              {/* Progress Bar */}
-              <div className="bg-gray-700/50 rounded-full h-2 mb-4">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                  style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-                />
+
+              {/* Progress */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-400 mb-2">
+                  <span>Progresso</span>
+                  <span>{currentStep + 1} de {steps.length}</span>
+                </div>
+                <div className="w-full bg-gray-800 rounded-full h-2">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                  />
+                </div>
               </div>
-              
-              <p className="text-gray-400 text-sm">
-                Step {currentStep + 1} de {steps.length}
-              </p>
             </div>
 
-            {/* Steps List */}
-            <div className="space-y-6">
+            {/* Steps */}
+            <div className="flex-1 p-4 space-y-2 overflow-y-auto">
               {steps.map((step, index) => (
-                <StepIndicator
-                  key={step.id}
-                  step={step}
-                  index={index}
-                  isActive={index === currentStep}
-                  isCompleted={step.isCompleted}
-                />
+                <SidebarStep key={step.id} step={step} index={index} />
               ))}
             </div>
 
-            {/* Character Summary */}
-            {characterData.name && (
-              <div className="mt-8 p-4 bg-gray-800/50 rounded-xl border border-gray-700/50">
-                <h3 className="text-white font-semibold mb-3">Resumo do Personagem</h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Nome:</span>
-                    <span className="text-white">{characterData.name}</span>
-                  </div>
-                  {characterData.selectedRace && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Raça:</span>
-                      <span className="text-white">{characterData.selectedRace.name}</span>
-                    </div>
-                  )}
-                  {characterData.selectedClass && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Classe:</span>
-                      <span className="text-white">{characterData.selectedClass.name}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Nível:</span>
-                    <span className="text-white">{characterData.level}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">PV:</span>
-                    <span className="text-white">{characterData.hitPoints}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">CA:</span>
-                    <span className="text-white">{characterData.armorClass}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Actions */}
-            <div className="mt-8 space-y-3">
+            <div className="p-4 border-t border-gray-700/50 space-y-3">
               <button
-                onClick={resetCharacter}
-                className="w-full px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-xl transition-all border border-gray-600/50"
+                onClick={handleReset}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg transition-colors"
               >
-                <Settings className="w-4 h-4 inline mr-2" />
-                Resetar Personagem
+                <RotateCcw className="w-4 h-4" />
+                <span>Reiniciar</span>
               </button>
-              
+
               {onCancel && (
                 <button
                   onClick={onCancel}
-                  className="w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all border border-red-500/50"
+                  className="w-full px-4 py-2 bg-gray-600/50 hover:bg-gray-500/50 text-gray-300 rounded-lg transition-colors"
                 >
                   Cancelar
                 </button>
@@ -386,123 +352,142 @@ export default function CharacterCreationWizard({
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Sidebar Toggle (when hidden) */}
-          {!showSidebar && (
-            <div className="p-4">
-              <button
-                onClick={() => setShowSidebar(true)}
-                className="p-3 bg-gray-900/80 backdrop-blur-sm text-white rounded-xl border border-gray-700/50 hover:bg-gray-800/80 transition-all"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-
-          {/* Step Content */}
-          <div className="flex-1 p-8">
-            <div className="max-w-4xl mx-auto">
-              {error && (
-                <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-                  <div className="flex items-center space-x-2">
-                    <AlertCircle className="w-5 h-5 text-red-400" />
-                    <h3 className="text-red-400 font-semibold">Atenção</h3>
-                  </div>
-                  <p className="text-red-300 text-sm mt-1">{error}</p>
+          {/* Top Bar */}
+          <div className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700/50 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+                >
+                  <Settings className="w-5 h-5 text-gray-400" />
+                </button>
+                
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    {steps[currentStep]?.title}
+                  </h2>
+                  <p className="text-sm text-gray-400">
+                    Passo {currentStep + 1} de {steps.length}
+                  </p>
                 </div>
-              )}
+              </div>
 
-              {renderCurrentStep()}
+              {/* Character Summary */}
+              <div className="flex items-center space-x-6 text-sm">
+                {characterData.name && (
+                  <div>
+                    <span className="text-gray-400">Nome:</span>
+                    <span className="text-white ml-1 font-medium">{characterData.name}</span>
+                  </div>
+                )}
+                
+                {characterData.selectedRace && (
+                  <div>
+                    <span className="text-gray-400">Raça:</span>
+                    <span className="text-white ml-1">{characterData.selectedRace.name}</span>
+                  </div>
+                )}
+                
+                {characterData.selectedClass && (
+                  <div>
+                    <span className="text-gray-400">Classe:</span>
+                    <span className="text-white ml-1">{characterData.selectedClass.name}</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Footer Navigation - 🔥 CORRIGIDO */}
-          <div className="bg-gray-900/80 backdrop-blur-sm border-t border-gray-700/50 p-6">
-            <div className="max-w-4xl mx-auto flex items-center justify-between">
-              {/* Progress Info */}
-              <div className="text-gray-300">
-                <span className="text-sm">
-                  Step {currentStep + 1} de {steps.length}
-                </span>
-                {/* 🔥 INDICADOR DE VALIDAÇÃO VISUAL */}
-                <div className="flex items-center space-x-2 mt-1">
-                  <div className={`w-2 h-2 rounded-full ${validateCurrentStep() ? 'bg-green-400' : 'bg-red-400'}`} />
-                  <span className="text-xs">
-                    {validateCurrentStep() ? 'Completo' : 'Incompleto'}
-                  </span>
-                  {/* Debug info para equipment step */}
-                  {steps[currentStep]?.id === 'equipment' && (
-                    <span className="text-xs text-gray-400 ml-2">
-                      ({characterData.selectedEquipment?.length || 0} equipamentos)
-                    </span>
-                  )}
+          {/* Step Content */}
+          <div className="flex-1 p-6 overflow-y-auto">
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-4">
+                  <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
+                  <p className="text-gray-400">Carregando...</p>
                 </div>
               </div>
+            ) : error ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-4 max-w-md">
+                  <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+                  <div>
+                    <h3 className="text-lg font-medium text-red-300 mb-2">Erro</h3>
+                    <p className="text-gray-400">{error}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              renderCurrentStep()
+            )}
+          </div>
 
-              {/* Navigation Buttons */}
-              <div className="flex items-center space-x-4">
-                {/* Botão Anterior */}
-                <button
-                  onClick={handlePrevStep}
-                  disabled={isFirstStep}
-                  className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                    isFirstStep
-                      ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                      : 'bg-gray-700/50 hover:bg-gray-700 text-gray-300 border border-gray-600/50 hover:border-gray-500/50'
-                  }`}
-                >
-                  <ChevronLeft className="w-4 h-4 inline mr-2" />
-                  Anterior
-                </button>
+          {/* Bottom Navigation */}
+          <div className="bg-gray-900/50 backdrop-blur-sm border-t border-gray-700/50 p-6">
+            {creationError && (
+              <div className="mb-4 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-medium text-red-300">Erro ao criar personagem</h4>
+                    <p className="text-sm text-red-400 mt-1">{creationError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-                {/* Botão Próximo/Finalizar - 🔥 CORRIGIDO */}
-                {isLastStep ? (
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handlePrev}
+                disabled={isFirstStep}
+                className="flex items-center space-x-2 px-6 py-3 bg-gray-700/50 hover:bg-gray-600/50 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Anterior</span>
+              </button>
+
+              <div className="flex items-center space-x-3">
+                {!isLastStep ? (
                   <button
-                    onClick={handleComplete}
-                    disabled={!canProceed() || isCreating}
-                    className={`px-8 py-3 rounded-xl font-medium transition-all ${
-                      canProceed() && !isCreating
-                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg'
-                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                    }`}
+                    onClick={handleNext}
+                    disabled={!canProceed()}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg"
                   >
-                    {isCreating ? (
-                      <div className="flex items-center space-x-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Criando...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <CheckCircle className="w-4 h-4 inline mr-2" />
-                        Finalizar
-                      </>
-                    )}
+                    <span>Próximo</span>
+                    <ChevronRight className="w-4 h-4" />
                   </button>
                 ) : (
                   <button
-                    onClick={handleNextStep}
-                    disabled={!canProceed()}
-                    className={`px-8 py-3 rounded-xl font-medium transition-all ${
-                      canProceed()
-                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white shadow-lg'
-                        : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                    }`}
+                    onClick={handleFinish}
+                    disabled={!canProceed() || isCreating}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg"
                   >
-                    Próximo
-                    <ChevronRight className="w-4 h-4 inline ml-2" />
+                    {isCreating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Criando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Criar Personagem</span>
+                      </>
+                    )}
                   </button>
                 )}
               </div>
             </div>
 
-            {/* 🔥 DEBUG INFO - REMOVER EM PRODUÇÃO */}
-            {process.env.NODE_ENV === 'development' && (
-              <div className="max-w-4xl mx-auto mt-4 p-3 bg-gray-800/50 rounded-lg text-xs text-gray-400">
-                <strong>Debug Info:</strong> Step "{steps[currentStep]?.id}" | 
-                Valid: {validateCurrentStep() ? '✅' : '❌'} | 
-                {steps[currentStep]?.id === 'equipment' && (
-                  <>Equipment: {characterData.selectedEquipment?.length || 0} items | </>
-                )}
-                Can Proceed: {canProceed() ? '✅' : '❌'}
+            {/* Validation Info */}
+            {!canProceed() && (
+              <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <Info className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-yellow-300">
+                    Complete todos os campos obrigatórios para continuar.
+                  </p>
+                </div>
               </div>
             )}
           </div>

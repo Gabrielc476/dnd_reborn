@@ -1,5 +1,5 @@
 // ===========================
-// SPELLS STEP - COMPONENTE COMPLETO CORRIGIDO
+// SPELLS STEP - ATUALIZADO PARA USAR NOVOS HOOKS
 // src/components/character-creation/steps/SpellsStep.tsx
 // ===========================
 
@@ -29,12 +29,14 @@ import {
   RotateCcw,
   Loader2,
   ChevronDown,
-  X
+  X,
+  Magic,
+  Scroll,
+  Gem
 } from "lucide-react";
-import { DndSpell } from "@/types/characterCreation";
 
 // ===========================
-// CONFIGURAÇÕES DAS ESCOLAS DE MAGIA
+// SCHOOL CONFIGURATIONS
 // ===========================
 
 const spellSchools = {
@@ -49,27 +51,35 @@ const spellSchools = {
 };
 
 // ===========================
-// COMPONENTE DO CARTÃO DE MAGIA
+// SPELL CARD COMPONENT
 // ===========================
+
+interface SpellCardProps {
+  spell: any; // Mock spell type
+  isSelected: boolean;
+  onToggle: () => void;
+  canSelect: boolean;
+  isCantrip: boolean;
+  spellcastingAbility?: string;
+  abilityModifier?: number;
+  proficiencyBonus?: number;
+}
 
 function SpellCard({ 
   spell, 
   isSelected, 
   onToggle,
   canSelect,
-  isCantrip 
-}: { 
-  spell: DndSpell; 
-  isSelected: boolean; 
-  onToggle: () => void;
-  canSelect: boolean;
-  isCantrip: boolean;
-}) {
+  isCantrip,
+  spellcastingAbility,
+  abilityModifier = 0,
+  proficiencyBonus = 2
+}: SpellCardProps) {
   const school = spellSchools[spell.school?.index?.toLowerCase() || 'evocation'] || spellSchools['evocation'];
   const SchoolIcon = school.icon;
   const isDisabled = !canSelect && !isSelected;
 
-  // Formatear componentes da magia
+  // Format components
   const formatComponents = (components: string[]) => {
     return components.map(comp => {
       switch(comp.toLowerCase()) {
@@ -81,10 +91,9 @@ function SpellCard({
     }).join(', ');
   };
 
-  // Formatear duração
-  const formatDuration = (duration: string) => {
-    return duration.replace(/(\d+)\s+(\w+)/, '$1 $2');
-  };
+  // Calculate spell save DC and attack bonus
+  const spellSaveDC = 8 + proficiencyBonus + abilityModifier;
+  const spellAttackBonus = proficiencyBonus + abilityModifier;
 
   return (
     <div
@@ -93,70 +102,93 @@ function SpellCard({
         isDisabled
           ? 'opacity-50 cursor-not-allowed bg-gray-800/30 border-gray-700/50'
           : isSelected
-          ? 'bg-purple-500/20 border-purple-500/50 shadow-lg shadow-purple-500/25 cursor-pointer hover:scale-[1.02]'
-          : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50 cursor-pointer hover:scale-[1.02] hover:border-gray-500/50'
+          ? 'bg-gradient-to-br from-purple-500/20 to-indigo-600/20 border-purple-400/50 shadow-lg cursor-pointer'
+          : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600/50 hover:bg-gray-700/50 cursor-pointer'
       }`}
     >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center space-x-3">
-          <div className={`w-10 h-10 bg-gradient-to-br ${school.color} rounded-xl flex items-center justify-center shadow-lg`}>
-            <SchoolIcon className="w-5 h-5 text-white" />
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-3 flex-1">
+          {/* Spell Icon */}
+          <div className={`p-2 rounded-lg bg-gradient-to-br ${school.color} flex-shrink-0`}>
+            <SchoolIcon className="w-4 h-4 text-white" />
           </div>
-          <div>
-            <h4 className="text-white font-medium">{spell.name}</h4>
-            <div className="flex items-center space-x-2 mt-1">
-              <span className="text-xs px-2 py-1 bg-gray-600/50 rounded-lg text-gray-300">
-                {isCantrip ? 'Cantrip' : `Nível ${spell.level}`}
-              </span>
-              <span className="text-xs px-2 py-1 bg-gray-600/50 rounded-lg text-gray-300">
-                {school.name}
-              </span>
-              {spell.ritual && (
-                <span className="text-xs px-2 py-1 bg-yellow-500/20 border border-yellow-500/50 rounded-lg text-yellow-400">
-                  Ritual
-                </span>
-              )}
-              {spell.concentration && (
-                <span className="text-xs px-2 py-1 bg-orange-500/20 border border-orange-500/50 rounded-lg text-orange-400">
-                  Concentração
-                </span>
-              )}
+
+          {/* Spell Info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h3 className={`font-medium transition-colors ${
+                  isSelected ? 'text-white' : 'text-gray-300'
+                }`}>
+                  {spell.name}
+                </h3>
+                
+                {/* Level and School */}
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    isCantrip 
+                      ? 'bg-green-500/20 text-green-300' 
+                      : 'bg-blue-500/20 text-blue-300'
+                  }`}>
+                    {isCantrip ? 'Truque' : `Nível ${spell.level}`}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {school.name}
+                  </span>
+                </div>
+
+                {/* Casting Info */}
+                <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-400">
+                  <div>
+                    <span className="font-medium">Tempo:</span> {spell.casting_time}
+                  </div>
+                  <div>
+                    <span className="font-medium">Alcance:</span> {spell.range}
+                  </div>
+                  <div>
+                    <span className="font-medium">Componentes:</span> {formatComponents(spell.components)}
+                  </div>
+                  <div>
+                    <span className="font-medium">Duração:</span> {spell.duration}
+                  </div>
+                </div>
+
+                {/* Spell tags */}
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {spell.ritual && (
+                    <span className="text-xs bg-yellow-500/20 text-yellow-300 px-2 py-1 rounded">
+                      Ritual
+                    </span>
+                  )}
+                  {spell.concentration && (
+                    <span className="text-xs bg-orange-500/20 text-orange-300 px-2 py-1 rounded">
+                      Concentração
+                    </span>
+                  )}
+                  {spell.damage && (
+                    <span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded">
+                      Dano
+                    </span>
+                  )}
+                </div>
+
+                {/* Spell description (truncated) */}
+                {spell.desc && spell.desc.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                    {spell.desc[0]}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>
-        
-        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${
-          isSelected
-            ? 'bg-purple-500 border-purple-500'
-            : 'border-gray-500'
-        }`}>
-          {isSelected && <CheckCircle className="w-4 h-4 text-white" />}
-        </div>
-      </div>
 
-      {/* Informações da magia */}
-      <div className="space-y-2 text-sm">
-        <div className="flex items-center justify-between text-gray-400">
-          <span><strong>Tempo:</strong> {spell.casting_time}</span>
-          <span><strong>Alcance:</strong> {spell.range}</span>
-        </div>
-        
-        <div className="flex items-center justify-between text-gray-400">
-          <span><strong>Componentes:</strong> {formatComponents(spell.components)}</span>
-          <span><strong>Duração:</strong> {formatDuration(spell.duration)}</span>
-        </div>
-
-        {spell.material && (
-          <div className="text-gray-400">
-            <strong>Material:</strong> {spell.material}
-          </div>
-        )}
-
-        {/* Descrição da magia */}
-        <div className="mt-3 text-gray-300 text-sm leading-relaxed">
-          {Array.isArray(spell.desc) ? spell.desc[0] : spell.desc}
-          {(Array.isArray(spell.desc) ? spell.desc.length > 1 : false) && (
-            <span className="text-gray-500"> [...]</span>
+        {/* Selection Status */}
+        <div className="ml-3 flex-shrink-0">
+          {isSelected ? (
+            <CheckCircle className="w-5 h-5 text-green-400" />
+          ) : (
+            <Circle className="w-5 h-5 text-gray-500" />
           )}
         </div>
       </div>
@@ -165,427 +197,464 @@ function SpellCard({
 }
 
 // ===========================
-// COMPONENTE DE FILTROS
-// ===========================
-
-function SpellFilters({ 
-  filterLevel, 
-  setFilterLevel, 
-  filterSchool, 
-  setFilterSchool, 
-  availableSchools,
-  maxLevel,
-  onReset
-}: {
-  filterLevel: number | 'all';
-  setFilterLevel: (level: number | 'all') => void;
-  filterSchool: string;
-  setFilterSchool: (school: string) => void;
-  availableSchools: string[];
-  maxLevel: number;
-  onReset: () => void;
-}) {
-  return (
-    <div className="bg-gray-800/30 backdrop-blur-sm rounded-xl p-4 border border-gray-700/50">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <Filter className="w-5 h-5 text-purple-400" />
-          <h3 className="text-white font-medium">Filtros</h3>
-        </div>
-        <button
-          onClick={onReset}
-          className="px-3 py-1 text-sm bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors duration-200 flex items-center space-x-1"
-        >
-          <RotateCcw className="w-3 h-3" />
-          <span>Limpar</span>
-        </button>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        {/* Filtro de Nível */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Nível da Magia
-          </label>
-          <select
-            value={filterLevel}
-            onChange={(e) => setFilterLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-            className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-          >
-            <option value="all">Todos os níveis</option>
-            <option value={0}>Cantrips</option>
-            {Array.from({ length: maxLevel }, (_, i) => i + 1).map(level => (
-              <option key={level} value={level}>Nível {level}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Filtro de Escola */}
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Escola de Magia
-          </label>
-          <select
-            value={filterSchool}
-            onChange={(e) => setFilterSchool(e.target.value)}
-            className="w-full px-3 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
-          >
-            <option value="all">Todas as escolas</option>
-            {availableSchools.map(school => {
-              const schoolData = spellSchools[school?.toLowerCase()] || { name: school };
-              return (
-                <option key={school} value={school}>
-                  {schoolData.name}
-                </option>
-              );
-            })}
-          </select>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ===========================
-// COMPONENTE PRINCIPAL - SPELLS STEP
+// COMPONENTE PRINCIPAL
 // ===========================
 
 export default function SpellsStep() {
-  const { 
-    characterData, 
-    updateCharacterData,
-    spells: spellsData,
-    isLoadingSpells,
-    spellSearchTerm,
-    setSpellSearchTerm,
-    spellInfo,
-    isSpellcaster,
-    cantripsKnown,
-    spellsKnown,
-    maxSpellLevel,
-    // ✅ CORREÇÃO: Extrair as funções corretas do contexto
-    validateSpellSelection, // Sem parâmetros, usa dados atuais
-    toggleSpell, // Função para toggle de magias
+  const {
+    characterData,
+    toggleSpell,
+    calculateModifier,
+    getSpellcastingAbility,
   } = useCharacterCreationContext();
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedSchool, setSelectedSchool] = useState<string>('all');
+  const [selectedLevel, setSelectedLevel] = useState<number | 'all'>('all');
+  const [showOnlyRitual, setShowOnlyRitual] = useState(false);
+  const [showOnlyConcentration, setShowOnlyConcentration] = useState(false);
+  const [activeTab, setActiveTab] = useState<'cantrips' | 'spells'>('cantrips');
+
+  // ===========================
+  // COMPUTED VALUES
+  // ===========================
+
+  // Check if character is a spellcaster
+  const isSpellcaster = useMemo(() => {
+    return characterData.isSpellcaster;
+  }, [characterData.isSpellcaster]);
+
+  // Get spellcasting ability
+  const spellcastingAbility = useMemo(() => {
+    return characterData.spellcastingAbility;
+  }, [characterData.spellcastingAbility]);
+
+  // Calculate ability modifier
+  const abilityModifier = useMemo(() => {
+    if (!spellcastingAbility) return 0;
+    return calculateModifier(characterData.abilityScores[spellcastingAbility]);
+  }, [spellcastingAbility, characterData.abilityScores, calculateModifier]);
+
+  // Proficiency bonus
+  const proficiencyBonus = Math.ceil(characterData.level / 4) + 1;
+
+  // Selected spells
+  const selectedSpells = characterData.selectedSpells || [];
+
+  // Mock spells data - em produção viria da API
+  const mockSpells = [
+    {
+      index: 'fire-bolt',
+      name: 'Projétil de Fogo',
+      level: 0,
+      school: { index: 'evocation', name: 'Evocation' },
+      casting_time: '1 ação',
+      range: '120 pés',
+      components: ['V', 'S'],
+      duration: 'Instantânea',
+      ritual: false,
+      concentration: false,
+      damage: true,
+      desc: ['Você atira um mote cintilante de fogo em uma criatura ou objeto dentro do alcance.']
+    },
+    {
+      index: 'mage-hand',
+      name: 'Mão Mágica',
+      level: 0,
+      school: { index: 'conjuration', name: 'Conjuration' },
+      casting_time: '1 ação',
+      range: '30 pés',
+      components: ['V', 'S'],
+      duration: '1 minuto',
+      ritual: false,
+      concentration: false,
+      damage: false,
+      desc: ['Uma mão espectral flutuante aparece em um ponto que você escolha dentro do alcance.']
+    },
+    {
+      index: 'magic-missile',
+      name: 'Míssil Mágico',
+      level: 1,
+      school: { index: 'evocation', name: 'Evocation' },
+      casting_time: '1 ação',
+      range: '120 pés',
+      components: ['V', 'S'],
+      duration: 'Instantânea',
+      ritual: false,
+      concentration: false,
+      damage: true,
+      desc: ['Você cria três dardos brilhantes de força mágica.']
+    },
+    {
+      index: 'shield',
+      name: 'Escudo',
+      level: 1,
+      school: { index: 'abjuration', name: 'Abjuration' },
+      casting_time: '1 reação',
+      range: 'Pessoal',
+      components: ['V', 'S'],
+      duration: '1 rodada',
+      ritual: false,
+      concentration: false,
+      damage: false,
+      desc: ['Uma barreira invisível de força mágica aparece e o protege.']
+    }
+  ];
+
+  // Filter spells
+  const filteredSpells = useMemo(() => {
+    let filtered = mockSpells;
+
+    // Filter by tab (cantrips vs spells)
+    if (activeTab === 'cantrips') {
+      filtered = filtered.filter(spell => spell.level === 0);
+    } else {
+      filtered = filtered.filter(spell => spell.level > 0);
+    }
+
+    // Filter by search
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(spell => 
+        spell.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filter by school
+    if (selectedSchool !== 'all') {
+      filtered = filtered.filter(spell => 
+        spell.school.index === selectedSchool
+      );
+    }
+
+    // Filter by level (for spells tab)
+    if (selectedLevel !== 'all' && activeTab === 'spells') {
+      filtered = filtered.filter(spell => spell.level === selectedLevel);
+    }
+
+    // Filter by ritual
+    if (showOnlyRitual) {
+      filtered = filtered.filter(spell => spell.ritual);
+    }
+
+    // Filter by concentration
+    if (showOnlyConcentration) {
+      filtered = filtered.filter(spell => spell.concentration);
+    }
+
+    return filtered;
+  }, [mockSpells, activeTab, searchTerm, selectedSchool, selectedLevel, showOnlyRitual, showOnlyConcentration]);
+
+  // Spell counts
+  const cantripsSelected = selectedSpells.filter(spellIndex => 
+    mockSpells.find(s => s.index === spellIndex)?.level === 0
+  ).length;
   
-  const [filterLevel, setFilterLevel] = useState<number | 'all'>('all');
-  const [filterSchool, setFilterSchool] = useState<string>('all');
+  const spellsSelected = selectedSpells.filter(spellIndex => 
+    mockSpells.find(s => s.index === spellIndex)?.level > 0
+  ).length;
+
+  // Mock spell limits - em produção viria dos hooks
+  const cantripsKnown = characterData.knownSpells || 2;
+  const spellsKnown = characterData.knownSpells || 1;
 
   // ===========================
-  // VERIFICAÇÃO DE CLASSE CONJURADORA
+  // HANDLERS
   // ===========================
 
-  // Se não é uma classe conjuradora, mostrar mensagem
+  const handleToggleSpell = (spellIndex: string) => {
+    toggleSpell(spellIndex);
+  };
+
+  const canSelectSpell = (spell: any): boolean => {
+    // Se já está selecionada, sempre pode desmarcar
+    if (selectedSpells.includes(spell.index)) return true;
+    
+    // Check limits
+    if (spell.level === 0) {
+      return cantripsSelected < cantripsKnown;
+    } else {
+      return spellsSelected < spellsKnown;
+    }
+  };
+
+  // ===========================
+  // RENDER NÃO-CONJURADOR
+  // ===========================
+
   if (!isSpellcaster) {
     return (
       <div className="text-center py-12">
-        <div className="w-20 h-20 bg-gray-700/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Wand2 className="w-10 h-10 text-gray-500" />
+        <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Wand2 className="w-8 h-8 text-gray-400" />
         </div>
-        <h3 className="text-gray-400 font-semibold text-xl mb-3">Classe Não-Conjuradora</h3>
+        <h3 className="text-lg font-medium text-gray-300 mb-2">
+          Não é um Conjurador
+        </h3>
         <p className="text-gray-500 max-w-md mx-auto">
-          A classe selecionada ({characterData.selectedClass?.name}) não possui habilidades de conjuração no nível 1.
-          Você pode pular esta etapa.
+          Sua classe não possui habilidades de conjuração. Você pode pular esta etapa.
         </p>
       </div>
     );
   }
 
   // ===========================
-  // LOADING STATE
-  // ===========================
-
-  if (isLoadingSpells) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="flex items-center space-x-3 text-gray-400">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Carregando magias...</span>
-        </div>
-      </div>
-    );
-  }
-
-  // ===========================
-  // PROCESSAMENTO DAS MAGIAS
-  // ===========================
-
-  // Magias disponíveis para a classe
-  const classSpells = useMemo(() => {
-    if (!spellsData || !characterData.selectedClass) return [];
-    
-    return spellsData.filter(spell => {
-      // Verificar se a magia está disponível para a classe
-      const isAvailableForClass = spell.classes?.some(
-        cls => cls.index === characterData.selectedClass?.index
-      );
-      
-      // Verificar se o nível da magia está dentro do limite
-      const isWithinLevel = spell.level <= (maxSpellLevel || 0);
-      
-      return isAvailableForClass && isWithinLevel;
-    });
-  }, [spellsData, characterData.selectedClass, maxSpellLevel]);
-
-  // Filtrar magias baseado nos filtros e busca
-  const filteredSpells = useMemo(() => {
-    return classSpells.filter(spell => {
-      const matchesSearch = spell.name.toLowerCase().includes(spellSearchTerm.toLowerCase()) ||
-                           (Array.isArray(spell.desc) ? spell.desc.join(' ') : spell.desc || '')
-                           .toLowerCase().includes(spellSearchTerm.toLowerCase());
-      const matchesLevel = filterLevel === 'all' || spell.level === filterLevel;
-      const matchesSchool = filterSchool === 'all' || spell.school?.index === filterSchool;
-      return matchesSearch && matchesLevel && matchesSchool;
-    });
-  }, [classSpells, spellSearchTerm, filterLevel, filterSchool]);
-
-  // Separar cantrips e magias de nível
-  const cantrips = filteredSpells.filter(spell => spell.level === 0);
-  const levelSpells = filteredSpells.filter(spell => spell.level > 0);
-
-  // Obter escolas disponíveis
-  const availableSchools = useMemo(() => {
-    const schools = new Set(classSpells.map(spell => spell.school?.index).filter(Boolean));
-    return Array.from(schools);
-  }, [classSpells]);
-
-  // ===========================
-  // VALIDAÇÃO DE MAGIAS
-  // ===========================
-
-  // ✅ CORREÇÃO: Usar a função correta sem parâmetros
-  const validation = validateSpellSelection();
-
-  // Verificar se pode selecionar mais magias
-  const canSelectMoreCantrips = validation.cantripsCount < validation.maxCantrips;
-  const canSelectMoreSpells = validation.spellsCount < validation.maxSpells;
-
-  // ===========================
-  // HANDLERS DE AÇÕES
-  // ===========================
-
-  const handleSpellToggle = (spellIndex: string) => {
-    toggleSpell(spellIndex);
-  };
-
-  const resetFilters = () => {
-    setFilterLevel('all');
-    setFilterSchool('all');
-    setSpellSearchTerm('');
-  };
-
-  const resetSpells = () => {
-    updateCharacterData({ selectedSpells: [] });
-  };
-
-  // ===========================
-  // ATUALIZAR DADOS DO PERSONAGEM QUANDO A CLASSE MUDA
-  // ===========================
-
-  useEffect(() => {
-    if (characterData.selectedClass && isSpellcaster !== undefined) {
-      updateCharacterData({
-        isSpellcaster: isSpellcaster,
-        spellcastingAbility: spellInfo?.spellcastingAbility || null,
-      });
-    }
-  }, [characterData.selectedClass, isSpellcaster, spellInfo, updateCharacterData]);
-
-  // ===========================
-  // RENDER DO COMPONENTE
+  // RENDER PRINCIPAL
   // ===========================
 
   return (
     <div className="space-y-6">
-      {/* Header com informações da classe */}
-      <div className="bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-xl p-6 border border-purple-500/30">
-        <div className="flex items-center justify-between">
+      {/* Spellcasting Info */}
+      <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+        <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-white font-semibold text-lg mb-2">
-              Magias de {characterData.selectedClass?.name}
+            <h3 className="text-lg font-semibold text-white mb-2">
+              Informações de Conjuração
             </h3>
-            <div className="flex items-center space-x-6 text-sm">
-              <div className="flex items-center space-x-2">
-                <Star className="w-4 h-4 text-purple-400" />
-                <span className="text-gray-300">
-                  Cantrips: <span className={validation.cantripsCount > validation.maxCantrips ? 'text-red-400' : 'text-green-400'}>
-                    {validation.cantripsCount}/{validation.maxCantrips}
-                  </span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span className="text-gray-400">Habilidade:</span>
+                <span className="text-white ml-2 font-medium">
+                  {spellcastingAbility ? spellcastingAbility.charAt(0).toUpperCase() + spellcastingAbility.slice(1) : 'N/A'}
                 </span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Sparkles className="w-4 h-4 text-purple-400" />
-                <span className="text-gray-300">
-                  Magias Nível 1: <span className={validation.spellsCount > validation.maxSpells ? 'text-red-400' : 'text-green-400'}>
-                    {validation.spellsCount}/{validation.maxSpells}
-                  </span>
+              <div>
+                <span className="text-gray-400">CD de Resistência:</span>
+                <span className="text-white ml-2 font-medium">
+                  {8 + proficiencyBonus + abilityModifier}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-400">Bônus de Ataque:</span>
+                <span className="text-white ml-2 font-medium">
+                  +{proficiencyBonus + abilityModifier}
                 </span>
               </div>
             </div>
           </div>
+
+          <div className="flex items-center space-x-2">
+            <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+              <Sparkles className="w-5 h-5 text-white" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Spell Selection Tabs */}
+      <div className="flex space-x-1 bg-gray-800/30 rounded-xl p-1">
+        <button
+          onClick={() => setActiveTab('cantrips')}
+          className={`flex-1 py-3 px-4 rounded-lg transition-all ${
+            activeTab === 'cantrips'
+              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
+          }`}
+        >
+          <div className="flex items-center justify-center space-x-2">
+            <Star className="w-4 h-4" />
+            <span>Truques</span>
+            <span className="text-xs bg-white/20 px-2 py-1 rounded">
+              {cantripsSelected}/{cantripsKnown}
+            </span>
+          </div>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('spells')}
+          className={`flex-1 py-3 px-4 rounded-lg transition-all ${
+            activeTab === 'spells'
+              ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg'
+              : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
+          }`}
+        >
+          <div className="flex items-center justify-center space-x-2">
+            <Scroll className="w-4 h-4" />
+            <span>Magias</span>
+            <span className="text-xs bg-white/20 px-2 py-1 rounded">
+              {spellsSelected}/{spellsKnown}
+            </span>
+          </div>
+        </button>
+      </div>
+
+      {/* Spell Status */}
+      <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">
+              {activeTab === 'cantrips' ? 'Truques' : 'Magias'} Selecionadas:
+            </span>
+            <span className={`font-medium ${
+              activeTab === 'cantrips' 
+                ? cantripsSelected === cantripsKnown ? 'text-green-400' : 'text-blue-400'
+                : spellsSelected === spellsKnown ? 'text-purple-400' : 'text-blue-400'
+            }`}>
+              {activeTab === 'cantrips' ? cantripsSelected : spellsSelected} / {activeTab === 'cantrips' ? cantripsKnown : spellsKnown}
+            </span>
+          </div>
           
-          <button
-            onClick={resetSpells}
-            className="px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors duration-200 flex items-center space-x-2"
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">Restantes:</span>
+            <span className="font-medium text-yellow-400">
+              {activeTab === 'cantrips' ? cantripsKnown - cantripsSelected : spellsKnown - spellsSelected}
+            </span>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mt-3 w-full bg-gray-700/50 rounded-full h-2">
+          <div 
+            className={`h-2 rounded-full transition-all duration-300 ${
+              activeTab === 'cantrips' 
+                ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                : 'bg-gradient-to-r from-purple-500 to-indigo-600'
+            }`}
+            style={{ 
+              width: `${activeTab === 'cantrips' 
+                ? (cantripsSelected / cantripsKnown) * 100
+                : (spellsSelected / spellsKnown) * 100
+              }%` 
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="space-y-4">
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar magias..."
+            className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
+          />
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            value={selectedSchool}
+            onChange={(e) => setSelectedSchool(e.target.value)}
+            className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
           >
-            <X className="w-4 h-4" />
-            <span>Limpar Seleção</span>
-          </button>
+            <option value="all">Todas as escolas</option>
+            {Object.entries(spellSchools).map(([key, school]) => (
+              <option key={key} value={key}>{school.name}</option>
+            ))}
+          </select>
+
+          {activeTab === 'spells' && (
+            <select
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
+              className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            >
+              <option value="all">Todos os níveis</option>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => (
+                <option key={level} value={level}>Nível {level}</option>
+              ))}
+            </select>
+          )}
+
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showOnlyRitual}
+              onChange={(e) => setShowOnlyRitual(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500/50"
+            />
+            <span className="text-sm text-gray-300">Apenas rituais</span>
+          </label>
+
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showOnlyConcentration}
+              onChange={(e) => setShowOnlyConcentration(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500/50"
+            />
+            <span className="text-sm text-gray-300">Apenas concentração</span>
+          </label>
         </div>
       </div>
 
-      {/* Mensagens de validação */}
-      {validation.errors.length > 0 && (
-        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <AlertCircle className="w-5 h-5 text-red-400" />
-            <h4 className="text-red-400 font-medium">Erros na Seleção de Magias</h4>
-          </div>
-          <ul className="text-red-300 text-sm space-y-1">
-            {validation.errors.map((error, index) => (
-              <li key={index}>• {error}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {validation.warnings.length > 0 && (
-        <div className="bg-yellow-500/20 border border-yellow-500/50 rounded-xl p-4">
-          <div className="flex items-center space-x-2 mb-2">
-            <Info className="w-5 h-5 text-yellow-400" />
-            <h4 className="text-yellow-400 font-medium">Sugestões</h4>
-          </div>
-          <ul className="text-yellow-300 text-sm space-y-1">
-            {validation.warnings.map((warning, index) => (
-              <li key={index}>• {warning}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Busca de magias */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-        <input
-          type="text"
-          value={spellSearchTerm}
-          onChange={(e) => setSpellSearchTerm(e.target.value)}
-          placeholder="Buscar magias..."
-          className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
-        />
+      {/* Spells List */}
+      <div className="space-y-3">
+        {filteredSpells.map((spell) => (
+          <SpellCard
+            key={spell.index}
+            spell={spell}
+            isSelected={selectedSpells.includes(spell.index)}
+            onToggle={() => handleToggleSpell(spell.index)}
+            canSelect={canSelectSpell(spell)}
+            isCantrip={spell.level === 0}
+            spellcastingAbility={spellcastingAbility}
+            abilityModifier={abilityModifier}
+            proficiencyBonus={proficiencyBonus}
+          />
+        ))}
       </div>
 
-      {/* Filtros */}
-      <SpellFilters
-        filterLevel={filterLevel}
-        setFilterLevel={setFilterLevel}
-        filterSchool={filterSchool}
-        setFilterSchool={setFilterSchool}
-        availableSchools={availableSchools}
-        maxLevel={maxSpellLevel || 1}
-        onReset={resetFilters}
-      />
-
-      {/* Lista de Cantrips */}
-      {cantrips.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center">
-              <Star className="w-4 h-4 text-white" />
-            </div>
-            <h3 className="text-white font-semibold text-lg">
-              Cantrips ({cantrips.length} disponíveis)
-            </h3>
-          </div>
-          
-          <div className="grid gap-4">
-            {cantrips.map((spell) => {
-              const isSelected = characterData.selectedSpells?.includes(spell.index) || false;
-              const canSelect = canSelectMoreCantrips || isSelected;
-              
-              return (
-                <SpellCard
-                  key={spell.index}
-                  spell={spell}
-                  isSelected={isSelected}
-                  onToggle={() => handleSpellToggle(spell.index)}
-                  canSelect={canSelect}
-                  isCantrip={true}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Lista de Magias de Nível */}
-      {levelSpells.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-violet-500 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <h3 className="text-white font-semibold text-lg">
-              Magias de Nível 1 ({levelSpells.length} disponíveis)
-            </h3>
-          </div>
-          
-          <div className="grid gap-4">
-            {levelSpells.map((spell) => {
-              const isSelected = characterData.selectedSpells?.includes(spell.index) || false;
-              const canSelect = canSelectMoreSpells || isSelected;
-              
-              return (
-                <SpellCard
-                  key={spell.index}
-                  spell={spell}
-                  isSelected={isSelected}
-                  onToggle={() => handleSpellToggle(spell.index)}
-                  canSelect={canSelect}
-                  isCantrip={false}
-                />
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Mensagem quando não há magias */}
+      {/* Empty State */}
       {filteredSpells.length === 0 && (
         <div className="text-center py-12">
-          <div className="w-20 h-20 bg-gray-700/50 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Book className="w-10 h-10 text-gray-500" />
-          </div>
-          <h3 className="text-gray-400 font-semibold text-xl mb-3">
+          <Magic className="w-8 h-8 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-400 mb-2">
             Nenhuma magia encontrada
           </h3>
-          <p className="text-gray-500 max-w-md mx-auto mb-4">
-            Tente ajustar os filtros ou termos de busca para encontrar as magias que você procura.
+          <p className="text-gray-500">
+            Tente ajustar os filtros de busca
           </p>
-          <button
-            onClick={resetFilters}
-            className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors duration-200"
-          >
-            Limpar Filtros
-          </button>
         </div>
       )}
 
-      {/* Informações úteis */}
-      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-        <div className="flex items-start space-x-3">
-          <Info className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
-          <div className="text-blue-200 text-sm">
-            <p className="font-medium mb-1">Informações sobre Magias:</p>
-            <ul className="space-y-1 text-blue-200/80">
-              <li>• <strong>Cantrips</strong> podem ser usados quantas vezes quiser</li>
-              <li>• <strong>Magias de nível</strong> consomem slots de magia</li>
-              <li>• <strong>Ritual</strong> pode ser conjurada sem gastar slot (demora +10 min)</li>
-              <li>• <strong>Concentração</strong> requer foco contínuo para manter o efeito</li>
-            </ul>
+      {/* Selected Spells Summary */}
+      {selectedSpells.length > 0 && (
+        <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+          <h4 className="font-medium text-white mb-4">Magias Selecionadas</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cantrips */}
+            {selectedSpells.filter(spellIndex => 
+              mockSpells.find(s => s.index === spellIndex)?.level === 0
+            ).map(spellIndex => {
+              const spell = mockSpells.find(s => s.index === spellIndex);
+              if (!spell) return null;
+              
+              return (
+                <div key={spellIndex} className="flex items-center justify-between p-3 bg-green-500/20 rounded-lg border border-green-500/30">
+                  <div className="flex items-center space-x-3">
+                    <Star className="w-4 h-4 text-green-400" />
+                    <span className="text-green-300">{spell.name}</span>
+                  </div>
+                  <span className="text-xs text-green-400">Truque</span>
+                </div>
+              );
+            })}
+
+            {/* Spells */}
+            {selectedSpells.filter(spellIndex => 
+              mockSpells.find(s => s.index === spellIndex)?.level > 0
+            ).map(spellIndex => {
+              const spell = mockSpells.find(s => s.index === spellIndex);
+              if (!spell) return null;
+              
+              return (
+                <div key={spellIndex} className="flex items-center justify-between p-3 bg-purple-500/20 rounded-lg border border-purple-500/30">
+                  <div className="flex items-center space-x-3">
+                    <Scroll className="w-4 h-4 text-purple-400" />
+                    <span className="text-purple-300">{spell.name}</span>
+                  </div>
+                  <span className="text-xs text-purple-400">Nível {spell.level}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,513 +1,541 @@
 // ===========================
-// PERSONALITY STEP - COMPONENTE REFATORADO
+// PERSONALITY STEP - ATUALIZADO PARA USAR NOVOS HOOKS
 // src/components/character-creation/steps/PersonalityStep.tsx
 // ===========================
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { 
   Heart, 
-  User,
+  Star, 
+  Link, 
+  AlertTriangle, 
+  Plus, 
+  X, 
+  Edit3,
+  Lightbulb,
   Target,
-  Link,
-  AlertTriangle,
-  Plus,
-  X,
-  Dice6,
-  Scroll,
+  Users,
+  Zap,
+  Eye,
   Crown,
-  Star,
-  BookOpen,
   Feather,
+  Book,
+  Smile,
+  Frown,
+  Meh,
   Sparkles
 } from "lucide-react";
 
-interface PersonalityOption {
-  id: string;
-  text: string;
-  category: 'trait' | 'ideal' | 'bond' | 'flaw';
+// ===========================
+// PERSONALITY CATEGORIES
+// ===========================
+
+const PERSONALITY_CATEGORIES = [
+  {
+    id: 'traits',
+    name: 'Traços de Personalidade',
+    description: 'Características distintivas, maneirismos, hábitos ou peculiaridades',
+    icon: Smile,
+    color: 'from-green-500 to-emerald-600',
+    placeholder: 'Ex: Sempre limpo minha espada após cada batalha...',
+    examples: [
+      'Tenho uma piada ou anedota para cada ocasião',
+      'Sou educado e respeitoso com todos',
+      'Nunca passo despercebido em uma multidão',
+      'Sempre mantenho minha aparência impecável'
+    ]
+  },
+  {
+    id: 'ideals',
+    name: 'Ideais',
+    description: 'Princípios, valores ou objetivos que motivam e guiam suas ações',
+    icon: Star,
+    color: 'from-blue-500 to-indigo-600',
+    placeholder: 'Ex: A honra é mais importante que a vida...',
+    examples: [
+      'Liberdade: Todos merecem viver sem correntes',
+      'Honra: Minha palavra é meu vínculo',
+      'Conhecimento: O caminho para o poder e auto-aperfeiçoamento',
+      'Justiça: Todos são iguais perante a lei'
+    ]
+  },
+  {
+    id: 'bonds',
+    name: 'Vínculos',
+    description: 'Conexões com pessoas, lugares, objetos ou eventos importantes',
+    icon: Link,
+    color: 'from-purple-500 to-pink-600',
+    placeholder: 'Ex: Devo proteger minha vila natal...',
+    examples: [
+      'Minha família é a coisa mais importante para mim',
+      'Meu mentor me ensinou tudo que sei',
+      'Carrego uma relíquia sagrada de meu templo',
+      'Juro vingar a destruição de minha aldeia'
+    ]
+  },
+  {
+    id: 'flaws',
+    name: 'Defeitos',
+    description: 'Fraquezas, vícios, medos ou características negativas',
+    icon: AlertTriangle,
+    color: 'from-red-500 to-orange-600',
+    placeholder: 'Ex: Não consigo resistir a um desafio...',
+    examples: [
+      'Tenho um vício terrível em jogos',
+      'Sou muito teimoso e nunca mudo de ideia',
+      'Tenho medo de altura',
+      'Confio demais nas pessoas'
+    ]
+  }
+];
+
+// ===========================
+// PERSONALITY ITEM COMPONENT
+// ===========================
+
+interface PersonalityItemProps {
+  item: string;
+  category: 'traits' | 'ideals' | 'bonds' | 'flaws';
+  onEdit: (newValue: string) => void;
+  onRemove: () => void;
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onStopEdit: () => void;
 }
 
-// Mock personality options - em produção virá do background selecionado
-const mockPersonalityOptions = {
-  traits: [
-    "Eu julgo as pessoas pelas suas ações, não pelas suas palavras.",
-    "Se alguém está em apuros, eu sempre estou pronto para dar assistência.",
-    "Quando fixo minha mente em alguma coisa, sigo esse caminho, independente do que surja no meu caminho.",
-    "Eu tenho um forte senso de fair play e sempre tento encontrar a solução mais equitativa para discussões.",
-    "Eu sou confiante em minhas próprias habilidades e faço o que posso para incutir confiança nos outros.",
-    "Pensar é para outras pessoas. Eu prefiro agir.",
-    "Eu uso polissílabos para transmitir a impressão de grande erudição.",
-    "Eu me acanho em situações sociais."
-  ],
-  ideals: [
-    "Respeito. Todas as pessoas, independente da posição, merecem ser tratadas com dignidade.",
-    "Equidade. Ninguém deve receber tratamento preferencial perante a lei, e ninguém está acima da lei.",
-    "Liberdade. Correntes são feitas para serem quebradas, bem como aqueles que as forjariam.",
-    "Poder. Se eu puder me tornar mais forte, poderei comandar qualquer situação.",
-    "Fé. Eu confio que minha divindade guiará minhas ações.",
-    "Aspiração. Eu busco me provar digno do favor da minha divindade ao adequar minhas ações aos seus ensinamentos.",
-    "Tradição. As antigas tradições de adoração e sacrifício devem ser preservadas e defendidas.",
-    "Conhecimento. O caminho para o poder e auto-aperfeiçoamento é através do conhecimento."
-  ],
-  bonds: [
-    "Eu tenho uma família, mas não tenho ideia de onde eles estão. Espero vê-los novamente um dia.",
-    "Eu trabalho a terra, amo a terra, e protegerei a terra.",
-    "Um nobre orgulhoso me deu uma surra memorável, e eu buscarei minha vingança quando puder.",
-    "Minhas ferramentas são símbolos da minha vida passada, e carrego elas para que eu nunca me esqueça das minhas raízes.",
-    "Eu protegerei minha comunidade com minha vida.",
-    "Eu devo minha vida ao sacerdote que me acolheu quando meus pais morreram.",
-    "Tudo que eu faço é para o povo comum.",
-    "Eu farei qualquer coisa para provar que sou superior ao meu rival odiado."
-  ],
-  flaws: [
-    "O tirano que governa minha terra não parará por nada até me ver morto.",
-    "Eu sou inflexível em meu pensamento.",
-    "Eu falo sem realmente pensar nas minhas palavras, invariavelmente insultando outros.",
-    "Eu não posso resistir a aceitar uma aposta ou desafio.",
-    "Eu tenho uma fraqueza pelos vícios da cidade, especialmente a bebida forte.",
-    "Eu não consigo manter um segredo para salvar minha vida, ou a vida de qualquer outra pessoa.",
-    "Eu julgo os outros severamente, e a mim mesmo ainda mais severamente.",
-    "Uma vez que alguém questiona minha coragem, eu nunca recuo, não importa quão perigosa seja a situação."
-  ]
-};
-
-function PersonalitySection({ 
-  title, 
-  icon: Icon, 
-  color, 
-  description, 
-  options, 
-  selected, 
-  onAdd, 
+function PersonalityItem({ 
+  item, 
+  category, 
+  onEdit, 
   onRemove, 
-  maxSelections = 2 
-}: {
-  title: string;
-  icon: any;
-  color: string;
-  description: string;
-  options: string[];
-  selected: string[];
-  onAdd: (option: string) => void;
-  onRemove: (option: string) => void;
-  maxSelections?: number;
-}) {
-  const [customText, setCustomText] = useState('');
-  const [showCustom, setShowCustom] = useState(false);
+  isEditing,
+  onStartEdit,
+  onStopEdit
+}: PersonalityItemProps) {
+  const [editValue, setEditValue] = useState(item);
+  const categoryInfo = PERSONALITY_CATEGORIES.find(cat => cat.id === category);
+  const CategoryIcon = categoryInfo?.icon || Heart;
 
-  const addCustom = () => {
-    if (customText.trim() && selected.length < maxSelections) {
-      onAdd(customText.trim());
-      setCustomText('');
-      setShowCustom(false);
+  const handleSave = () => {
+    if (editValue.trim()) {
+      onEdit(editValue.trim());
     }
+    onStopEdit();
   };
 
-  const getRandomOption = () => {
-    const availableOptions = options.filter(opt => !selected.includes(opt));
-    if (availableOptions.length > 0 && selected.length < maxSelections) {
-      const randomOption = availableOptions[Math.floor(Math.random() * availableOptions.length)];
-      onAdd(randomOption);
-    }
+  const handleCancel = () => {
+    setEditValue(item);
+    onStopEdit();
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className={`w-10 h-10 bg-gradient-to-br ${color} rounded-xl flex items-center justify-center shadow-lg`}>
-            <Icon className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h4 className="text-white font-semibold text-lg">{title}</h4>
-            <p className="text-gray-400 text-sm">{description}</p>
-          </div>
+    <div className={`p-4 rounded-xl border bg-gradient-to-br ${categoryInfo?.color}/10 border-${categoryInfo?.color.split('-')[1]}-400/30`}>
+      <div className="flex items-start space-x-3">
+        {/* Category Icon */}
+        <div className={`p-2 rounded-lg bg-gradient-to-br ${categoryInfo?.color} flex-shrink-0`}>
+          <CategoryIcon className="w-4 h-4 text-white" />
         </div>
-        
-        <div className="flex items-center space-x-2">
-          <span className="text-gray-400 text-sm">
-            {selected.length} / {maxSelections}
-          </span>
-          <button
-            onClick={getRandomOption}
-            disabled={selected.length >= maxSelections}
-            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-              selected.length >= maxSelections
-                ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                : 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/50'
-            }`}
-          >
-            <Dice6 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
 
-      {/* Selected Items */}
-      {selected.length > 0 && (
-        <div className="space-y-3">
-          <h5 className="text-gray-300 font-medium text-sm uppercase tracking-wide">Selecionados</h5>
-          {selected.map((item, index) => (
-            <div 
-              key={index}
-              className={`p-4 bg-gradient-to-r ${color.replace('to-', 'to-')}/10 border border-current/20 rounded-xl flex items-start justify-between`}
-            >
-              <p className="text-gray-200 text-sm flex-1 pr-3">{item}</p>
-              <button
-                onClick={() => onRemove(item)}
-                className="text-red-400 hover:text-red-300 transition-colors flex-shrink-0"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add Options */}
-      {selected.length < maxSelections && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h5 className="text-gray-300 font-medium text-sm uppercase tracking-wide">
-              Opções Disponíveis
-            </h5>
-            <button
-              onClick={() => setShowCustom(!showCustom)}
-              className="text-sm px-3 py-1 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-all border border-gray-600/50 flex items-center space-x-2"
-            >
-              <Plus className="w-3 h-3" />
-              <span>Personalizar</span>
-            </button>
-          </div>
-
-          {/* Custom Input */}
-          {showCustom && (
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {isEditing ? (
             <div className="space-y-3">
               <textarea
-                value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
-                placeholder={`Escreva seu próprio ${title.toLowerCase()}...`}
-                className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all resize-none"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                className="w-full p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none"
                 rows={3}
+                placeholder={categoryInfo?.placeholder}
               />
-              <div className="flex space-x-2">
+              <div className="flex items-center space-x-2">
                 <button
-                  onClick={addCustom}
-                  disabled={!customText.trim()}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center space-x-2 ${
-                    customText.trim()
-                      ? 'bg-green-500/20 hover:bg-green-500/30 text-green-400 border border-green-500/50'
-                      : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                  }`}
+                  onClick={handleSave}
+                  className="px-3 py-1 bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded-lg transition-colors text-sm"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Adicionar</span>
+                  Salvar
                 </button>
                 <button
-                  onClick={() => {
-                    setShowCustom(false);
-                    setCustomText('');
-                  }}
-                  className="px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-all border border-gray-600/50"
+                  onClick={handleCancel}
+                  className="px-3 py-1 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 rounded-lg transition-colors text-sm"
                 >
                   Cancelar
                 </button>
               </div>
             </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-gray-300 leading-relaxed">{item}</p>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={onStartEdit}
+                  className="p-1 rounded hover:bg-gray-700/50 transition-colors"
+                  title="Editar"
+                >
+                  <Edit3 className="w-4 h-4 text-gray-400 hover:text-gray-300" />
+                </button>
+                <button
+                  onClick={onRemove}
+                  className="p-1 rounded hover:bg-gray-700/50 transition-colors"
+                  title="Remover"
+                >
+                  <X className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===========================
+// ADD PERSONALITY ITEM COMPONENT
+// ===========================
+
+interface AddPersonalityItemProps {
+  category: 'traits' | 'ideals' | 'bonds' | 'flaws';
+  onAdd: (value: string) => void;
+  maxItems: number;
+  currentCount: number;
+}
+
+function AddPersonalityItem({ category, onAdd, maxItems, currentCount }: AddPersonalityItemProps) {
+  const [isAdding, setIsAdding] = useState(false);
+  const [value, setValue] = useState('');
+  const [selectedExample, setSelectedExample] = useState<string | null>(null);
+
+  const categoryInfo = PERSONALITY_CATEGORIES.find(cat => cat.id === category);
+  const CategoryIcon = categoryInfo?.icon || Heart;
+  const canAdd = currentCount < maxItems;
+
+  const handleAdd = () => {
+    if (value.trim()) {
+      onAdd(value.trim());
+      setValue('');
+      setSelectedExample(null);
+      setIsAdding(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setValue('');
+    setSelectedExample(null);
+    setIsAdding(false);
+  };
+
+  const handleSelectExample = (example: string) => {
+    setValue(example);
+    setSelectedExample(example);
+  };
+
+  if (!canAdd) {
+    return (
+      <div className="p-4 rounded-xl border border-gray-700/50 bg-gray-800/30">
+        <div className="flex items-center justify-center space-x-2 text-gray-500">
+          <CategoryIcon className="w-4 h-4" />
+          <span className="text-sm">Máximo de {maxItems} itens alcançado</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`p-4 rounded-xl border transition-all ${
+      isAdding 
+        ? `bg-gradient-to-br ${categoryInfo?.color}/10 border-${categoryInfo?.color.split('-')[1]}-400/30` 
+        : 'border-gray-700/50 bg-gray-800/30 hover:bg-gray-800/50'
+    }`}>
+      {isAdding ? (
+        <div className="space-y-4">
+          {/* Input */}
+          <div className="flex items-start space-x-3">
+            <div className={`p-2 rounded-lg bg-gradient-to-br ${categoryInfo?.color} flex-shrink-0`}>
+              <CategoryIcon className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <textarea
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full p-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all resize-none"
+                rows={3}
+                placeholder={categoryInfo?.placeholder}
+                autoFocus
+              />
+            </div>
+          </div>
+
+          {/* Examples */}
+          {categoryInfo?.examples && (
+            <div className="space-y-2">
+              <h5 className="text-sm font-medium text-gray-400">Exemplos:</h5>
+              <div className="space-y-1">
+                {categoryInfo.examples.map((example, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSelectExample(example)}
+                    className={`w-full text-left p-2 rounded-lg transition-all text-sm ${
+                      selectedExample === example
+                        ? 'bg-blue-500/20 border border-blue-500/30 text-blue-300'
+                        : 'bg-gray-700/30 hover:bg-gray-700/50 text-gray-400 hover:text-gray-300'
+                    }`}
+                  >
+                    {example}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
 
-          {/* Predefined Options */}
-          <div className="grid gap-3 max-h-60 overflow-y-auto custom-scrollbar">
-            {options
-              .filter(option => !selected.includes(option))
-              .map((option, index) => (
-                <div
-                  key={index}
-                  onClick={() => onAdd(option)}
-                  className="p-3 bg-gray-700/30 hover:bg-gray-700/50 border border-gray-600/50 hover:border-gray-500/50 rounded-lg cursor-pointer transition-all text-gray-300 text-sm hover:scale-[1.01]"
-                >
-                  {option}
-                </div>
-              ))}
+          {/* Actions */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleAdd}
+              disabled={!value.trim()}
+              className="px-4 py-2 bg-green-500/20 hover:bg-green-500/30 disabled:opacity-50 disabled:cursor-not-allowed text-green-300 rounded-lg transition-colors text-sm"
+            >
+              Adicionar
+            </button>
+            <button
+              onClick={handleCancel}
+              className="px-4 py-2 bg-gray-500/20 hover:bg-gray-500/30 text-gray-300 rounded-lg transition-colors text-sm"
+            >
+              Cancelar
+            </button>
           </div>
         </div>
+      ) : (
+        <button
+          onClick={() => setIsAdding(true)}
+          className="w-full flex items-center justify-center space-x-2 py-3 text-gray-400 hover:text-gray-300 transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Adicionar {categoryInfo?.name}</span>
+        </button>
       )}
     </div>
   );
 }
 
+// ===========================
+// COMPONENTE PRINCIPAL
+// ===========================
+
 export default function PersonalityStep() {
-  const { characterData, updateCharacterData } = useCharacterCreationContext();
+  const {
+    characterData,
+    updateCharacterField,
+  } = useCharacterCreationContext();
 
-  const [personalityTraits, setPersonalityTraits] = useState<string[]>(
-    characterData.personalityTraits || []
-  );
-  const [ideals, setIdeals] = useState<string[]>(
-    characterData.ideals || []
-  );
-  const [bonds, setBonds] = useState<string[]>(
-    characterData.bonds || []
-  );
-  const [flaws, setFlaws] = useState<string[]>(
-    characterData.flaws || []
-  );
+  const [editingItem, setEditingItem] = useState<string | null>(null);
 
-  // Update character data when personality changes
-  const updatePersonality = (type: string, values: string[]) => {
-    const updates = {
-      personalityTraits: type === 'traits' ? values : personalityTraits,
-      ideals: type === 'ideals' ? values : ideals,
-      bonds: type === 'bonds' ? values : bonds,
-      flaws: type === 'flaws' ? values : flaws
+  // ===========================
+  // PERSONALITY DATA
+  // ===========================
+
+  const personalityData = useMemo(() => ({
+    traits: characterData.personalityTraits || [],
+    ideals: characterData.ideals || [],
+    bonds: characterData.bonds || [],
+    flaws: characterData.flaws || []
+  }), [characterData]);
+
+  // ===========================
+  // HANDLERS
+  // ===========================
+
+  const handleAddItem = (category: 'traits' | 'ideals' | 'bonds' | 'flaws', value: string) => {
+    const fieldMap = {
+      traits: 'personalityTraits',
+      ideals: 'ideals',
+      bonds: 'bonds',
+      flaws: 'flaws'
     };
+
+    const currentItems = personalityData[category];
+    const newItems = [...currentItems, value];
     
-    updateCharacterData(updates);
-    
-    switch (type) {
-      case 'traits':
-        setPersonalityTraits(values);
-        break;
-      case 'ideals':
-        setIdeals(values);
-        break;
-      case 'bonds':
-        setBonds(values);
-        break;
-      case 'flaws':
-        setFlaws(values);
-        break;
-    }
+    updateCharacterField(fieldMap[category] as keyof typeof characterData, newItems);
   };
 
-  const addToCategory = (type: string, value: string) => {
-    switch (type) {
-      case 'traits':
-        if (personalityTraits.length < 2) {
-          updatePersonality('traits', [...personalityTraits, value]);
-        }
-        break;
-      case 'ideals':
-        if (ideals.length < 1) {
-          updatePersonality('ideals', [...ideals, value]);
-        }
-        break;
-      case 'bonds':
-        if (bonds.length < 1) {
-          updatePersonality('bonds', [...bonds, value]);
-        }
-        break;
-      case 'flaws':
-        if (flaws.length < 1) {
-          updatePersonality('flaws', [...flaws, value]);
-        }
-        break;
-    }
+  const handleEditItem = (category: 'traits' | 'ideals' | 'bonds' | 'flaws', index: number, newValue: string) => {
+    const fieldMap = {
+      traits: 'personalityTraits',
+      ideals: 'ideals',
+      bonds: 'bonds',
+      flaws: 'flaws'
+    };
+
+    const currentItems = personalityData[category];
+    const newItems = [...currentItems];
+    newItems[index] = newValue;
+    
+    updateCharacterField(fieldMap[category] as keyof typeof characterData, newItems);
   };
 
-  const removeFromCategory = (type: string, value: string) => {
-    switch (type) {
-      case 'traits':
-        updatePersonality('traits', personalityTraits.filter(t => t !== value));
-        break;
-      case 'ideals':
-        updatePersonality('ideals', ideals.filter(i => i !== value));
-        break;
-      case 'bonds':
-        updatePersonality('bonds', bonds.filter(b => b !== value));
-        break;
-      case 'flaws':
-        updatePersonality('flaws', flaws.filter(f => f !== value));
-        break;
-    }
+  const handleRemoveItem = (category: 'traits' | 'ideals' | 'bonds' | 'flaws', index: number) => {
+    const fieldMap = {
+      traits: 'personalityTraits',
+      ideals: 'ideals',
+      bonds: 'bonds',
+      flaws: 'flaws'
+    };
+
+    const currentItems = personalityData[category];
+    const newItems = currentItems.filter((_, i) => i !== index);
+    
+    updateCharacterField(fieldMap[category] as keyof typeof characterData, newItems);
   };
 
-  const randomizeAll = () => {
-    // Add random selections to empty categories
-    if (personalityTraits.length === 0) {
-      const randomTraits = mockPersonalityOptions.traits
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 2);
-      updatePersonality('traits', randomTraits);
-    }
-    
-    if (ideals.length === 0) {
-      const randomIdeal = [mockPersonalityOptions.ideals[Math.floor(Math.random() * mockPersonalityOptions.ideals.length)]];
-      updatePersonality('ideals', randomIdeal);
-    }
-    
-    if (bonds.length === 0) {
-      const randomBond = [mockPersonalityOptions.bonds[Math.floor(Math.random() * mockPersonalityOptions.bonds.length)]];
-      updatePersonality('bonds', randomBond);
-    }
-    
-    if (flaws.length === 0) {
-      const randomFlaw = [mockPersonalityOptions.flaws[Math.floor(Math.random() * mockPersonalityOptions.flaws.length)]];
-      updatePersonality('flaws', randomFlaw);
-    }
+  // ===========================
+  // RENDER HELPERS
+  // ===========================
+
+  const renderPersonalitySection = (category: 'traits' | 'ideals' | 'bonds' | 'flaws') => {
+    const categoryInfo = PERSONALITY_CATEGORIES.find(cat => cat.id === category);
+    const items = personalityData[category];
+    const CategoryIcon = categoryInfo?.icon || Heart;
+    const maxItems = category === 'traits' ? 2 : 1; // Traits podem ter 2, outros apenas 1
+
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="flex items-center space-x-3">
+          <div className={`p-2 rounded-lg bg-gradient-to-br ${categoryInfo?.color}`}>
+            <CategoryIcon className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white">{categoryInfo?.name}</h3>
+            <p className="text-sm text-gray-400">{categoryInfo?.description}</p>
+          </div>
+          <div className="flex-1" />
+          <span className="text-sm text-gray-500">
+            {items.length}/{maxItems}
+          </span>
+        </div>
+
+        {/* Items */}
+        <div className="space-y-3">
+          {items.map((item, index) => (
+            <PersonalityItem
+              key={index}
+              item={item}
+              category={category}
+              onEdit={(newValue) => handleEditItem(category, index, newValue)}
+              onRemove={() => handleRemoveItem(category, index)}
+              isEditing={editingItem === `${category}-${index}`}
+              onStartEdit={() => setEditingItem(`${category}-${index}`)}
+              onStopEdit={() => setEditingItem(null)}
+            />
+          ))}
+
+          {/* Add Item */}
+          <AddPersonalityItem
+            category={category}
+            onAdd={(value) => handleAddItem(category, value)}
+            maxItems={maxItems}
+            currentCount={items.length}
+          />
+        </div>
+      </div>
+    );
   };
 
-  const totalSelected = personalityTraits.length + ideals.length + bonds.length + flaws.length;
-  const totalRequired = 5; // 2 traits + 1 ideal + 1 bond + 1 flaw
+  // ===========================
+  // RENDER PRINCIPAL
+  // ===========================
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="bg-pink-500/10 border border-pink-500/30 rounded-xl p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-rose-600 rounded-xl flex items-center justify-center">
-              <Heart className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-bold text-lg">Personalidade & Background</h3>
-              <p className="text-pink-200 text-sm mt-1">
-                Defina quem é seu personagem além das estatísticas
-              </p>
-            </div>
-          </div>
-          
-          <div className="text-right">
-            <div className="text-2xl font-bold text-white">{totalSelected}</div>
-            <div className="text-pink-400 text-sm">de {totalRequired}</div>
-          </div>
+      <div className="text-center space-y-4">
+        <div className="w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto">
+          <Heart className="w-8 h-8 text-white" />
         </div>
-        
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-pink-200">
-            <strong>Background:</strong> {characterData.selectedBackground?.name || 'Não selecionado'}
+        <div>
+          <h2 className="text-2xl font-bold text-white">Personalidade do Personagem</h2>
+          <p className="text-gray-400 max-w-2xl mx-auto">
+            Defina os traços, ideais, vínculos e defeitos que tornam seu personagem único e memorável.
+          </p>
+        </div>
+      </div>
+
+      {/* Info Card */}
+      <div className="bg-blue-500/20 rounded-xl p-6 border border-blue-500/30">
+        <div className="flex items-start space-x-3">
+          <Lightbulb className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-blue-300 mb-2">Dicas para Criação de Personalidade</h4>
+            <ul className="text-sm text-blue-200 space-y-1">
+              <li>• <strong>Traços:</strong> Características que outros notam sobre você</li>
+              <li>• <strong>Ideais:</strong> Princípios que guiam suas decisões</li>
+              <li>• <strong>Vínculos:</strong> O que é mais importante para você</li>
+              <li>• <strong>Defeitos:</strong> Fraquezas que podem causar problemas</li>
+            </ul>
           </div>
-          <button
-            onClick={randomizeAll}
-            className="px-4 py-2 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-medium rounded-xl transition-all duration-200 flex items-center space-x-2 border border-yellow-500/50"
-          >
-            <Dice6 className="w-4 h-4" />
-            <span>Aleatorizar Tudo</span>
-          </button>
         </div>
       </div>
 
       {/* Personality Sections */}
-      <div className="grid gap-8">
-        {/* Personality Traits */}
-        <PersonalitySection
-          title="Traços de Personalidade"
-          icon={User}
-          color="from-blue-500 to-blue-600"
-          description="Como seu personagem se comporta e reage em diferentes situações"
-          options={mockPersonalityOptions.traits}
-          selected={personalityTraits}
-          onAdd={(trait) => addToCategory('traits', trait)}
-          onRemove={(trait) => removeFromCategory('traits', trait)}
-          maxSelections={2}
-        />
-
-        {/* Ideals */}
-        <PersonalitySection
-          title="Ideais"
-          icon={Target}
-          color="from-green-500 to-green-600"
-          description="Os princípios que movem e motivam seu personagem"
-          options={mockPersonalityOptions.ideals}
-          selected={ideals}
-          onAdd={(ideal) => addToCategory('ideals', ideal)}
-          onRemove={(ideal) => removeFromCategory('ideals', ideal)}
-          maxSelections={1}
-        />
-
-        {/* Bonds */}
-        <PersonalitySection
-          title="Vínculos"
-          icon={Link}
-          color="from-purple-500 to-purple-600"
-          description="Conexões importantes com pessoas, lugares ou eventos"
-          options={mockPersonalityOptions.bonds}
-          selected={bonds}
-          onAdd={(bond) => addToCategory('bonds', bond)}
-          onRemove={(bond) => removeFromCategory('bonds', bond)}
-          maxSelections={1}
-        />
-
-        {/* Flaws */}
-        <PersonalitySection
-          title="Defeitos"
-          icon={AlertTriangle}
-          color="from-red-500 to-red-600"
-          description="Fraquezas ou vícios que podem causar problemas"
-          options={mockPersonalityOptions.flaws}
-          selected={flaws}
-          onAdd={(flaw) => addToCategory('flaws', flaw)}
-          onRemove={(flaw) => removeFromCategory('flaws', flaw)}
-          maxSelections={1}
-        />
-      </div>
+      {PERSONALITY_CATEGORIES.map(category => (
+        <div key={category.id} className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+          {renderPersonalitySection(category.id as 'traits' | 'ideals' | 'bonds' | 'flaws')}
+        </div>
+      ))}
 
       {/* Summary */}
-      {totalSelected > 0 && (
-        <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-4 h-4 text-white" />
-            </div>
-            <h4 className="text-white font-semibold">Resumo da Personalidade</h4>
+      <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+        <h4 className="font-medium text-white mb-4">Resumo da Personalidade</h4>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {PERSONALITY_CATEGORIES.map(category => {
+            const items = personalityData[category.id as keyof typeof personalityData];
+            const CategoryIcon = category.icon;
+            
+            return (
+              <div key={category.id} className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <CategoryIcon className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-300">{category.name}</span>
+                </div>
+                
+                {items.length > 0 ? (
+                  <div className="space-y-1">
+                    {items.map((item, index) => (
+                      <p key={index} className="text-sm text-gray-400 pl-6">
+                        • {item}
+                      </p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500 pl-6 italic">Nenhum item adicionado</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Completion Status */}
+        <div className="mt-6 pt-4 border-t border-gray-700/50">
+          <div className="flex items-center justify-between">
+            <span className="text-gray-400">Itens preenchidos:</span>
+            <span className="text-green-400 font-medium">
+              {Object.values(personalityData).flat().length} / 5
+            </span>
           </div>
           
-          <div className="prose prose-sm prose-invert max-w-none">
-            <p className="text-gray-300 leading-relaxed">
-              <strong>{characterData.name || 'Seu personagem'}</strong> é caracterizado por{' '}
-              {personalityTraits.length > 0 && (
-                <span>
-                  ser alguém que{' '}
-                  {personalityTraits.map((trait, index) => (
-                    <span key={index}>
-                      {trait.toLowerCase()}
-                      {index < personalityTraits.length - 1 ? ' e ' : ''}
-                    </span>
-                  ))}
-                </span>
-              )}
-              {ideals.length > 0 && (
-                <span>
-                  . {personalityTraits.length > 0 ? 'Seus' : 'Seus'} ideais incluem:{' '}
-                  {ideals[0].toLowerCase()}
-                </span>
-              )}
-              {bonds.length > 0 && (
-                <span>
-                  . {ideals.length > 0 || personalityTraits.length > 0 ? 'Além disso,' : 'Este personagem'}{' '}
-                  possui vínculos importantes: {bonds[0].toLowerCase()}
-                </span>
-              )}
-              {flaws.length > 0 && (
-                <span>
-                  . No entanto, possui a fraqueza de {flaws[0].toLowerCase()}
-                </span>
-              )}
-              .
-            </p>
+          <div className="mt-2 w-full bg-gray-700/50 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-300"
+              style={{ 
+                width: `${(Object.values(personalityData).flat().length / 5) * 100}%` 
+              }}
+            />
           </div>
         </div>
-      )}
-
-      {/* Progress Indicator */}
-      <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-gray-400 text-sm">Progresso da Personalidade</span>
-          <span className="text-white font-medium">{totalSelected}/{totalRequired}</span>
-        </div>
-        <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-pink-500 to-rose-500 transition-all duration-500"
-            style={{ width: `${(totalSelected / totalRequired) * 100}%` }}
-          />
-        </div>
-        {totalSelected < totalRequired && (
-          <p className="text-gray-400 text-xs mt-2">
-            Complete todos os aspectos da personalidade para prosseguir
-          </p>
-        )}
       </div>
     </div>
   );

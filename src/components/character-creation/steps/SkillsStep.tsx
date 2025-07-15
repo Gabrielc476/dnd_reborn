@@ -1,10 +1,11 @@
 // ===========================
-// SKILLS STEP - COMPONENTE REFATORADO
+// SKILLS STEP - ATUALIZADO PARA USAR NOVOS HOOKS
 // src/components/character-creation/steps/SkillsStep.tsx
 // ===========================
 
 "use client";
 
+import { useState, useMemo } from "react";
 import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
 import { 
   Shield, 
@@ -15,10 +16,46 @@ import {
   Target,
   Search,
   Star,
-  Zap
+  Zap,
+  User,
+  Eye,
+  Heart,
+  Brain,
+  Users,
+  Feather,
+  Sword,
+  Book
 } from "lucide-react";
 import { SKILLS, AbilityScores } from "@/types/characterCreation";
-import { useState } from "react";
+
+// ===========================
+// SKILL ICONS MAPPING
+// ===========================
+
+const SKILL_ICONS = {
+  'acrobatics': Target,
+  'animal-handling': Feather,
+  'arcana': Star,
+  'athletics': Zap,
+  'deception': User,
+  'history': Book,
+  'insight': Eye,
+  'intimidation': Sword,
+  'investigation': Search,
+  'medicine': Heart,
+  'nature': Feather,
+  'perception': Eye,
+  'performance': Heart,
+  'persuasion': Users,
+  'religion': Star,
+  'sleight-of-hand': Target,
+  'stealth': User,
+  'survival': Feather
+};
+
+// ===========================
+// SKILL CARD COMPONENT
+// ===========================
 
 interface SkillCardProps {
   skillKey: string;
@@ -30,6 +67,7 @@ interface SkillCardProps {
   proficiencyBonus: number;
   onToggle: () => void;
   canSelect: boolean;
+  source?: 'class' | 'background' | 'race';
 }
 
 function SkillCard({
@@ -41,8 +79,10 @@ function SkillCard({
   baseModifier,
   proficiencyBonus,
   onToggle,
-  canSelect
+  canSelect,
+  source
 }: SkillCardProps) {
+  // Mapeamento de cores por habilidade
   const abilityColors = {
     strength: 'from-red-500 to-red-600',
     dexterity: 'from-green-500 to-green-600', 
@@ -61,7 +101,14 @@ function SkillCard({
     charisma: 'CAR'
   };
 
+  const sourceColors = {
+    class: 'from-purple-500/20 to-purple-600/20 border-purple-400/50',
+    background: 'from-green-500/20 to-green-600/20 border-green-400/50',
+    race: 'from-blue-500/20 to-blue-600/20 border-blue-400/50'
+  };
+
   const isDisabled = !canSelect && !isSelected;
+  const SkillIcon = SKILL_ICONS[skillKey as keyof typeof SKILL_ICONS] || Shield;
 
   return (
     <div
@@ -70,302 +117,367 @@ function SkillCard({
         isDisabled
           ? 'opacity-50 cursor-not-allowed bg-gray-800/30 border-gray-700/50'
           : isSelected
-          ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/25 cursor-pointer hover:scale-[1.02]'
-          : 'bg-gray-700/30 border-gray-600/50 hover:bg-gray-700/50 cursor-pointer hover:scale-[1.02] hover:border-gray-500/50'
+          ? source 
+            ? `bg-gradient-to-br ${sourceColors[source]} shadow-lg cursor-pointer`
+            : 'bg-gradient-to-br from-indigo-500/20 to-purple-600/20 border-indigo-400/50 shadow-lg cursor-pointer'
+          : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600/50 hover:bg-gray-700/50 cursor-pointer'
       }`}
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          {/* Header */}
-          <div className="flex items-center space-x-3 mb-3">
-            <div className={`w-8 h-8 bg-gradient-to-br ${abilityColors[ability]} rounded-lg flex items-center justify-center flex-shrink-0`}>
-              <Shield className="w-4 h-4 text-white" />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-white font-medium">{skillName}</h4>
-              <div className="flex items-center space-x-2 mt-1">
-                <span className="text-xs px-2 py-1 bg-gray-600/50 rounded-lg text-gray-300 font-mono">
-                  {abilityAbbreviations[ability]}
-                </span>
-                {isSelected && (
-                  <span className="text-xs px-2 py-1 bg-green-500/20 rounded-lg text-green-400 border border-green-500/30">
-                    Proficiente
-                  </span>
-                )}
-              </div>
-            </div>
+      <div className="flex items-center justify-between">
+        {/* Skill Info */}
+        <div className="flex items-center space-x-3 flex-1">
+          {/* Skill Icon */}
+          <div className={`p-2 rounded-lg bg-gradient-to-br ${abilityColors[ability]}`}>
+            <SkillIcon className="w-4 h-4 text-white" />
           </div>
 
-          {/* Modifiers */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-400 text-sm">Modificador base:</span>
-              <span className={`font-mono font-medium ${
-                baseModifier >= 0 ? 'text-green-400' : 'text-red-400'
+          {/* Skill Details */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2">
+              <h3 className={`font-medium transition-colors ${
+                isSelected ? 'text-white' : 'text-gray-300'
               }`}>
-                {baseModifier >= 0 ? '+' : ''}{baseModifier}
-              </span>
+                {skillName}
+              </h3>
+              
+              {source && (
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  source === 'class' ? 'bg-purple-500/20 text-purple-300' :
+                  source === 'background' ? 'bg-green-500/20 text-green-300' :
+                  'bg-blue-500/20 text-blue-300'
+                }`}>
+                  {source === 'class' ? 'Classe' : 
+                   source === 'background' ? 'Background' : 'Raça'}
+                </span>
+              )}
             </div>
             
-            {isSelected && (
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-sm">Bônus proficiência:</span>
-                <span className="text-blue-400 font-mono font-medium">
-                  +{proficiencyBonus}
+            <div className="flex items-center space-x-2 mt-1">
+              <span className={`text-xs px-2 py-1 rounded ${
+                isSelected ? 'bg-white/10 text-gray-300' : 'bg-gray-700/50 text-gray-400'
+              }`}>
+                {abilityAbbreviations[ability]}
+              </span>
+              
+              {isSelected && (
+                <span className="text-xs text-gray-400">
+                  Prof. +{proficiencyBonus}
                 </span>
-              </div>
-            )}
-            
-            <div className="border-t border-gray-600/50 pt-2">
-              <div className="flex justify-between items-center">
-                <span className="text-white font-medium">Total:</span>
-                <span className={`text-xl font-bold font-mono ${
-                  modifier >= 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                  {modifier >= 0 ? '+' : ''}{modifier}
-                </span>
-              </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Selection indicator */}
-        <div className="ml-4 flex-shrink-0">
-          {isSelected ? (
-            <CheckCircle className="w-6 h-6 text-green-400" />
-          ) : (
-            <Circle className={`w-6 h-6 ${isDisabled ? 'text-gray-600' : 'text-gray-400'}`} />
-          )}
+        {/* Modifier & Status */}
+        <div className="flex items-center space-x-3">
+          {/* Modifier Display */}
+          <div className="text-right">
+            <div className={`text-lg font-bold ${
+              isSelected ? 'text-white' : 'text-gray-400'
+            }`}>
+              {modifier >= 0 ? '+' : ''}{modifier}
+            </div>
+            {isSelected && baseModifier !== modifier && (
+              <div className="text-xs text-gray-500">
+                {baseModifier >= 0 ? '+' : ''}{baseModifier} base
+              </div>
+            )}
+          </div>
+
+          {/* Selection Status */}
+          <div>
+            {isSelected ? (
+              <CheckCircle className="w-5 h-5 text-green-400" />
+            ) : (
+              <Circle className="w-5 h-5 text-gray-500" />
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+// ===========================
+// COMPONENTE PRINCIPAL
+// ===========================
+
 export default function SkillsStep() {
-  const { 
-    characterData, 
-    updateCharacterData, 
-    getAbilityModifier 
+  const {
+    // Character data via context
+    characterData,
+    toggleSkill,
+    calculateModifier,
+    
+    // Skills específicos (através do contexto compatível)
+    // Nota: O contexto mapeia os dados dos hooks para a interface antiga
   } = useCharacterCreationContext();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterByAbility, setFilterByAbility] = useState<keyof AbilityScores | "all">("all");
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterByAbility, setFilterByAbility] = useState<keyof AbilityScores | 'all'>('all');
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
 
-  const handleSkillToggle = (skillKey: string) => {
-    const newSelectedSkills = characterData.selectedSkills.includes(skillKey)
-      ? characterData.selectedSkills.filter((s) => s !== skillKey)
-      : [...characterData.selectedSkills, skillKey];
+  // ===========================
+  // COMPUTED VALUES
+  // ===========================
 
-    // Respect the skill choice limit
-    if (newSelectedSkills.length <= characterData.availableSkillChoices) {
-      updateCharacterData({ selectedSkills: newSelectedSkills });
+  // Proficiency bonus baseado no nível
+  const proficiencyBonus = Math.ceil(characterData.level / 4) + 1;
+
+  // Skills selecionadas
+  const selectedSkills = characterData.selectedSkills || [];
+
+  // Skills disponíveis para escolha (da classe)
+  const availableSkillChoices = characterData.availableSkillChoices || 0;
+
+  // Choices restantes
+  const remainingChoices = availableSkillChoices - selectedSkills.length;
+
+  // Filtered skills
+  const filteredSkills = useMemo(() => {
+    let filtered = SKILLS;
+
+    // Filtrar por busca
+    if (searchTerm.trim()) {
+      filtered = filtered.filter(skill => 
+        skill.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  };
 
-  const clearAllSkills = () => {
-    updateCharacterData({ selectedSkills: [] });
-  };
-
-  const getSkillModifier = (
-    ability: keyof AbilityScores,
-    isSelected: boolean
-  ): number => {
-    const abilityMod = getAbilityModifier(characterData.abilityScores[ability]);
-    const proficiencyBonus = Math.floor((characterData.level - 1) / 4) + 2;
-
-    return abilityMod + (isSelected ? proficiencyBonus : 0);
-  };
-
-  const proficiencyBonus = Math.floor((characterData.level - 1) / 4) + 2;
-  const remainingChoices = characterData.availableSkillChoices - characterData.selectedSkills.length;
-
-  // Filter skills
-  const filteredSkills = Object.entries(SKILLS).filter(([key, skill]) => {
-    const matchesSearch = skill.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesAbility = filterByAbility === "all" || skill.ability === filterByAbility;
-    return matchesSearch && matchesAbility;
-  });
-
-  // Group skills by ability
-  const skillsByAbility = filteredSkills.reduce((acc, [key, skill]) => {
-    if (!acc[skill.ability]) {
-      acc[skill.ability] = [];
+    // Filtrar por habilidade
+    if (filterByAbility !== 'all') {
+      filtered = filtered.filter(skill => skill.ability === filterByAbility);
     }
-    acc[skill.ability].push([key, skill]);
-    return acc;
-  }, {} as Record<keyof AbilityScores, Array<[string, any]>>);
 
-  const abilityNames = {
-    strength: 'Força',
-    dexterity: 'Destreza',
-    constitution: 'Constituição',
-    intelligence: 'Inteligência',
-    wisdom: 'Sabedoria',
-    charisma: 'Carisma'
+    // Filtrar apenas disponíveis
+    if (showOnlyAvailable) {
+      filtered = filtered.filter(skill => 
+        selectedSkills.includes(skill.key) || remainingChoices > 0
+      );
+    }
+
+    return filtered;
+  }, [searchTerm, filterByAbility, showOnlyAvailable, selectedSkills, remainingChoices]);
+
+  // ===========================
+  // HANDLERS
+  // ===========================
+
+  const handleToggleSkill = (skillKey: string) => {
+    toggleSkill(skillKey);
   };
+
+  const canSelectSkill = (skillKey: string): boolean => {
+    // Se já está selecionada, sempre pode desmarcar
+    if (selectedSkills.includes(skillKey)) return true;
+    
+    // Se não tem choices restantes, não pode selecionar
+    if (remainingChoices <= 0) return false;
+    
+    return true;
+  };
+
+  const getSkillModifier = (skill: typeof SKILLS[0]): number => {
+    const abilityScore = characterData.abilityScores[skill.ability];
+    const baseModifier = calculateModifier(abilityScore);
+    
+    // Se tem proficiência, adiciona bonus
+    if (selectedSkills.includes(skill.key)) {
+      return baseModifier + proficiencyBonus;
+    }
+    
+    return baseModifier;
+  };
+
+  const getBaseModifier = (skill: typeof SKILLS[0]): number => {
+    const abilityScore = characterData.abilityScores[skill.ability];
+    return calculateModifier(abilityScore);
+  };
+
+  // Determinar fonte da skill (se aplicável)
+  const getSkillSource = (skillKey: string): 'class' | 'background' | 'race' | undefined => {
+    // Aqui você pode implementar lógica para determinar a fonte
+    // Por enquanto, vamos assumir que todas são da classe
+    return selectedSkills.includes(skillKey) ? 'class' : undefined;
+  };
+
+  // ===========================
+  // RENDER PRINCIPAL
+  // ===========================
 
   return (
-    <div className="space-y-8">
-      {/* Header Info */}
-      <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-              <Target className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h3 className="text-white font-bold text-lg">Seleção de Perícias</h3>
-              <p className="text-blue-200 text-sm mt-1">
-                Escolha suas áreas de especialização
-              </p>
-            </div>
+    <div className="space-y-6">
+      {/* Header com informações */}
+      <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Perícias e Proficiências</h3>
+            <p className="text-sm text-gray-400 mt-1">
+              Escolha as perícias nas quais seu personagem é proficiente
+            </p>
           </div>
           
           <div className="text-right">
-            <div className="text-2xl font-bold text-white">{remainingChoices}</div>
-            <div className="text-blue-400 text-sm">Restantes</div>
+            <div className="text-2xl font-bold text-blue-400">
+              {remainingChoices}
+            </div>
+            <div className="text-sm text-gray-500">restantes</div>
           </div>
         </div>
-        
-        <div className="mt-4 flex items-center justify-between">
-          <div className="text-sm text-blue-200">
-            <strong>Bônus de Proficiência:</strong> +{proficiencyBonus}
+
+        {/* Progress Bar */}
+        <div className="w-full bg-gray-700/50 rounded-full h-2">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
+            style={{ 
+              width: `${availableSkillChoices > 0 ? ((availableSkillChoices - remainingChoices) / availableSkillChoices) * 100 : 0}%` 
+            }}
+          />
+        </div>
+
+        {/* Info adicional */}
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-400">Proficiências da Classe:</span>
+            <span className="text-white">{availableSkillChoices}</span>
           </div>
-          <div className="text-sm text-blue-200">
-            <strong>Selecionadas:</strong> {characterData.selectedSkills.length} / {characterData.availableSkillChoices}
+          <div className="flex justify-between">
+            <span className="text-gray-400">Bônus de Proficiência:</span>
+            <span className="text-white">+{proficiencyBonus}</span>
           </div>
         </div>
       </div>
 
-      {/* Search and Filters */}
+      {/* Filtros e Busca */}
       <div className="space-y-4">
-        <div className="grid md:grid-cols-2 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Buscar perícias..."
-              className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-            />
-          </div>
+        {/* Busca */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Buscar perícias..."
+            className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+          />
+        </div>
 
-          {/* Ability Filter */}
+        {/* Filtros */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Filtro por habilidade */}
           <select
             value={filterByAbility}
-            onChange={(e) => setFilterByAbility(e.target.value as keyof AbilityScores | "all")}
-            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            onChange={(e) => setFilterByAbility(e.target.value as keyof AbilityScores | 'all')}
+            className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           >
-            <option value="all">Todos os Atributos</option>
-            {Object.entries(abilityNames).map(([key, name]) => (
-              <option key={key} value={key}>{name}</option>
-            ))}
+            <option value="all">Todas as habilidades</option>
+            <option value="strength">Força</option>
+            <option value="dexterity">Destreza</option>
+            <option value="constitution">Constituição</option>
+            <option value="intelligence">Inteligência</option>
+            <option value="wisdom">Sabedoria</option>
+            <option value="charisma">Carisma</option>
           </select>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="flex space-x-3">
-          <button
-            onClick={clearAllSkills}
-            disabled={characterData.selectedSkills.length === 0}
-            className={`px-4 py-2 rounded-xl font-medium transition-all duration-200 flex items-center space-x-2 ${
-              characterData.selectedSkills.length === 0
-                ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed'
-                : 'bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-400'
-            }`}
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Limpar Seleção</span>
-          </button>
+          {/* Toggle apenas disponíveis */}
+          <label className="flex items-center space-x-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showOnlyAvailable}
+              onChange={(e) => setShowOnlyAvailable(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-blue-500 focus:ring-blue-500/50"
+            />
+            <span className="text-sm text-gray-300">Apenas disponíveis</span>
+          </label>
 
-          <div className="text-sm text-gray-400 flex items-center">
-            <Info className="w-4 h-4 mr-2" />
-            {remainingChoices > 0 ? (
-              <span>Você ainda pode escolher {remainingChoices} perícia{remainingChoices !== 1 ? 's' : ''}</span>
-            ) : (
-              <span>Todas as perícias foram selecionadas</span>
-            )}
-          </div>
+          {/* Info sobre choices */}
+          {remainingChoices <= 0 && availableSkillChoices > 0 && (
+            <div className="flex items-center space-x-2 px-3 py-2 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+              <Info className="w-4 h-4 text-yellow-400" />
+              <span className="text-sm text-yellow-300">
+                Você usou todas as suas escolhas de perícia
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Skills by Ability */}
-      <div className="space-y-6">
-        {Object.entries(skillsByAbility).map(([ability, skills]) => {
-          const abilityName = abilityNames[ability as keyof AbilityScores];
-          const abilityMod = getAbilityModifier(characterData.abilityScores[ability as keyof AbilityScores]);
+      {/* Lista de Skills */}
+      <div className="space-y-3">
+        {filteredSkills.map((skill) => {
+          const isSelected = selectedSkills.includes(skill.key);
+          const modifier = getSkillModifier(skill);
+          const baseModifier = getBaseModifier(skill);
+          const source = getSkillSource(skill.key);
           
           return (
-            <div key={ability} className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-gray-600 to-gray-700 rounded-lg flex items-center justify-center">
-                  <Zap className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-white font-semibold">{abilityName}</h4>
-                  <p className="text-gray-400 text-sm">
-                    Modificador: {abilityMod >= 0 ? '+' : ''}{abilityMod}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="grid gap-3">
-                {skills.map(([skillKey, skill]) => {
-                  const isSelected = characterData.selectedSkills.includes(skillKey);
-                  const canSelect = remainingChoices > 0;
-                  const baseModifier = getAbilityModifier(characterData.abilityScores[skill.ability]);
-                  const totalModifier = getSkillModifier(skill.ability, isSelected);
-
-                  return (
-                    <SkillCard
-                      key={skillKey}
-                      skillKey={skillKey}
-                      skillName={skill.name}
-                      ability={skill.ability}
-                      isSelected={isSelected}
-                      modifier={totalModifier}
-                      baseModifier={baseModifier}
-                      proficiencyBonus={proficiencyBonus}
-                      onToggle={() => handleSkillToggle(skillKey)}
-                      canSelect={canSelect}
-                    />
-                  );
-                })}
-              </div>
-            </div>
+            <SkillCard
+              key={skill.key}
+              skillKey={skill.key}
+              skillName={skill.name}
+              ability={skill.ability}
+              isSelected={isSelected}
+              modifier={modifier}
+              baseModifier={baseModifier}
+              proficiencyBonus={proficiencyBonus}
+              onToggle={() => handleToggleSkill(skill.key)}
+              canSelect={canSelectSkill(skill.key)}
+              source={source}
+            />
           );
         })}
       </div>
 
-      {/* Selected Skills Summary */}
-      {characterData.selectedSkills.length > 0 && (
-        <div className="bg-green-500/10 border border-green-500/30 rounded-xl p-6">
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
-              <Star className="w-4 h-4 text-white" />
-            </div>
-            <h4 className="text-white font-semibold">Perícias Selecionadas</h4>
-          </div>
+      {/* Empty State */}
+      {filteredSkills.length === 0 && (
+        <div className="text-center py-12">
+          <Search className="w-8 h-8 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-400 mb-2">
+            Nenhuma perícia encontrada
+          </h3>
+          <p className="text-gray-500">
+            Tente ajustar os filtros de busca
+          </p>
+          <button
+            onClick={() => {
+              setSearchTerm('');
+              setFilterByAbility('all');
+              setShowOnlyAvailable(false);
+            }}
+            className="mt-4 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg transition-colors"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      )}
+
+      {/* Summary */}
+      {selectedSkills.length > 0 && (
+        <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+          <h4 className="font-medium text-white mb-4">Resumo das Perícias Selecionadas</h4>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {characterData.selectedSkills.map((skillKey) => {
-              const skill = SKILLS[skillKey];
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {selectedSkills.map(skillKey => {
+              const skill = SKILLS.find(s => s.key === skillKey);
               if (!skill) return null;
               
-              const modifier = getSkillModifier(skill.ability, true);
+              const modifier = getSkillModifier(skill);
               
               return (
-                <div key={skillKey} className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                  <span className="text-green-300 font-medium">{skill.name}</span>
-                  <span className="text-green-400 font-mono font-bold">
+                <div key={skillKey} className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg">
+                  <span className="text-gray-300">{skill.name}</span>
+                  <span className="text-white font-medium">
                     {modifier >= 0 ? '+' : ''}{modifier}
                   </span>
                 </div>
               );
             })}
+          </div>
+
+          {/* Total Skills */}
+          <div className="mt-4 pt-4 border-t border-gray-700/50 flex justify-between">
+            <span className="text-gray-400">Total de perícias proficientes:</span>
+            <span className="text-blue-400 font-semibold">{selectedSkills.length}</span>
           </div>
         </div>
       )}
