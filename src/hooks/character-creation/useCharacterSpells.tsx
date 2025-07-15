@@ -1,5 +1,5 @@
 // ===========================
-// useCharacterSpells.ts
+// useCharacterSpells.tsx - CORRIGIDO
 // Hook para gerenciar magias do personagem
 // ===========================
 
@@ -41,14 +41,19 @@ const useCharacterSpells = () => {
   const [spellcastingAbility, setSpellcastingAbility] = useState<AbilityScoreKey | null>(null);
   const [selectedCantrips, setSelectedCantrips] = useState<DndSpell[]>([]);
   const [selectedSpells, setSelectedSpells] = useState<DndSpell[]>([]);
-  const [availableCantrips, setAvailableCantrips] = useState<DndSpell[]>([]);
-  const [availableSpells, setAvailableSpells] = useState<DndSpell[]>([]);
+  const [availableCantrips, setAvailableCantripsState] = useState<DndSpell[]>([]);
+  const [availableSpells, setAvailableSpellsState] = useState<DndSpell[]>([]);
   const [spellSlots, setSpellSlots] = useState<SpellSlots>({
     level1: 0, level2: 0, level3: 0, level4: 0, level5: 0,
     level6: 0, level7: 0, level8: 0, level9: 0,
   });
   const [cantripsKnown, setCantripsKnown] = useState(0);
   const [spellsKnown, setSpellsKnown] = useState(0);
+
+  // Estado para valores dinâmicos vindos de outros hooks
+  const [currentAbilityModifier, setCurrentAbilityModifier] = useState(0);
+  const [currentProficiencyBonus, setCurrentProficiencyBonus] = useState(2);
+  const [currentCharacterClass, setCurrentCharacterClass] = useState<DndClass | null>(null);
 
   // Configurar conjuração baseado na classe
   const configureSpellcasting = useCallback((
@@ -89,53 +94,53 @@ const useCharacterSpells = () => {
         3: { level1: 4, level2: 2, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
         4: { level1: 4, level2: 3, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
         5: { level1: 4, level2: 3, level3: 2, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
-        // ... continuar para outros níveis
+        // ... continuar para todos os níveis
       },
       'sorcerer': {
         1: { level1: 2, level2: 0, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
         2: { level1: 3, level2: 0, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
-        // ... continuar
+        3: { level1: 4, level2: 2, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
+        // ... continuar para todos os níveis
       },
-      // ... outras classes conjuradoras
+      'cleric': {
+        1: { level1: 2, level2: 0, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
+        2: { level1: 3, level2: 0, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
+        3: { level1: 4, level2: 2, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 },
+        // ... continuar para todos os níveis
+      },
+      // Adicionar outras classes...
     };
 
-    return spellSlotProgression[classIndex]?.[level] || {
-      level1: 0, level2: 0, level3: 0, level4: 0, level5: 0,
-      level6: 0, level7: 0, level8: 0, level9: 0,
-    };
+    const classProgression = spellSlotProgression[classIndex];
+    if (!classProgression) {
+      return { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 };
+    }
+
+    return classProgression[level] || { level1: 0, level2: 0, level3: 0, level4: 0, level5: 0, level6: 0, level7: 0, level8: 0, level9: 0 };
   }, []);
 
-  // Obter cantrips conhecidos por classe/nível
+  // Obter quantidade de cantrips conhecidos baseado na classe e nível
   const getCantripsKnown = useCallback((classIndex: string, level: number): number => {
-    // Tabelas de progressão por classe
     const cantripProgression: Record<string, Record<number, number>> = {
-      'wizard': { 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4, 9: 4, 10: 5 },
-      'sorcerer': { 1: 4, 2: 4, 3: 4, 4: 5, 5: 5, 6: 5, 7: 5, 8: 5, 9: 5, 10: 6 },
-      'warlock': { 1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4 },
-      'bard': { 1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4 },
-      'cleric': { 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4, 9: 4, 10: 5 },
-      'druid': { 1: 2, 2: 2, 3: 2, 4: 3, 5: 3, 6: 3, 7: 3, 8: 3, 9: 3, 10: 4 },
+      'wizard': { 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4, 9: 4, 10: 5, 11: 5, 12: 5, 13: 5, 14: 5, 15: 5, 16: 5, 17: 5, 18: 5, 19: 5, 20: 5 },
+      'sorcerer': { 1: 4, 2: 4, 3: 4, 4: 5, 5: 5, 6: 5, 7: 5, 8: 5, 9: 5, 10: 6, 11: 6, 12: 6, 13: 6, 14: 6, 15: 6, 16: 6, 17: 6, 18: 6, 19: 6, 20: 6 },
+      'cleric': { 1: 3, 2: 3, 3: 3, 4: 4, 5: 4, 6: 4, 7: 4, 8: 4, 9: 4, 10: 5, 11: 5, 12: 5, 13: 5, 14: 5, 15: 5, 16: 5, 17: 5, 18: 5, 19: 5, 20: 5 },
+      // ... outras classes
     };
 
     return cantripProgression[classIndex]?.[level] || 0;
   }, []);
 
-  // Obter magias conhecidas por classe/nível
+  // Obter quantidade de magias conhecidas baseado na classe e nível
   const getSpellsKnown = useCallback((classIndex: string, level: number): number => {
-    // Para classes que conhecem magias (não preparadas)
-    const spellsKnownProgression: Record<string, Record<number, number>> = {
-      'sorcerer': { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11 },
-      'warlock': { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 10 },
-      'bard': { 1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 9, 7: 10, 8: 11, 9: 12, 10: 14 },
-      'ranger': { 1: 0, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6 },
+    const spellProgression: Record<string, Record<number, number>> = {
+      'wizard': { 1: 6, 2: 8, 3: 10, 4: 12, 5: 14, 6: 16, 7: 18, 8: 20, 9: 22, 10: 24, 11: 26, 12: 28, 13: 30, 14: 32, 15: 34, 16: 36, 17: 38, 18: 40, 19: 42, 20: 44 },
+      'sorcerer': { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12, 12: 12, 13: 13, 14: 13, 15: 14, 16: 14, 17: 15, 18: 15, 19: 15, 20: 15 },
+      'cleric': { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12, 12: 13, 13: 14, 14: 15, 15: 16, 16: 17, 17: 18, 18: 19, 19: 20, 20: 21 },
+      // ... outras classes
     };
 
-    // Para classes que preparam magias, retorna 0 (elas preparam baseado no nível + modificador)
-    if (['wizard', 'cleric', 'druid', 'paladin'].includes(classIndex)) {
-      return 0; // Será calculado baseado no nível + modificador de atributo
-    }
-
-    return spellsKnownProgression[classIndex]?.[level] || 0;
+    return spellProgression[classIndex]?.[level] || 0;
   }, []);
 
   // Adicionar cantrip
@@ -168,7 +173,7 @@ const useCharacterSpells = () => {
     setSelectedSpells(prev => prev.filter(s => s.index !== spellIndex));
   }, []);
 
-  // Definir magias disponíveis
+  // Definir magias disponíveis - CORRIGIDO
   const setAvailableSpells = useCallback((spells: DndSpell[], characterClass: DndClass) => {
     // Filtrar por classe
     const classSpells = spells.filter(spell => 
@@ -179,14 +184,9 @@ const useCharacterSpells = () => {
     const cantrips = classSpells.filter(spell => spell.level === 0);
     const regularSpells = classSpells.filter(spell => spell.level > 0);
 
-    setAvailableCantrips(cantrips);
-    setAvailableSpells(regularSpells);
+    setAvailableCantripsState(cantrips);
+    setAvailableSpellsState(regularSpells);
   }, []);
-
-  // Estado para valores dinâmicos vindos de outros hooks
-  const [currentAbilityModifier, setCurrentAbilityModifier] = useState(0);
-  const [currentProficiencyBonus, setCurrentProficiencyBonus] = useState(2);
-  const [currentCharacterClass, setCurrentCharacterClass] = useState<DndClass | null>(null);
 
   // Atualizar valores dinâmicos
   const updateDynamicValues = useCallback((
@@ -207,67 +207,33 @@ const useCharacterSpells = () => {
 
     // Determinar ritual casting baseado na classe
     const hasRitualCasting = currentCharacterClass ? 
-      ['wizard', 'cleric', 'druid', 'warlock'].includes(currentCharacterClass.index) : false;
+      ['wizard', 'cleric', 'druid', 'bard'].includes(currentCharacterClass.index) : false;
 
-    // Determinar foco de conjuração baseado na classe
-    const getSpellcastingFocus = () => {
-      if (!currentCharacterClass) return 'arcane focus';
-      
-      const focusMap: Record<string, string> = {
-        'wizard': 'arcane focus',
-        'sorcerer': 'arcane focus',
-        'warlock': 'arcane focus',
-        'bard': 'musical instrument',
-        'cleric': 'holy symbol',
-        'druid': 'druidcraft focus',
-        'paladin': 'holy symbol',
-        'ranger': 'natural focus',
-      };
-      
-      return focusMap[currentCharacterClass.index] || 'arcane focus';
-    };
+    // Calcular CD de resistência de magias
+    const spellSaveDC = 8 + currentProficiencyBonus + currentAbilityModifier;
+    
+    // Calcular bônus de ataque de magias
+    const spellAttackBonus = currentProficiencyBonus + currentAbilityModifier;
+
+    // Determinar foco de conjuração
+    const spellcastingFocus = currentCharacterClass?.index === 'wizard' ? 'arcane focus' : 
+                             currentCharacterClass?.index === 'cleric' ? 'holy symbol' :
+                             currentCharacterClass?.index === 'druid' ? 'druidcraft focus' :
+                             currentCharacterClass?.index === 'bard' ? 'musical instrument' :
+                             'spellcasting focus';
 
     return {
       ability: spellcastingAbility,
-      spellSaveDC: 8 + currentProficiencyBonus + currentAbilityModifier,
-      spellAttackBonus: currentProficiencyBonus + currentAbilityModifier,
+      spellSaveDC,
+      spellAttackBonus,
       cantripsKnown,
       spellsKnown,
       spellSlots,
       ritualCasting: hasRitualCasting,
-      spellcastingFocus: getSpellcastingFocus(),
+      spellcastingFocus,
     };
-  }, [
-    isSpellcaster, 
-    spellcastingAbility, 
-    currentAbilityModifier, 
-    currentProficiencyBonus, 
-    cantripsKnown, 
-    spellsKnown, 
-    spellSlots, 
-    currentCharacterClass
-  ]);
-
-  // Calcular informações com dados reais dos outros hooks
-  const calculateSpellcastingInfo = useCallback((
-    abilityScores: AbilityScores,
-    proficiencyBonus: number
-  ): SpellcastingInfo | null => {
-    if (!isSpellcaster || !spellcastingAbility) return null;
-
-    const abilityModifier = Math.floor((abilityScores[spellcastingAbility] - 10) / 2);
-
-    return {
-      ability: spellcastingAbility,
-      spellSaveDC: 8 + proficiencyBonus + abilityModifier,
-      spellAttackBonus: proficiencyBonus + abilityModifier,
-      cantripsKnown,
-      spellsKnown,
-      spellSlots,
-      ritualCasting: true,
-      spellcastingFocus: 'arcane focus',
-    };
-  }, [isSpellcaster, spellcastingAbility, cantripsKnown, spellsKnown, spellSlots]);
+  }, [isSpellcaster, spellcastingAbility, currentProficiencyBonus, currentAbilityModifier, 
+      currentCharacterClass, cantripsKnown, spellsKnown, spellSlots]);
 
   // Obter magias por nível
   const getSpellsByLevel = useCallback((level: SpellLevel) => {
@@ -302,8 +268,8 @@ const useCharacterSpells = () => {
     setSpellcastingAbility(null);
     setSelectedCantrips([]);
     setSelectedSpells([]);
-    setAvailableCantrips([]);
-    setAvailableSpells([]);
+    setAvailableCantripsState([]);
+    setAvailableSpellsState([]);
     setSpellSlots({
       level1: 0, level2: 0, level3: 0, level4: 0, level5: 0,
       level6: 0, level7: 0, level8: 0, level9: 0,

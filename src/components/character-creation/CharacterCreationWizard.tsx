@@ -1,5 +1,5 @@
 // ===========================
-// CHARACTER CREATION WIZARD - ATUALIZADO PARA USAR NOVOS HOOKS
+// CHARACTER CREATION WIZARD - CORRIGIDO
 // src/components/character-creation/CharacterCreationWizard.tsx
 // ===========================
 
@@ -83,20 +83,33 @@ export default function CharacterCreationWizard({
   const [isCreating, setIsCreating] = useState(false);
   const [creationError, setCreationError] = useState<string | null>(null);
 
+  // Verificações de segurança
+  if (!steps || steps.length === 0) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto mb-4" />
+          <p className="text-white">Carregando wizard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentStepData = steps[currentStep];
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === steps.length - 1;
 
   // ===========================
-  // STEP CONFIGURATION
+  // STEP CONFIGURATION - CORRIGIDO
   // ===========================
 
   const stepConfig = {
-    "basic-info": {
+    "basics": {
       icon: User,
       color: "from-blue-500 to-indigo-600",
       gradient: "bg-gradient-to-br from-blue-500/20 to-indigo-600/20"
     },
-    "ability-scores": {
+    "abilities": {
       icon: Zap,
       color: "from-yellow-500 to-orange-600",
       gradient: "bg-gradient-to-br from-yellow-500/20 to-orange-600/20"
@@ -165,43 +178,44 @@ export default function CharacterCreationWizard({
   };
 
   // ===========================
-  // SIDEBAR STEP COMPONENT
+  // RENDER SIDEBAR STEP
   // ===========================
 
-  const SidebarStep = ({ step, index }: { step: any; index: number }) => {
+  const renderSidebarStep = (step: any, index: number) => {
     const isActive = index === currentStep;
-    const isCompleted = validateStep(step.id);
-    const isPast = index < currentStep;
-    const config = stepConfig[step.id as keyof typeof stepConfig] || stepConfig["basic-info"];
-    const StepIcon = config.icon;
+    const isCompleted = step.isValid && step.isCompleted !== false;
+    
+    const stepInfo = stepConfig[step.id as keyof typeof stepConfig];
+    if (!stepInfo) return null;
+    
+    const StepIcon = stepInfo.icon;
 
     return (
       <div
+        key={step.id}
         onClick={() => goToStep(index)}
-        className={`flex items-center space-x-3 p-4 rounded-xl transition-all duration-200 cursor-pointer group ${
-          isActive
-            ? 'bg-gradient-to-r from-indigo-500/20 to-purple-600/20 border border-indigo-400/30 shadow-lg'
-            : isCompleted
-            ? 'bg-green-500/10 border border-green-400/20 hover:bg-green-500/20'
-            : isPast
-            ? 'bg-gray-800/50 border border-gray-700/30 hover:bg-gray-700/50'
-            : 'bg-gray-800/30 border border-gray-700/20 opacity-60'
+        className={`flex items-center space-x-4 p-4 rounded-xl cursor-pointer transition-all ${
+          isActive 
+            ? 'bg-gradient-to-r from-purple-500/20 to-indigo-600/20 border border-purple-500/30' 
+            : 'hover:bg-gray-700/30'
         }`}
       >
-        {/* Step Icon */}
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-          isActive
-            ? `bg-gradient-to-br ${config.color} shadow-lg`
-            : isCompleted
-            ? 'bg-green-500/20 text-green-400'
-            : 'bg-gray-700/50 text-gray-400'
+        {/* Icon */}
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
+          isActive 
+            ? `bg-gradient-to-br ${stepInfo.color} shadow-lg` 
+            : isCompleted 
+              ? 'bg-green-500/20 border border-green-500/30' 
+              : 'bg-gray-700/50'
         }`}>
-          <StepIcon className="w-5 h-5 text-white" />
+          <StepIcon className={`w-6 h-6 ${
+            isActive ? 'text-white' : isCompleted ? 'text-green-400' : 'text-gray-400'
+          }`} />
         </div>
 
-        {/* Step Info */}
+        {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className={`font-medium transition-colors ${
+          <h3 className={`font-semibold transition-colors ${
             isActive ? 'text-white' : isCompleted ? 'text-green-400' : 'text-gray-400'
           }`}>
             {step.title}
@@ -226,12 +240,31 @@ export default function CharacterCreationWizard({
   };
 
   // ===========================
-  // RENDER CURRENT STEP
+  // RENDER CURRENT STEP - CORRIGIDO
   // ===========================
 
   const renderCurrentStep = () => {
-    const stepId = steps[currentStep]?.id;
-    const stepInfo = stepConfig[stepId as keyof typeof stepConfig] || stepConfig["basic-info"];
+    if (!currentStepData) {
+      return (
+        <div className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Step não encontrado</h3>
+          <p className="text-gray-400">Erro interno no wizard de criação.</p>
+        </div>
+      );
+    }
+
+    const stepInfo = stepConfig[currentStepData.id as keyof typeof stepConfig];
+    if (!stepInfo) {
+      return (
+        <div className="text-center py-12">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Configuração não encontrada</h3>
+          <p className="text-gray-400">O step "{currentStepData.id}" não possui configuração.</p>
+        </div>
+      );
+    }
+
     const StepIcon = stepInfo.icon;
 
     return (
@@ -241,18 +274,18 @@ export default function CharacterCreationWizard({
             <StepIcon className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-white">{steps[currentStep]?.title}</h2>
-            <p className="text-gray-300">{steps[currentStep]?.description}</p>
+            <h2 className="text-2xl font-bold text-white">{currentStepData.title}</h2>
+            <p className="text-gray-300">{currentStepData.description}</p>
           </div>
         </div>
         
         {/* Renderizar componente do step */}
         <div className="bg-gray-900/20 rounded-xl p-6 backdrop-blur-sm border border-gray-700/30">
           {(() => {
-            switch (stepId) {
-              case "basic-info":
+            switch (currentStepData.id) {
+              case "basics":
                 return <BasicInfoStep />;
-              case "ability-scores":
+              case "abilities":
                 return <AbilityScoresStep />;
               case "skills":
                 return <SkillsStep />;
@@ -265,11 +298,11 @@ export default function CharacterCreationWizard({
               default:
                 return (
                   <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <AlertCircle className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-300 mb-2">Step não encontrado</h3>
-                    <p className="text-gray-500">O step "{stepId}" não está implementado.</p>
+                    <AlertCircle className="w-16 h-16 text-orange-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-white mb-2">Step não implementado</h3>
+                    <p className="text-gray-400">
+                      O step "{currentStepData.id}" ainda não foi implementado.
+                    </p>
                   </div>
                 );
             }
@@ -280,174 +313,133 @@ export default function CharacterCreationWizard({
   };
 
   // ===========================
-  // RENDER PRINCIPAL
+  // MAIN RENDER
   // ===========================
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent)] pointer-events-none" />
-      
-      <div className="relative z-10 flex h-screen">
+      <div className="flex">
         {/* Sidebar */}
         {showSidebar && (
-          <div className="w-80 bg-gray-900/95 backdrop-blur-xl border-r border-gray-700/50 flex flex-col">
-            {/* Header */}
-            <div className="p-6 border-b border-gray-700/50">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
-                </div>
+          <div className="w-80 bg-gray-800/50 border-r border-gray-700/50 backdrop-blur-sm min-h-screen">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h1 className="text-lg font-bold text-white">Criar Personagem</h1>
-                  {campaignContext && (
-                    <p className="text-sm text-gray-400">{campaignContext.name}</p>
-                  )}
+                  <h1 className="text-2xl font-bold text-white">Criar Personagem</h1>
+                  <p className="text-gray-400 text-sm">
+                    {campaignContext?.name ? `${campaignContext.name}` : 'Personagem independente'}
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowSidebar(false)}
+                  className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-300" />
+                </button>
               </div>
 
               {/* Progress */}
-              <div className="mt-4">
-                <div className="flex justify-between text-sm text-gray-400 mb-2">
-                  <span>Progresso</span>
-                  <span>{currentStep + 1} de {steps.length}</span>
+              <div className="mb-8">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-gray-300">Progresso</span>
+                  <span className="text-sm text-gray-400">
+                    {Math.round(((currentStep + 1) / steps.length) * 100)}%
+                  </span>
                 </div>
-                <div className="w-full bg-gray-800 rounded-full h-2">
+                <div className="w-full bg-gray-700/50 rounded-full h-2">
                   <div 
                     className="bg-gradient-to-r from-purple-500 to-indigo-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Steps */}
-            <div className="flex-1 p-4 space-y-2 overflow-y-auto">
-              {steps.map((step, index) => (
-                <SidebarStep key={step.id} step={step} index={index} />
-              ))}
-            </div>
+              {/* Steps */}
+              <div className="space-y-3">
+                {steps.map((step, index) => renderSidebarStep(step, index))}
+              </div>
 
-            {/* Actions */}
-            <div className="p-4 border-t border-gray-700/50 space-y-3">
-              <button
-                onClick={handleReset}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span>Reiniciar</span>
-              </button>
-
-              {onCancel && (
+              {/* Actions */}
+              <div className="mt-8 space-y-3">
                 <button
-                  onClick={onCancel}
-                  className="w-full px-4 py-2 bg-gray-600/50 hover:bg-gray-500/50 text-gray-300 rounded-lg transition-colors"
+                  onClick={handleReset}
+                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-gray-300 rounded-lg transition-colors"
                 >
-                  Cancelar
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reiniciar</span>
                 </button>
-              )}
+                
+                {onCancel && (
+                  <button
+                    onClick={onCancel}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors"
+                  >
+                    <span>Cancelar</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Top Bar */}
-          <div className="bg-gray-900/50 backdrop-blur-sm border-b border-gray-700/50 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setShowSidebar(!showSidebar)}
-                  className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
-                >
-                  <Settings className="w-5 h-5 text-gray-400" />
-                </button>
-                
-                <div>
-                  <h2 className="text-lg font-semibold text-white">
-                    {steps[currentStep]?.title}
-                  </h2>
-                  <p className="text-sm text-gray-400">
-                    Passo {currentStep + 1} de {steps.length}
-                  </p>
-                </div>
-              </div>
-
-              {/* Character Summary */}
-              <div className="flex items-center space-x-6 text-sm">
-                {characterData.name && (
-                  <div>
-                    <span className="text-gray-400">Nome:</span>
-                    <span className="text-white ml-1 font-medium">{characterData.name}</span>
-                  </div>
-                )}
-                
-                {characterData.selectedRace && (
-                  <div>
-                    <span className="text-gray-400">Raça:</span>
-                    <span className="text-white ml-1">{characterData.selectedRace.name}</span>
-                  </div>
-                )}
-                
-                {characterData.selectedClass && (
-                  <div>
-                    <span className="text-gray-400">Classe:</span>
-                    <span className="text-white ml-1">{characterData.selectedClass.name}</span>
-                  </div>
-                )}
-              </div>
+          {/* Toggle Sidebar (when hidden) */}
+          {!showSidebar && (
+            <div className="p-4">
+              <button
+                onClick={() => setShowSidebar(true)}
+                className="p-2 rounded-lg bg-gray-700/50 hover:bg-gray-600/50 transition-colors"
+              >
+                <Settings className="w-5 h-5 text-gray-300" />
+              </button>
             </div>
-          </div>
+          )}
 
           {/* Step Content */}
-          <div className="flex-1 p-6 overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center space-y-4">
-                  <Loader2 className="w-8 h-8 text-purple-400 animate-spin mx-auto" />
-                  <p className="text-gray-400">Carregando...</p>
-                </div>
-              </div>
-            ) : error ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center space-y-4 max-w-md">
-                  <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
-                  <div>
-                    <h3 className="text-lg font-medium text-red-300 mb-2">Erro</h3>
-                    <p className="text-gray-400">{error}</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              renderCurrentStep()
-            )}
-          </div>
-
-          {/* Bottom Navigation */}
-          <div className="bg-gray-900/50 backdrop-blur-sm border-t border-gray-700/50 p-6">
-            {creationError && (
-              <div className="mb-4 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
-                <div className="flex items-start space-x-3">
+          <div className="flex-1 p-8">
+            {error && (
+              <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <div className="flex items-start space-x-2">
                   <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
                   <div>
-                    <h4 className="font-medium text-red-300">Erro ao criar personagem</h4>
-                    <p className="text-sm text-red-400 mt-1">{creationError}</p>
+                    <h3 className="font-medium text-red-400">Erro</h3>
+                    <p className="text-sm text-red-300 mt-1">{error}</p>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              <button
-                onClick={handlePrev}
-                disabled={isFirstStep}
-                className="flex items-center space-x-2 px-6 py-3 bg-gray-700/50 hover:bg-gray-600/50 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>Anterior</span>
-              </button>
+            {creationError && (
+              <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-red-400">Erro ao criar personagem</h3>
+                    <p className="text-sm text-red-300 mt-1">{creationError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
-              <div className="flex items-center space-x-3">
+            {renderCurrentStep()}
+
+            {/* Navigation */}
+            <div className="mt-8 flex items-center justify-between">
+              <div>
+                {!isFirstStep && (
+                  <button
+                    onClick={handlePrev}
+                    className="flex items-center space-x-2 px-6 py-3 bg-gray-600/50 hover:bg-gray-500/50 text-gray-300 rounded-xl transition-all"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Anterior</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-4">
                 {!isLastStep ? (
                   <button
                     onClick={handleNext}

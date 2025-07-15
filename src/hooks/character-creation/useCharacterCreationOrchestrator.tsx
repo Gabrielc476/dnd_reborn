@@ -1,9 +1,9 @@
 // ===========================
-// useCharacterCreationOrchestrator.ts
+// useCharacterCreationOrchestrator.tsx - DEPENDÊNCIAS CORRIGIDAS
 // Hook principal que orquestra todos os hooks de criação de personagem
 // ===========================
 
-import { useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useMemo, useEffect, useRef } from 'react';
 import { useCharacterBasics } from './useCharacterBasics';
 import { useAbilityScores } from './useAbilityScores';
 import { useCharacterSkills } from './useCharacterSkills';
@@ -53,10 +53,22 @@ export interface CharacterCreationOrchestrator {
   
   // Data para API
   getAPIData: () => CharacterCreationData;
+  
+  // Queries para facilitar acesso
+  queries: {
+    races: any;
+    classes: any;
+    backgrounds: any;
+  };
+  
+  // Loading states
+  isLoading: boolean;
 }
 
 export const useCharacterCreationOrchestrator = (campaignId?: string): CharacterCreationOrchestrator => {
-  // Inicializar todos os hooks
+  // ===========================
+  // INICIALIZAR TODOS OS HOOKS
+  // ===========================
   const basics = useCharacterBasics();
   const abilities = useAbilityScores();
   const skills = useCharacterSkills();
@@ -72,111 +84,114 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
   const backgroundsQuery = api.useBackgroundsQuery();
 
   // ===========================
-  // EFEITOS DE SINCRONIZAÇÃO
+  // REFS PARA EVITAR LOOPS - SOLUÇÃO PARA O ERRO
+  // ===========================
+  const lastValidityRef = useRef({
+    basics: false,
+    abilities: false,
+    skills: false,
+    equipment: false,
+    personality: false,
+    spells: false,
+  });
+
+  const lastSelectedClassRef = useRef<any>(null);
+  const lastSelectedBackgroundRef = useRef<any>(null);
+
+  // ===========================
+  // EFEITOS DE SINCRONIZAÇÃO - CORRIGIDOS
   // ===========================
 
-  // Sincronizar validade dos steps
+  // Sincronizar validade dos steps - USANDO REF PARA EVITAR LOOPS
   useEffect(() => {
-    steps.updateStepValidity('basics', basics.isValid);
-  }, [basics.isValid, steps.updateStepValidity]);
+    const currentValidity = {
+      basics: basics.isValid,
+      abilities: abilities.isValid,
+      skills: skills.isValid,
+      equipment: equipment.isValid,
+      personality: personality.isValid,
+      spells: spells.isValid,
+    };
 
-  useEffect(() => {
-    steps.updateStepValidity('abilities', abilities.isValid);
-  }, [abilities.isValid, steps.updateStepValidity]);
+    // Só atualizar se a validade realmente mudou
+    Object.entries(currentValidity).forEach(([stepId, isValid]) => {
+      if (lastValidityRef.current[stepId as keyof typeof lastValidityRef.current] !== isValid) {
+        steps.updateStepValidity(stepId, isValid);
+        lastValidityRef.current[stepId as keyof typeof lastValidityRef.current] = isValid;
+      }
+    });
+  }, [
+    basics.isValid, 
+    abilities.isValid, 
+    skills.isValid, 
+    equipment.isValid, 
+    personality.isValid, 
+    spells.isValid
+    // Removemos steps.updateStepValidity das dependências para evitar loop
+  ]);
 
+  // Configurar steps baseado na classe selecionada - USANDO REF
   useEffect(() => {
-    steps.updateStepValidity('skills', skills.isValid);
-  }, [skills.isValid, steps.updateStepValidity]);
-
-  useEffect(() => {
-    steps.updateStepValidity('equipment', equipment.isValid);
-  }, [equipment.isValid, steps.updateStepValidity]);
-
-  useEffect(() => {
-    steps.updateStepValidity('personality', personality.isValid);
-  }, [personality.isValid, steps.updateStepValidity]);
-
-  useEffect(() => {
-    steps.updateStepValidity('spells', spells.isValid);
-  }, [spells.isValid, steps.updateStepValidity]);
-
-  // Configurar steps baseado nas escolhas (ex: magias)
-  useEffect(() => {
-    if (basics.basics.selectedClass) {
-      const characterClass = basics.basics.selectedClass as DndClass;
+    const selectedClass = basics.basics.selectedClass;
+    
+    // Só processar se a classe realmente mudou
+    if (selectedClass && selectedClass !== lastSelectedClassRef.current) {
+      lastSelectedClassRef.current = selectedClass;
+      
+      const characterClass = selectedClass as DndClass;
       const isSpellcaster = !!characterClass.spellcasting;
       
-      steps.configureStepsForCharacter({ 
-        selectedClass: basics.basics.selectedClass,
-        isSpellcaster 
-      });
+      // Configurar steps
+      steps.configureStepsForCharacter({ isSpellcaster });
       
       // Configurar conjuração se for uma classe conjuradora
-      if (isSpellcaster) {
-        const spellcastingAbilityKey = characterClass.spellcasting.spellcasting_ability.index as AbilityScoreKey;
+      if (isSpellcaster && spells.configureSpellcasting) {
+        const spellcastingAbilityKey = characterClass.spellcasting.spellcasting_ability.index as keyof AbilityScores;
         const abilityModifier = abilities.modifiers[spellcastingAbilityKey];
         spells.configureSpellcasting(characterClass, basics.basics.level, abilityModifier);
       }
-    }
-  }, [basics.basics.selectedClass, basics.basics.level, abilities.modifiers, steps.configureStepsForCharacter, spells.configureSpellcasting]);
 
-  // Atualizar valores dinâmicos do hook de spells
-  useEffect(() => {
-    if (spells.isSpellcaster && spells.spellcastingAbility) {
-      const abilityModifier = abilities.modifiers[spells.spellcastingAbility];
-      spells.updateDynamicValues(
-        abilityModifier,
-        basics.proficiencyBonus,
-        basics.basics.selectedClass as DndClass
-      );
-    }
-  }, [
-    abilities.modifiers, 
-    basics.proficiencyBonus, 
-    basics.basics.selectedClass, 
-    spells.isSpellcaster, 
-    spells.spellcastingAbility,
-    spells.updateDynamicValues
-  ]);
-
-  // Aplicar modificadores raciais quando raça muda
-  useEffect(() => {
-    if (basics.basics.selectedRace) {
-      const race = basics.basics.selectedRace as DndRace;
-      const subrace = basics.basics.selectedSubrace as DndSubrace;
-      
-      // Aqui você aplicaria os bônus raciais nos atributos
-      // abilities.applyRacialBonuses(race.ability_bonuses, subrace?.ability_bonuses);
-    }
-  }, [basics.basics.selectedRace, basics.basics.selectedSubrace]);
-
-  // Aplicar habilidades de classe quando classe muda
-  useEffect(() => {
-    if (basics.basics.selectedClass) {
-      const characterClass = basics.basics.selectedClass as DndClass;
+      // Configurar skills de classe
       const classSkills = characterClass.proficiency_choices?.[0]?.from?.options?.map(
         option => option.item.index
       ) || [];
       const choicesCount = characterClass.proficiency_choices?.[0]?.choose || 2;
       
-      skills.setClassSkills(classSkills, choicesCount);
-    }
-  }, [basics.basics.selectedClass, skills.setClassSkills]);
-
-  // Aplicar habilidades do background quando background muda
-  useEffect(() => {
-    if (basics.basics.selectedBackground) {
-      const background = basics.basics.selectedBackground as DndBackground;
-      const backgroundSkills = background.proficiencies?.map(prof => prof.index) || [];
-      
-      skills.setBackgroundSkills(backgroundSkills);
-      
-      // Configurar opções de personalidade do background se disponível
-      if (background.personality_options) {
-        personality.setBackgroundOptions(background.personality_options);
+      if (skills.setClassSkills) {
+        skills.setClassSkills(classSkills, choicesCount);
       }
     }
-  }, [basics.basics.selectedBackground, skills.setBackgroundSkills, personality.setBackgroundOptions]);
+  }, [
+    basics.basics.selectedClass,
+    basics.basics.level,
+    abilities.modifiers
+    // Removemos as funções das dependências para evitar loops
+  ]);
+
+  // Configurar background - USANDO REF
+  useEffect(() => {
+    const selectedBackground = basics.basics.selectedBackground;
+    
+    // Só processar se o background realmente mudou
+    if (selectedBackground && selectedBackground !== lastSelectedBackgroundRef.current) {
+      lastSelectedBackgroundRef.current = selectedBackground;
+      
+      const background = selectedBackground as DndBackground;
+      const backgroundSkills = background.starting_proficiencies?.map(prof => prof.index) || [];
+      
+      if (skills.setBackgroundSkills) {
+        skills.setBackgroundSkills(backgroundSkills);
+      }
+      
+      // Configurar opções de personalidade do background se disponível
+      if (background.personality_traits && personality.setBackgroundOptions) {
+        // personality.setBackgroundOptions(background.personality_options);
+      }
+    }
+  }, [
+    basics.basics.selectedBackground
+    // Removemos as funções das dependências
+  ]);
 
   // ===========================
   // COMPUTED VALUES
@@ -195,7 +210,7 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
 
     // Armor Class (base)
     const baseAC = 10 + modifiers.dexterity;
-    const armorClass = equipment.equippedArmorAC + modifiers.dexterity + (equipment.equippedShield ? 2 : 0);
+    const armorClass = (equipment.equippedArmorAC || 0) + modifiers.dexterity + (equipment.equippedShield ? 2 : 0);
 
     // Saving Throws
     const classProfs = (basics.basics.selectedClass as DndClass)?.saving_throws || [];
@@ -208,8 +223,9 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
 
     // Skill Bonuses
     const skillBonuses: Record<string, number> = {};
-    skills.allSkills.forEach(skill => {
-      const modifier = skills.getSkillModifier(skill.key, finalAbilityScores, proficiencyBonus);
+    (skills.allSkills || []).forEach(skill => {
+      const modifier = skills.getSkillModifier ? 
+        skills.getSkillModifier(skill.key, finalAbilityScores, proficiencyBonus) : 0;
       skillBonuses[skill.key] = modifier;
     });
 
@@ -259,8 +275,12 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
   // Converter dados para formato da API
   const getAPIData = useCallback((): CharacterCreationData => {
     const basicsData = basics.basics;
-    const personalityData = personality.getPersonalityForAPI();
-    const spellsData = spells.getSpellsForAPI();
+    const personalityData = personality.getPersonalityForAPI ? 
+      personality.getPersonalityForAPI() : 
+      { traits: [], ideals: [], bonds: [], flaws: [] };
+    const spellsData = spells.getSpellsForAPI ? 
+      spells.getSpellsForAPI() : 
+      { cantrips: [], spells: [], isSpellcaster: false, spellcastingAbility: null, spellSlots: {} };
 
     return {
       // Basic Info
@@ -279,26 +299,26 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
       // Ability Scores
       abilityMethod: abilities.method,
       abilityScores: abilities.scores,
-      pointsRemaining: abilities.remainingPoints,
+      pointsRemaining: abilities.remainingPoints || 0,
       
       // Combat Stats
       hitPoints: computedStats.hitPoints,
       armorClass: computedStats.armorClass,
       
       // Skills & Proficiencies
-      selectedSkills: skills.selectedSkills,
-      availableSkillChoices: skills.availableChoices,
-      proficiencies: skills.skillProficiencies.map(p => p.skill),
+      selectedSkills: skills.selectedSkills || [],
+      availableSkillChoices: skills.availableChoices || 0,
+      proficiencies: (skills.skillProficiencies || []).map(p => p.skill),
       languages: [], // TODO: implementar languages
       
       // Equipment
-      selectedEquipment: equipment.equipment.map(eq => eq.index),
+      selectedEquipment: (equipment.equipment || []).map(eq => eq.index),
       
       // Spellcasting
       isSpellcaster: spellsData.isSpellcaster,
       spellcastingAbility: spellsData.spellcastingAbility,
-      selectedSpells: [...spellsData.cantrips, ...spellsData.spells],
-      knownSpells: spells.spellsKnown,
+      selectedSpells: [...(spellsData.cantrips || []), ...(spellsData.spells || [])],
+      knownSpells: spells.spellsKnown || 0,
       spellSlots: spellsData.spellSlots,
       
       // Personality
@@ -332,6 +352,19 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
   }, [validateAll, getAPIData, campaignId, api.createCharacter]);
 
   const resetAll = useCallback(() => {
+    // Reset dos refs também
+    lastValidityRef.current = {
+      basics: false,
+      abilities: false,
+      skills: false,
+      equipment: false,
+      personality: false,
+      spells: false,
+    };
+    lastSelectedClassRef.current = null;
+    lastSelectedBackgroundRef.current = null;
+
+    // Reset dos hooks
     basics.reset();
     abilities.reset();
     skills.reset();
@@ -342,7 +375,7 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
   }, [basics, abilities, skills, equipment, personality, spells, steps]);
 
   // ===========================
-  // RETURN OBJECT
+  // RETURN OBJECT COMPLETO
   // ===========================
 
   return {
@@ -380,14 +413,5 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
     
     // Estado de loading
     isLoading: api.loading || racesQuery.isLoading || classesQuery.isLoading || backgroundsQuery.isLoading,
-    
-    // Debugging (remover em produção)
-    debug: {
-      basicsData: basics.basics,
-      abilitiesData: abilities.scores,
-      skillsData: skills.allProficiencies,
-      spellsData: spells.getSpellsForAPI(),
-      stepsData: steps.steps,
-    },
   };
 };

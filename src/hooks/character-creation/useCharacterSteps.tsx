@@ -1,13 +1,15 @@
 // ===========================
-// useCharacterSteps.ts
+// useCharacterSteps.tsx - CORRIGIDO
 // Hook para gerenciar navegação dos steps do wizard
 // ===========================
 
 import { useState, useCallback, useMemo } from 'react';
-import { CharacterCreationStep, StepId, DndClass } from '@/types/characterCreation';
 
-// Interface específica do hook que estende os tipos base
-export interface CharacterStep extends CharacterCreationStep {
+// Interface para os steps do character creation
+export interface CharacterStep {
+  id: string;
+  title: string;
+  description: string;
   isRequired: boolean;
   isValid: boolean;
   isCompleted?: boolean;
@@ -15,6 +17,7 @@ export interface CharacterStep extends CharacterCreationStep {
   component?: string;
 }
 
+// Steps padrão com IDs corretos
 export const defaultSteps: CharacterStep[] = [
   {
     id: "basics",
@@ -45,7 +48,7 @@ export const defaultSteps: CharacterStep[] = [
     title: "Equipamentos",
     description: "Armas, armaduras e itens",
     isRequired: false,
-    isValid: true,
+    isValid: true, // Opcionais começam como válidos
     icon: "Package",
   },
   {
@@ -53,7 +56,7 @@ export const defaultSteps: CharacterStep[] = [
     title: "Magias",
     description: "Escolha suas magias (se aplicável)",
     isRequired: false,
-    isValid: true,
+    isValid: true, // Opcionais começam como válidos
     icon: "Sparkles",
   },
   {
@@ -61,7 +64,7 @@ export const defaultSteps: CharacterStep[] = [
     title: "Personalidade",
     description: "Traços, ideais, vínculos e defeitos",
     isRequired: false,
-    isValid: true,
+    isValid: true, // Opcionais começam como válidos
     icon: "Heart",
   },
 ];
@@ -74,11 +77,59 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
 
   // Step atual
   const currentStep = useMemo(() => {
+    return currentStepIndex;
+  }, [currentStepIndex]);
+
+  // Dados do step atual
+  const currentStepData = useMemo(() => {
     return steps[currentStepIndex] || null;
   }, [steps, currentStepIndex]);
 
+  // ===========================
+  // NAVIGATION FUNCTIONS
+  // ===========================
+
+  // Navegar para próximo step
+  const nextStep = useCallback(() => {
+    if (currentStepIndex < steps.length - 1) {
+      const nextIndex = currentStepIndex + 1;
+      const nextStepId = steps[nextIndex].id;
+      
+      setCurrentStepIndex(nextIndex);
+      setVisitedSteps(prev => new Set([...prev, nextStepId]));
+    }
+  }, [currentStepIndex, steps]);
+
+  // Navegar para step anterior
+  const prevStep = useCallback(() => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex(prev => prev - 1);
+    }
+  }, [currentStepIndex]);
+
+  // Navegar para step específico por índice
+  const goToStep = useCallback((stepIndex: number) => {
+    if (stepIndex >= 0 && stepIndex < steps.length) {
+      setCurrentStepIndex(stepIndex);
+      setVisitedSteps(prev => new Set([...prev, steps[stepIndex].id]));
+    }
+  }, [steps]);
+
+  // Navegar para step específico por ID
+  const goToStepById = useCallback((stepId: string) => {
+    const stepIndex = steps.findIndex(step => step.id === stepId);
+    if (stepIndex >= 0) {
+      setCurrentStepIndex(stepIndex);
+      setVisitedSteps(prev => new Set([...prev, stepId]));
+    }
+  }, [steps]);
+
+  // ===========================
+  // STEP MANAGEMENT
+  // ===========================
+
   // Atualizar validade de um step
-  const updateStepValidity = useCallback((stepId: StepId, isValid: boolean) => {
+  const updateStepValidity = useCallback((stepId: string, isValid: boolean) => {
     setSteps(prev => prev.map(step => 
       step.id === stepId ? { ...step, isValid } : step
     ));
@@ -95,36 +146,8 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
     }
   }, []);
 
-  // Navegar para step anterior
-  const goToPreviousStep = useCallback(() => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(prev => prev - 1);
-    }
-  }, [currentStepIndex]);
-
-  // Navegar para próximo step
-  const goToNextStep = useCallback(() => {
-    if (currentStepIndex < steps.length - 1) {
-      const nextIndex = currentStepIndex + 1;
-      const nextStepId = steps[nextIndex].id;
-      
-      setCurrentStepIndex(nextIndex);
-      setVisitedSteps(prev => new Set([...prev, nextStepId]));
-    }
-  }, [currentStepIndex, steps]);
-
-  // Navegar para step específico
-  const goToStep = useCallback((stepId: StepId) => {
-    const stepIndex = steps.findIndex(step => step.id === stepId);
-    if (stepIndex >= 0) {
-      setCurrentStepIndex(stepIndex);
-      setVisitedSteps(prev => new Set([...prev, stepId]));
-    }
-  }, [steps]);
-
   // Configurar steps baseado na classe selecionada
   const configureStepsForCharacter = useCallback((config: {
-    selectedClass: DndClass;
     isSpellcaster?: boolean;
   }) => {
     setSteps(prev => prev.map(step => {
@@ -139,9 +162,13 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
     }));
   }, []);
 
-  // Verificar se pode prosseguir
+  // ===========================
+  // VALIDATION FUNCTIONS
+  // ===========================
+
+  // Verificar se pode prosseguir do step atual
   const canProceed = useCallback(() => {
-    const currentStepData = currentStep;
+    const currentStepData = steps[currentStepIndex];
     if (!currentStepData) return false;
     
     // Para steps obrigatórios, deve ser válido
@@ -151,7 +178,7 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
     
     // Steps opcionais sempre podem prosseguir
     return true;
-  }, [currentStep]);
+  }, [steps, currentStepIndex]);
 
   // Verificar se step foi visitado
   const isStepVisited = useCallback((stepId: string) => {
@@ -168,13 +195,17 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
     const step = steps.find(s => s.id === stepId);
     if (!step) return 'unknown';
     
-    if (step.id === currentStep?.id) return 'current';
+    if (step.id === currentStepData?.id) return 'current';
     if (isStepCompleted(stepId)) return 'completed';
     if (isStepVisited(stepId)) return 'visited';
     if (step.isValid) return 'valid';
     if (step.isRequired && !step.isValid) return 'invalid';
     return 'pending';
-  }, [steps, currentStep, isStepCompleted, isStepVisited]);
+  }, [steps, currentStepData, isStepCompleted, isStepVisited]);
+
+  // ===========================
+  // COMPUTED VALUES
+  // ===========================
 
   // Obter progresso do wizard
   const getProgress = useMemo(() => {
@@ -205,14 +236,6 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
     return requiredSteps.every(step => step.isValid);
   }, [steps]);
 
-  // Reset do wizard
-  const reset = useCallback(() => {
-    setSteps(initialSteps);
-    setCurrentStepIndex(0);
-    setCompletedSteps(new Set());
-    setVisitedSteps(new Set(['basics']));
-  }, [initialSteps]);
-
   // Obter steps disponíveis para navegação
   const availableSteps = useMemo(() => {
     return steps.map((step, index) => ({
@@ -223,52 +246,92 @@ export const useCharacterSteps = (initialSteps: CharacterStep[] = defaultSteps) 
     }));
   }, [steps, currentStepIndex, isStepVisited, getStepStatus]);
 
+  // ===========================
+  // UTILITY FUNCTIONS
+  // ===========================
+
+  // Reset do wizard
+  const reset = useCallback(() => {
+    setSteps(defaultSteps);
+    setCurrentStepIndex(0);
+    setCompletedSteps(new Set());
+    setVisitedSteps(new Set(['basics']));
+  }, []);
+
   // Obter próximo step inválido
   const getNextInvalidStep = useCallback(() => {
     return steps.find(step => step.isRequired && !step.isValid);
   }, [steps]);
 
+  // Obter step por ID
+  const getStepById = useCallback((stepId: string) => {
+    return steps.find(step => step.id === stepId);
+  }, [steps]);
+
+  // Obter índice do step por ID
+  const getStepIndexById = useCallback((stepId: string) => {
+    return steps.findIndex(step => step.id === stepId);
+  }, [steps]);
+
   return {
-    // State
+    // ===========================
+    // STATE
+    // ===========================
     steps,
-    currentStep,
+    currentStep, // Índice numérico
+    currentStepData, // Dados do step atual
     currentStepIndex,
     completedSteps: Array.from(completedSteps),
     visitedSteps: Array.from(visitedSteps),
     
-    // Navigation
-    goToNextStep,
-    goToPreviousStep,
+    // ===========================
+    // NAVIGATION
+    // ===========================
+    nextStep,
+    prevStep,
     goToStep,
+    goToStepById,
     canProceed,
     
-    // Configuration
+    // ===========================
+    // STEP MANAGEMENT
+    // ===========================
     configureStepsForCharacter,
     updateStepValidity,
     
-    // Status
+    // ===========================
+    // STATUS CHECKS
+    // ===========================
     isStepVisited,
     isStepCompleted,
     getStepStatus,
     availableSteps,
     
-    // Progress
+    // ===========================
+    // PROGRESS
+    // ===========================
     progress: getProgress,
     isComplete,
     
-    // Utils
+    // ===========================
+    // UTILITIES
+    // ===========================
     reset,
     getNextInvalidStep,
+    getStepById,
+    getStepIndexById,
     
-    // Computed
+    // ===========================
+    // COMPUTED FLAGS
+    // ===========================
     hasNextStep: currentStepIndex < steps.length - 1,
     hasPreviousStep: currentStepIndex > 0,
     isFirstStep: currentStepIndex === 0,
     isLastStep: currentStepIndex === steps.length - 1,
     
-    // Helpers
-    getStepById: (stepId: StepId) => steps.find(step => step.id === stepId),
-    getStepIndexById: (stepId: StepId) => steps.findIndex(step => step.id === stepId),
+    // ===========================
+    // HELPER FUNCTIONS
+    // ===========================
     getAllRequiredSteps: () => steps.filter(step => step.isRequired),
     getAllValidSteps: () => steps.filter(step => step.isValid),
     getAllInvalidRequiredSteps: () => steps.filter(step => step.isRequired && !step.isValid),

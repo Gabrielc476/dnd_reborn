@@ -1,5 +1,5 @@
 // ===========================
-// useCharacterSkills.ts
+// useCharacterSkills.tsx - CORRIGIDO
 // Hook para gerenciar habilidades do personagem
 // ===========================
 
@@ -20,8 +20,8 @@ export const useCharacterSkills = () => {
   const [skillProficiencies, setSkillProficiencies] = useState<SkillProficiency[]>([]);
   const [expertiseSkills, setExpertiseSkills] = useState<string[]>([]);
   const [classSkillOptions, setClassSkillOptions] = useState<string[]>([]);
-  const [backgroundSkills, setBackgroundSkills] = useState<string[]>([]);
-  const [racialSkills, setRacialSkills] = useState<string[]>([]);
+  const [backgroundSkills, setBackgroundSkillsState] = useState<string[]>([]);
+  const [racialSkills, setRacialSkillsState] = useState<string[]>([]);
 
   // Adicionar proficiência por fonte
   const addSkillProficiency = useCallback((skill: string, source: 'class' | 'background' | 'race' | 'feat') => {
@@ -50,56 +50,61 @@ export const useCharacterSkills = () => {
       }
     });
 
-    // Remover da lista de selecionadas se não há mais proficiências
-    const remainingProficiencies = skillProficiencies.filter(p => 
-      p.skill === skill && (!source || p.source !== source)
-    );
-    
-    if (remainingProficiencies.length === 0) {
-      setSelectedSkills(prev => prev.filter(s => s !== skill));
-    }
+    // Remover da lista de skills selecionadas se não tiver mais proficiências
+    setSelectedSkills(prev => {
+      const hasOtherProficiency = skillProficiencies.some(p => 
+        p.skill === skill && p.source !== source
+      );
+      if (!hasOtherProficiency) {
+        return prev.filter(s => s !== skill);
+      }
+      return prev;
+    });
   }, [skillProficiencies]);
 
-  // Toggle skill selection (para escolhas de classe)
-  const toggleSkill = useCallback((skillKey: string) => {
-    const isCurrentlySelected = selectedSkills.includes(skillKey);
-    
-    if (isCurrentlySelected) {
-      // Remover skill se for de escolha da classe
-      const skillProf = skillProficiencies.find(p => p.skill === skillKey && p.source === 'class');
-      if (skillProf) {
-        removeSkillProficiency(skillKey, 'class');
-      }
+  // Toggle skill selection
+  const toggleSkill = useCallback((skill: string) => {
+    if (selectedSkills.includes(skill)) {
+      removeSkillProficiency(skill, 'class');
     } else {
-      // Adicionar skill se há escolhas disponíveis
-      const classSkillsSelected = selectedSkills.filter(skill => 
-        classSkillOptions.includes(skill)
-      ).length;
-      
-      if (classSkillsSelected < availableChoices && classSkillOptions.includes(skillKey)) {
-        addSkillProficiency(skillKey, 'class');
-      }
+      addSkillProficiency(skill, 'class');
     }
-  }, [selectedSkills, skillProficiencies, removeSkillProficiency, addSkillProficiency, classSkillOptions, availableChoices]);
+  }, [selectedSkills, addSkillProficiency, removeSkillProficiency]);
+
+  // Verificar se pode selecionar skill
+  const canSelectSkill = useCallback((skill: string) => {
+    // Se já está selecionada, pode remover
+    if (selectedSkills.includes(skill)) {
+      return true;
+    }
+    
+    // Se não está selecionada, verificar se tem escolhas disponíveis
+    const classSkillsSelected = selectedSkills.filter(s => 
+      classSkillOptions.includes(s) && 
+      skillProficiencies.some(p => p.skill === s && p.source === 'class')
+    ).length;
+    
+    return classSkillsSelected < availableChoices && classSkillOptions.includes(skill);
+  }, [selectedSkills, availableChoices, classSkillOptions, skillProficiencies]);
 
   // Configurar skills da classe
-  const setClassSkills = useCallback((skillOptions: string[], choicesCount: number) => {
+  const setClassSkills = useCallback((skillOptions: string[], choices: number = 2) => {
     setClassSkillOptions(skillOptions);
-    setAvailableChoices(choicesCount);
+    setAvailableChoices(choices);
     
     // Remover skills de classe que não estão mais disponíveis
-    const currentClassSkills = selectedSkills.filter(skill => 
-      skillProficiencies.some(p => p.skill === skill && p.source === 'class')
-    );
+    const currentClassSkills = skillProficiencies.filter(
+      p => p.source === 'class'
+    ).map(p => p.skill);
     
     currentClassSkills.forEach(skill => {
       if (!skillOptions.includes(skill)) {
         removeSkillProficiency(skill, 'class');
       }
     });
-  }, [selectedSkills, skillProficiencies, removeSkillProficiency]);
+  }, [skillProficiencies, removeSkillProficiency]);
 
-  // Configurar skills do background
+  // Configurar skills do background - CORRIGIDO
   const setBackgroundSkills = useCallback((skills: string[]) => {
     // Remover skills antigas do background
     backgroundSkills.forEach(skill => {
@@ -111,10 +116,11 @@ export const useCharacterSkills = () => {
       addSkillProficiency(skill, 'background');
     });
     
-    setBackgroundSkills(skills);
+    // Atualizar o estado do background skills
+    setBackgroundSkillsState(skills);
   }, [backgroundSkills, removeSkillProficiency, addSkillProficiency]);
 
-  // Configurar skills raciais
+  // Configurar skills raciais - CORRIGIDO
   const setRacialSkills = useCallback((skills: string[]) => {
     // Remover skills antigas da raça
     racialSkills.forEach(skill => {
@@ -126,7 +132,8 @@ export const useCharacterSkills = () => {
       addSkillProficiency(skill, 'race');
     });
     
-    setRacialSkills(skills);
+    // Atualizar o estado das skills raciais
+    setRacialSkillsState(skills);
   }, [racialSkills, removeSkillProficiency, addSkillProficiency]);
 
   // Adicionar expertise
@@ -144,50 +151,34 @@ export const useCharacterSkills = () => {
   // Calcular bônus de skill
   const getSkillModifier = useCallback((
     skillKey: string, 
-    abilityScores: AbilityScores, 
-    proficiencyBonus: number
+    abilityScores: AbilityScores,
+    proficiencyBonus: number = 2
   ) => {
     const skill = SKILLS.find(s => s.key === skillKey);
     if (!skill) return 0;
 
-    const abilityModifier = Math.floor((abilityScores[skill.ability] - 10) / 2);
-    const isProficient = selectedSkills.includes(skillKey);
+    const abilityMod = Math.floor((abilityScores[skill.ability] - 10) / 2);
+    const isProficient = skillProficiencies.some(p => p.skill === skillKey);
     const hasExpertise = expertiseSkills.includes(skillKey);
 
-    let bonus = abilityModifier;
+    let bonus = abilityMod;
     if (isProficient) {
       bonus += proficiencyBonus;
     }
     if (hasExpertise) {
-      bonus += proficiencyBonus; // Expertise = dobro do proficiency bonus
+      bonus += proficiencyBonus; // Expertise dobra o bônus de proficiência
     }
 
     return bonus;
-  }, [selectedSkills, expertiseSkills]);
+  }, [skillProficiencies, expertiseSkills]);
 
-  // Obter todas as proficiências
+  // Computed values
   const allProficiencies = useMemo(() => {
-    return skillProficiencies.reduce((acc, prof) => {
-      if (!acc[prof.skill]) {
-        acc[prof.skill] = [];
-      }
-      acc[prof.skill].push(prof.source);
-      return acc;
-    }, {} as Record<string, string[]>);
+    return skillProficiencies.map(p => ({
+      ...p,
+      skillInfo: SKILLS.find(s => s.key === p.skill)
+    }));
   }, [skillProficiencies]);
-
-  // Verificar se skill está disponível para seleção
-  const canSelectSkill = useCallback((skillKey: string) => {
-    if (!classSkillOptions.includes(skillKey)) return false;
-    if (selectedSkills.includes(skillKey)) return true;
-    
-    const classSkillsSelected = selectedSkills.filter(skill => 
-      classSkillOptions.includes(skill) && 
-      skillProficiencies.some(p => p.skill === skill && p.source === 'class')
-    ).length;
-    
-    return classSkillsSelected < availableChoices;
-  }, [classSkillOptions, selectedSkills, skillProficiencies, availableChoices]);
 
   // Validação
   const isValid = useMemo(() => {
@@ -206,8 +197,8 @@ export const useCharacterSkills = () => {
     setSkillProficiencies([]);
     setExpertiseSkills([]);
     setClassSkillOptions([]);
-    setBackgroundSkills([]);
-    setRacialSkills([]);
+    setBackgroundSkillsState([]);
+    setRacialSkillsState([]);
   }, []);
 
   // Helpers
