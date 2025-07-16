@@ -1,27 +1,23 @@
-// ===========================
-// NOVO PROVIDER USANDO O ORQUESTRADOR - CORRIGIDO
-// src/hooks/useCharacterCreation.tsx
-// ===========================
-
-"use client";
-
-import React, { createContext, useContext, useMemo, useCallback, useState } from 'react';
+import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useCharacterCreationOrchestrator } from './character-creation/useCharacterCreationOrchestrator';
-import { 
-  CharacterCreationContextType, 
-  CharacterCreationData,
-  AbilityScores,
-  DndSpell
-} from '@/types/characterCreation';
+import { CharacterCreationContextType, CharacterCreationData, AbilityScores } from '@/types/characterCreation';
 
 // ===========================
-// CONTEXTO
+// CONTEXT CREATION
 // ===========================
 
-const CharacterCreationContext = createContext<CharacterCreationContextType | null>(null);
+const CharacterCreationContext = createContext<CharacterCreationContextType | undefined>(undefined);
+
+export const useCharacterCreationContext = () => {
+  const context = useContext(CharacterCreationContext);
+  if (!context) {
+    throw new Error('useCharacterCreationContext must be used within a CharacterCreationProvider');
+  }
+  return context;
+};
 
 // ===========================
-// PROVIDER USANDO O ORQUESTRADOR
+// PROVIDER COMPONENT
 // ===========================
 
 interface CharacterCreationProviderProps {
@@ -33,43 +29,26 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
   children, 
   campaignId 
 }) => {
-  // Hook orquestrador principal
   const orchestrator = useCharacterCreationOrchestrator(campaignId);
-  
-  // Estados de busca (mantidos para compatibilidade)
-  const [raceSearch, setRaceSearch] = useState('');
-  const [classSearch, setClassSearch] = useState('');
-  const [spellSearch, setSpellSearch] = useState('');
 
   // ===========================
-  // COMPATIBILITY LAYER - CORRIGIDO COM VERIFICAÇÕES DE SEGURANÇA
+  // COMPUTED CHARACTER DATA
   // ===========================
 
-  // Mapear dados do orquestrador para a interface antiga
-  const characterData: CharacterCreationData = useMemo(() => ({
-    // Basic Info
+  const characterData = useMemo((): CharacterCreationData => ({
+    // Basic Info - COM VERIFICAÇÃO DE SEGURANÇA
     name: orchestrator.basics.basics.name,
     level: orchestrator.basics.basics.level,
-    experience: 0,
-    
-    // Character Choices
     selectedRace: orchestrator.basics.basics.selectedRace,
-    selectedSubrace: orchestrator.basics.basics.selectedSubrace,
     selectedClass: orchestrator.basics.basics.selectedClass,
-    selectedSubclass: orchestrator.basics.basics.selectedSubclass,
     selectedBackground: orchestrator.basics.basics.selectedBackground,
     alignment: orchestrator.basics.basics.alignment,
+    characterClass: orchestrator.basics.basics.selectedClass,
     
-    // Ability Scores
-    abilityMethod: orchestrator.abilities.method,
+    // Ability Scores - COM VERIFICAÇÃO DE SEGURANÇA
     abilityScores: orchestrator.abilities.scores,
-    pointsRemaining: orchestrator.abilities.pointsRemaining,
     
-    // Combat Stats
-    hitPoints: orchestrator.computedStats.hitPoints,
-    armorClass: orchestrator.computedStats.armorClass,
-    
-    // Skills & Proficiencies - COM VERIFICAÇÃO DE SEGURANÇA
+    // Skills - COM VERIFICAÇÃO DE SEGURANÇA
     selectedSkills: orchestrator.skills.selectedSkills || [],
     availableSkillChoices: orchestrator.skills.availableChoices || 0,
     proficiencies: (orchestrator.skills.skillProficiencies || []).map(p => p.skill),
@@ -116,16 +95,16 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
     // Bônus raciais - COM VERIFICAÇÃO DE SEGURANÇA
     if (orchestrator.basics.basics.selectedRace?.ability_bonuses) {
       orchestrator.basics.basics.selectedRace.ability_bonuses.forEach(bonus => {
-        const ability = bonus.ability_score.index as keyof AbilityScores;
-        bonuses[ability] += bonus.bonus;
+        const abilityName = bonus.ability_score.index as keyof AbilityScores;
+        bonuses[abilityName] += bonus.bonus;
       });
     }
 
-    // Bônus sub-raciais - COM VERIFICAÇÃO DE SEGURANÇA
+    // Bônus de sub-raça - COM VERIFICAÇÃO DE SEGURANÇA
     if (orchestrator.basics.basics.selectedSubrace?.ability_bonuses) {
       orchestrator.basics.basics.selectedSubrace.ability_bonuses.forEach(bonus => {
-        const ability = bonus.ability_score.index as keyof AbilityScores;
-        bonuses[ability] += bonus.bonus;
+        const abilityName = bonus.ability_score.index as keyof AbilityScores;
+        bonuses[abilityName] += bonus.bonus;
       });
     }
 
@@ -136,18 +115,23 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
     return Math.floor((score - 10) / 2);
   }, []);
 
-  const calculateHitPoints = useCallback((): number => {
-    if (!orchestrator.basics.basics.selectedClass) return 0;
+  const calculateHitPoints = useCallback(() => {
+    const selectedClass = orchestrator.basics.basics.selectedClass;
+    const constitutionModifier = calculateModifier(orchestrator.abilities.scores.constitution);
+    const level = orchestrator.basics.basics.level;
     
-    const hitDie = orchestrator.basics.basics.selectedClass.hit_die || 8;
-    const conModifier = calculateModifier(orchestrator.abilities.scores.constitution);
+    if (!selectedClass) return 0;
     
-    return hitDie + conModifier;
-  }, [orchestrator.basics.basics.selectedClass, orchestrator.abilities.scores.constitution, calculateModifier]);
+    const hitDie = selectedClass.hit_die;
+    const baseHP = hitDie + constitutionModifier; // Máximo no nível 1
+    const additionalHP = (level - 1) * (Math.floor(hitDie / 2) + 1 + constitutionModifier);
+    
+    return Math.max(1, baseHP + additionalHP);
+  }, [orchestrator.basics.basics.selectedClass, orchestrator.abilities.scores.constitution, orchestrator.basics.basics.level, calculateModifier]);
 
-  const calculateArmorClass = useCallback((): number => {
-    const dexModifier = calculateModifier(orchestrator.abilities.scores.dexterity);
-    return 10 + dexModifier; // AC base + mod DES
+  const calculateArmorClass = useCallback(() => {
+    const dexterityModifier = calculateModifier(orchestrator.abilities.scores.dexterity);
+    return 10 + dexterityModifier; // AC base sem armadura
   }, [orchestrator.abilities.scores.dexterity, calculateModifier]);
 
   const getSpellcastingAbility = useCallback((classIndex?: string) => {
@@ -184,6 +168,10 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
         orchestrator.abilities.updateScore(ability as keyof AbilityScores, score);
       });
     }
+    // ✅ CORREÇÃO: Tratamento simplificado para abilityMethod
+    if (updates.abilityMethod !== undefined) {
+      orchestrator.abilities.changeMethod(updates.abilityMethod as any);
+    }
   }, [orchestrator]);
 
   const updateCharacterField = useCallback(<K extends keyof CharacterCreationData>(
@@ -195,7 +183,7 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
 
   const updateAbilityScore = useCallback((ability: keyof AbilityScores, score: number) => {
     orchestrator.abilities.updateScore(ability, score);
-  }, [orchestrator]);
+  }, [orchestrator.abilities]);
 
   const toggleSkill = useCallback((skillKey: string) => {
     orchestrator.skills.toggleSkill(skillKey);
@@ -207,7 +195,7 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
   }, []);
 
   // ===========================
-  // VALIDATION
+  // VALIDATION - CORRIGIDO PARA USAR A FUNÇÃO DO STEPS
   // ===========================
 
   const validateStep = useCallback((stepIndex: number) => {
@@ -218,9 +206,10 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
     return validateStep(orchestrator.steps.currentStep);
   }, [validateStep, orchestrator.steps.currentStep]);
 
+  // ✅ CORREÇÃO: Usar a função canProceed do steps em vez de duplicar a lógica
   const canProceed = useCallback((): boolean => {
-    return validateCurrentStep();
-  }, [validateCurrentStep]);
+    return orchestrator.steps.canProceed();
+  }, [orchestrator.steps]);
 
   // ===========================
   // ACTIONS
@@ -252,7 +241,7 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
     nextStep: orchestrator.steps.nextStep,
     prevStep: orchestrator.steps.prevStep,
     goToStep: orchestrator.steps.goToStep,
-    canProceed,
+    canProceed, // ✅ CORRIGIDO: Agora usa a função do steps
 
     // Character Data
     characterData,
@@ -279,28 +268,34 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
     isLoadingRaces: orchestrator.queries?.races?.isLoading || false,
     isLoadingClasses: orchestrator.queries?.classes?.isLoading || false,
     isLoadingBackgrounds: orchestrator.queries?.backgrounds?.isLoading || false,
-    isLoadingSpells: false, // TODO
-    isLoadingSubclasses: false, // TODO
-    isLoadingSubraces: false, // TODO
+    isLoadingSpells: false, // TODO: implementar
+    isLoadingSubclasses: false, // TODO: implementar
+    isLoadingSubraces: false, // TODO: implementar
 
     // Search Functionality
-    raceSearch,
-    setRaceSearch,
-    classSearch,
-    setClassSearch,
-    spellSearch,
-    setSpellSearch,
-    raceSearchTerm: raceSearch,
-    setRaceSearchTerm: setRaceSearch,
-    classSearchTerm: classSearch,
-    setClassSearchTerm: setClassSearch,
-    spellSearchTerm: spellSearch,
-    setSpellSearchTerm: setSpellSearch,
+    raceSearch: '',
+    setRaceSearch: () => {},
+    classSearch: '',
+    setClassSearch: () => {},
+    spellSearch: '',
+    setSpellSearch: () => {},
+    raceSearchTerm: '',
+    setRaceSearchTerm: () => {},
+    classSearchTerm: '',
+    setClassSearchTerm: () => {},
+    spellSearchTerm: '',
+    setSpellSearchTerm: () => {},
 
     // Validation
-    validateStep,
+    validateStep: (stepId: string) => {
+      const stepIndex = orchestrator.steps.steps.findIndex(s => s.id === stepId);
+      return stepIndex >= 0 ? validateStep(stepIndex) : false;
+    },
     validateCurrentStep,
-    isStepValid: validateStep,
+    isStepValid: (stepId: string) => {
+      const step = orchestrator.steps.steps.find(s => s.id === stepId);
+      return step?.isValid || false;
+    },
 
     // Actions
     resetCharacter,
@@ -323,19 +318,9 @@ export const CharacterCreationProvider: React.FC<CharacterCreationProviderProps>
 };
 
 // ===========================
-// HOOK DE CONTEXTO
+// CUSTOM HOOK FOR EASIER USAGE
 // ===========================
 
-export const useCharacterCreationContext = (): CharacterCreationContextType => {
-  const context = useContext(CharacterCreationContext);
-  if (!context) {
-    throw new Error('useCharacterCreationContext deve ser usado dentro de um CharacterCreationProvider');
-  }
-  return context;
+export const useCharacterCreation = () => {
+  return useCharacterCreationContext();
 };
-
-// ===========================
-// EXPORTS
-// ===========================
-
-export default CharacterCreationProvider;

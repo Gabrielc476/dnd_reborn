@@ -1,74 +1,67 @@
-// ===========================
-// ABILITY SCORES STEP - ATUALIZADO PARA USAR NOVOS HOOKS
-// src/components/character-creation/steps/AbilityScoresStep.tsx
-// ===========================
-
-"use client";
-
-import { useState, useMemo } from "react";
-import { useCharacterCreationContext } from "@/hooks/useCharacterCreation";
+import React, { useState, useMemo } from 'react';
+import { useCharacterCreationContext } from '@/hooks/useCharacterCreation';
+import { AbilityScores } from '@/types/characterCreation';
 import { 
+  Target, 
+  Shield, 
+  Dice6, 
   Zap, 
-  Plus, 
-  Minus, 
-  RotateCcw, 
-  Info, 
-  Dice6,
-  Target,
-  Shield,
-  Heart,
-  Brain,
-  Eye,
-  Users
-} from "lucide-react";
-import { AbilityScores, AbilityScoreKey } from "@/types/characterCreation";
+  Heart, 
+  Brain, 
+  Eye, 
+  Sparkles,
+  Sword,
+  Plus,
+  Minus,
+  Info
+} from 'lucide-react';
 
 // ===========================
-// CONFIGURAÇÕES DAS HABILIDADES
+// CONSTANTS
 // ===========================
 
 const ABILITY_INFO = {
   strength: {
     name: 'Força',
-    icon: Zap,
+    description: 'Poder físico',
+    icon: Sword,
     color: 'from-red-500 to-red-600',
-    description: 'Medida do poder físico',
-    examples: 'Atletismo, escalar, saltar, nadar'
+    examples: 'Atletismo, saltos, escalada, levantamento de peso, ataques corpo a corpo'
   },
   dexterity: {
     name: 'Destreza',
+    description: 'Agilidade',
     icon: Target,
     color: 'from-green-500 to-green-600',
-    description: 'Medida de agilidade',
-    examples: 'Acrobacia, furtividade, prestidigitação'
+    examples: 'Acrobacia, furtividade, prestidigitação, ataques à distância, reflexos'
   },
   constitution: {
     name: 'Constituição',
-    icon: Shield,
+    description: 'Resistência',
+    icon: Heart,
     color: 'from-orange-500 to-orange-600',
-    description: 'Medida de resistência',
-    examples: 'Pontos de vida, resistência a venenos'
+    examples: 'Pontos de vida, resistência física, concentração, resistir a doenças'
   },
   intelligence: {
     name: 'Inteligência',
+    description: 'Raciocínio',
     icon: Brain,
     color: 'from-blue-500 to-blue-600',
-    description: 'Medida de raciocínio',
-    examples: 'Arcanismo, história, investigação'
+    examples: 'Conhecimento, lógica, investigação, memória, análise, magias de mago'
   },
   wisdom: {
     name: 'Sabedoria',
+    description: 'Percepção',
     icon: Eye,
     color: 'from-purple-500 to-purple-600',
-    description: 'Medida de percepção',
-    examples: 'Percepção, intuição, medicina'
+    examples: 'Percepção, intuição, sobrevivência, medicina, magias de clérigo'
   },
   charisma: {
     name: 'Carisma',
-    icon: Users,
+    description: 'Força de personalidade',
+    icon: Sparkles,
     color: 'from-pink-500 to-pink-600',
-    description: 'Medida de força de personalidade',
-    examples: 'Persuasão, enganação, intimidação'
+    examples: 'Persuasão, enganação, intimidação, liderança, magias de bardo'
   }
 };
 
@@ -80,13 +73,13 @@ const ABILITY_METHODS = [
     icon: Target
   },
   {
-    id: 'standard' as const,
+    id: 'standard-array' as const,
     name: 'Array Padrão',
     description: 'Use os valores padrão: 15, 14, 13, 12, 10, 8',
     icon: Shield
   },
   {
-    id: 'rolled' as const,
+    id: 'roll' as const,
     name: 'Rolagem',
     description: 'Role 4d6, descarte o menor (simulado)',
     icon: Dice6
@@ -148,11 +141,11 @@ export default function AbilityScoresStep() {
   // HANDLERS
   // ===========================
 
-  const handleMethodChange = (method: 'point-buy' | 'standard' | 'rolled') => {
+  const handleMethodChange = (method: 'point-buy' | 'standard-array' | 'roll') => {
     updateCharacterField('abilityMethod', method);
     
     // Reset scores based on method
-    if (method === 'standard') {
+    if (method === 'standard-array') {
       const standardArray = [15, 14, 13, 12, 10, 8];
       const abilities: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
       
@@ -165,7 +158,7 @@ export default function AbilityScoresStep() {
       abilities.forEach(ability => {
         updateAbilityScore(ability, 8);
       });
-    } else if (method === 'rolled') {
+    } else if (method === 'roll') {
       // Simulate rolling 4d6 drop lowest
       const abilities: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
       abilities.forEach(ability => {
@@ -327,10 +320,10 @@ export default function AbilityScoresStep() {
             const MethodIcon = method.icon;
             
             return (
-              <div
+              <button
                 key={method.id}
                 onClick={() => handleMethodChange(method.id)}
-                className={`p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
+                className={`p-4 rounded-xl border transition-all duration-200 text-left ${
                   isSelected
                     ? 'bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border-blue-400/50 shadow-lg shadow-blue-500/25'
                     : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600/50 hover:bg-gray-700/50'
@@ -356,7 +349,7 @@ export default function AbilityScoresStep() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -380,72 +373,54 @@ export default function AbilityScoresStep() {
               }`}>
                 {remainingPoints}
               </div>
-              <div className="text-sm text-gray-500">restantes</div>
+              <div className="text-sm text-gray-400">
+                {remainingPoints === 0 ? 'Completo' : 'Restantes'}
+              </div>
             </div>
           </div>
-          
-          {remainingPoints < 0 && (
-            <div className="mt-3 p-3 bg-red-500/20 rounded-lg border border-red-500/30">
-              <p className="text-sm text-red-300">
-                Você excedeu o limite de pontos! Reduza algumas habilidades.
-              </p>
-            </div>
-          )}
         </div>
       )}
 
       {/* Ability Scores Grid */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-white">Pontuações de Habilidade</h3>
-          
-          {characterData.abilityMethod === 'rolled' && (
-            <button
-              onClick={() => handleMethodChange('rolled')}
-              className="flex items-center space-x-2 px-3 py-2 bg-gray-700/50 hover:bg-gray-600/50 rounded-lg transition-colors"
-            >
-              <RotateCcw className="w-4 h-4 text-gray-400" />
-              <span className="text-sm text-gray-300">Rolar Novamente</span>
-            </button>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {(Object.keys(ABILITY_INFO) as (keyof AbilityScores)[]).map((ability) => (
-            <AbilityCard key={ability} ability={ability} />
-          ))}
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Object.keys(ABILITY_INFO).map(ability => (
+          <AbilityCard key={ability} ability={ability as keyof AbilityScores} />
+        ))}
       </div>
 
+      {/* Racial Bonuses Info */}
+      {Object.values(abilityBonuses).some(bonus => bonus > 0) && (
+        <div className="bg-green-900/20 rounded-xl p-4 border border-green-700/50">
+          <h4 className="font-medium text-green-300 mb-2">Bônus Raciais</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+            {Object.entries(abilityBonuses).map(([ability, bonus]) => (
+              bonus > 0 && (
+                <div key={ability} className="text-green-400">
+                  {ABILITY_INFO[ability as keyof AbilityScores].name}: +{bonus}
+                </div>
+              )
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Summary */}
-      <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
-        <h4 className="font-medium text-white mb-4">Resumo das Habilidades</h4>
-        
+      <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
+        <h4 className="font-medium text-white mb-3">Resumo dos Atributos</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-          {(Object.keys(ABILITY_INFO) as (keyof AbilityScores)[]).map((ability) => {
-            const info = ABILITY_INFO[ability];
-            const finalScore = finalScores[ability];
-            const modifier = calculateModifier(finalScore);
-            
+          {Object.entries(finalScores).map(([ability, score]) => {
+            const modifier = calculateModifier(score);
             return (
-              <div key={ability} className="flex justify-between items-center">
-                <span className="text-gray-400">{info.name}:</span>
+              <div key={ability} className="flex justify-between">
+                <span className="text-gray-400 capitalize">
+                  {ABILITY_INFO[ability as keyof AbilityScores].name}
+                </span>
                 <span className="text-white font-medium">
-                  {finalScore} ({modifier >= 0 ? '+' : ''}{modifier})
+                  {score} ({modifier >= 0 ? '+' : ''}{modifier})
                 </span>
               </div>
             );
           })}
-        </div>
-
-        {/* Total Modifier */}
-        <div className="mt-4 pt-4 border-t border-gray-700/50">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-400">Total de Modificadores:</span>
-            <span className="text-blue-400 font-semibold">
-              {Object.values(finalScores).reduce((sum, score) => sum + calculateModifier(score), 0)}
-            </span>
-          </div>
         </div>
       </div>
     </div>

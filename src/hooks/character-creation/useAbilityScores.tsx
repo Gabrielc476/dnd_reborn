@@ -1,268 +1,271 @@
-// ===========================
-// useAbilityScores.ts
-// Hook para gerenciar atributos do personagem
-// ===========================
+import React, { useState } from 'react';
+import { useCharacterCreationContext } from '@/hooks/useCharacterCreation';
+import { Target, Shield, Dice6 } from 'lucide-react';
 
-import { useState, useCallback, useMemo } from 'react';
-import { AbilityScores, AbilityScoreKey } from '@/types/characterCreation';
+const ABILITY_METHODS = [
+  {
+    id: 'point-buy' as const,
+    name: 'Compra de Pontos',
+    description: 'Distribua 27 pontos entre as habilidades (8-15)',
+    icon: Target
+  },
+  {
+    id: 'standard' as const,
+    name: 'Array Padrão',
+    description: 'Use os valores padrão: 15, 14, 13, 12, 10, 8',
+    icon: Shield
+  },
+  {
+    id: 'rolled' as const,
+    name: 'Rolagem',
+    description: 'Role 4d6, descarte o menor (simulado)',
+    icon: Dice6
+  }
+];
 
-export type AbilityMethod = 'point-buy' | 'standard-array' | 'roll';
+export default function AbilityScoresStep() {
+  const context = useCharacterCreationContext();
+  
+  // Acessar o orchestrator diretamente agora que está exposto
+  const orchestrator = (context as any).orchestrator || {};
+  
+  console.log('🔍 [AbilityScoresStep] Full context:', context);
+  console.log('🔍 [AbilityScoresStep] Orchestrator:', orchestrator);
+  console.log('🔍 [AbilityScoresStep] abilities hook:', orchestrator.abilities);
 
-// Tipos específicos do hook que estendem os tipos base
-export interface AbilityModifiers {
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
-}
+  const {
+    characterData,
+    updateCharacterField,
+    updateAbilityScore,
+  } = context;
 
-const INITIAL_SCORES: AbilityScores = {
-  strength: 8,
-  dexterity: 8,
-  constitution: 8,
-  intelligence: 8,
-  wisdom: 8,
-  charisma: 8,
-};
+  const [debugLog, setDebugLog] = useState<string[]>([]);
 
-const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
-
-const POINT_BUY_COSTS: Record<number, number> = {
-  8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5,
-  14: 7, 15: 9
-};
-
-export const useAbilityScores = () => {
-  const [method, setMethod] = useState<AbilityMethod>('point-buy');
-  const [scores, setScores] = useState<AbilityScores>(INITIAL_SCORES);
-  const [pointsUsed, setPointsUsed] = useState(0);
-  const [standardArrayAssigned, setStandardArrayAssigned] = useState<Record<AbilityScoreKey, number | null>>({
-    strength: null,
-    dexterity: null,
-    constitution: null,
-    intelligence: null,
-    wisdom: null,
-    charisma: null,
-  });
-  const [rolledScores, setRolledScores] = useState<number[]>([]);
-
-  const maxPoints = 27;
-
-  // Calcular modificadores
-  const modifiers = useMemo((): AbilityModifiers => {
-    const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
-    
-    return {
-      strength: calculateModifier(scores.strength),
-      dexterity: calculateModifier(scores.dexterity),
-      constitution: calculateModifier(scores.constitution),
-      intelligence: calculateModifier(scores.intelligence),
-      wisdom: calculateModifier(scores.wisdom),
-      charisma: calculateModifier(scores.charisma),
-    };
-  }, [scores]);
-
-  // Calcular pontos gastos no Point Buy
-  const calculatePointsUsed = useCallback((abilityScores: AbilityScores) => {
-    return Object.values(abilityScores).reduce((total, score) => {
-      return total + (POINT_BUY_COSTS[score] || 0);
-    }, 0);
-  }, []);
-
-  // Atualizar pontos gastos quando scores mudam
-  useMemo(() => {
-    if (method === 'point-buy') {
-      const newPointsUsed = calculatePointsUsed(scores);
-      setPointsUsed(newPointsUsed);
-    }
-  }, [scores, method, calculatePointsUsed]);
-
-  // Atualizar score individual (Point Buy)
-  const updateScore = useCallback((ability: AbilityScoreKey, newScore: number) => {
-    if (method !== 'point-buy') return;
-
-    const clampedScore = Math.max(8, Math.min(15, newScore));
-    const tempScores = { ...scores, [ability]: clampedScore };
-    const tempPointsUsed = calculatePointsUsed(tempScores);
-
-    if (tempPointsUsed <= maxPoints) {
-      setScores(tempScores);
-    }
-  }, [method, scores, calculatePointsUsed, maxPoints]);
-
-  // Incrementar score
-  const incrementScore = useCallback((ability: AbilityScoreKey) => {
-    updateScore(ability, scores[ability] + 1);
-  }, [updateScore, scores]);
-
-  // Decrementar score
-  const decrementScore = useCallback((ability: AbilityScoreKey) => {
-    updateScore(ability, scores[ability] - 1);
-  }, [updateScore, scores]);
-
-  // Verificar se pode incrementar
-  const canIncrement = useCallback((ability: AbilityScoreKey) => {
-    if (method !== 'point-buy') return false;
-    
-    const currentScore = scores[ability];
-    if (currentScore >= 15) return false;
-    
-    const nextCost = POINT_BUY_COSTS[currentScore + 1] || 0;
-    const currentCost = POINT_BUY_COSTS[currentScore] || 0;
-    const additionalCost = nextCost - currentCost;
-    
-    return pointsUsed + additionalCost <= maxPoints;
-  }, [method, scores, pointsUsed, maxPoints]);
-
-  // Verificar se pode decrementar
-  const canDecrement = useCallback((ability: AbilityScoreKey) => {
-    if (method !== 'point-buy') return false;
-    return scores[ability] > 8;
-  }, [method, scores]);
-
-  // Assignar valor do Standard Array
-  const assignStandardArrayValue = useCallback((ability: AbilityScoreKey, value: number) => {
-    if (method !== 'standard-array') return;
-
-    // Remover o valor de qualquer habilidade que já o tenha
-    const newAssigned = { ...standardArrayAssigned };
-    Object.keys(newAssigned).forEach(key => {
-      if (newAssigned[key as AbilityScoreKey] === value) {
-        newAssigned[key as AbilityScoreKey] = null;
-      }
-    });
-
-    // Assignar o novo valor
-    newAssigned[ability] = value;
-    setStandardArrayAssigned(newAssigned);
-
-    // Atualizar scores
-    const newScores = { ...INITIAL_SCORES };
-    Object.entries(newAssigned).forEach(([key, val]) => {
-      if (val !== null) {
-        newScores[key as AbilityScoreKey] = val;
-      }
-    });
-    setScores(newScores);
-  }, [method, standardArrayAssigned]);
-
-  // Gerar scores aleatórios
-  const rollAbilityScores = useCallback(() => {
-    const rollOneStat = () => {
-      const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
-      rolls.sort((a, b) => b - a);
-      return rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
-    };
-
-    const newRolledScores = Array.from({ length: 6 }, rollOneStat);
-    setRolledScores(newRolledScores);
-
-    // Assignar automaticamente aos atributos
-    const newScores: AbilityScores = {
-      strength: newRolledScores[0],
-      dexterity: newRolledScores[1],
-      constitution: newRolledScores[2],
-      intelligence: newRolledScores[3],
-      wisdom: newRolledScores[4],
-      charisma: newRolledScores[5],
-    };
-    setScores(newScores);
-  }, []);
-
-  // Trocar método
-  const changeMethod = useCallback((newMethod: AbilityMethod) => {
-    setMethod(newMethod);
-    
-    if (newMethod === 'point-buy') {
-      setScores(INITIAL_SCORES);
-      setPointsUsed(0);
-    } else if (newMethod === 'standard-array') {
-      setScores(INITIAL_SCORES);
-      setStandardArrayAssigned({
-        strength: null,
-        dexterity: null,
-        constitution: null,
-        intelligence: null,
-        wisdom: null,
-        charisma: null,
-      });
-    } else if (newMethod === 'roll') {
-      rollAbilityScores();
-    }
-  }, [rollAbilityScores]);
-
-  // Validação
-  const isValid = useMemo(() => {
-    if (method === 'point-buy') {
-      return pointsUsed <= maxPoints;
-    } else if (method === 'standard-array') {
-      return Object.values(standardArrayAssigned).every(val => val !== null);
-    } else if (method === 'roll') {
-      return rolledScores.length === 6;
-    }
-    return false;
-  }, [method, pointsUsed, maxPoints, standardArrayAssigned, rolledScores]);
-
-  // Reset
-  const reset = useCallback(() => {
-    setMethod('point-buy');
-    setScores(INITIAL_SCORES);
-    setPointsUsed(0);
-    setStandardArrayAssigned({
-      strength: null,
-      dexterity: null,
-      constitution: null,
-      intelligence: null,
-      wisdom: null,
-      charisma: null,
-    });
-    setRolledScores([]);
-  }, []);
-
-  // Helpers
-  const getRemainingPoints = useMemo(() => {
-    return maxPoints - pointsUsed;
-  }, [maxPoints, pointsUsed]);
-
-  const getAvailableStandardArrayValues = useMemo(() => {
-    const assigned = Object.values(standardArrayAssigned).filter(val => val !== null);
-    return STANDARD_ARRAY.filter(val => !assigned.includes(val));
-  }, [standardArrayAssigned]);
-
-  return {
-    // State
-    method,
-    scores,
-    pointsUsed,
-    standardArrayAssigned,
-    rolledScores,
-    modifiers,
-    
-    // Actions
-    updateScore,
-    incrementScore,
-    decrementScore,
-    assignStandardArrayValue,
-    rollAbilityScores,
-    changeMethod,
-    
-    // Validation
-    canIncrement,
-    canDecrement,
-    isValid,
-    
-    // Utils
-    reset,
-    
-    // Computed values
-    remainingPoints: getRemainingPoints,
-    availableStandardArrayValues: getAvailableStandardArrayValues,
-    
-    // Constants
-    maxPoints,
-    standardArray: STANDARD_ARRAY,
-    pointBuyCosts: POINT_BUY_COSTS,
+  const addLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    console.log('🔧', logMessage);
+    setDebugLog(prev => [...prev.slice(-9), logMessage]);
   };
-};
+
+  const handleMethodChange = (method: 'point-buy' | 'standard' | 'rolled') => {
+    addLog(`Method change clicked: ${method}`);
+    
+    try {
+      if (!updateCharacterField) {
+        addLog('ERROR: updateCharacterField is not available');
+        return;
+      }
+      
+      addLog(`Calling updateCharacterField with: abilityMethod = ${method}`);
+      updateCharacterField('abilityMethod', method);
+      addLog(`updateCharacterField call completed`);
+      
+    } catch (error) {
+      addLog(`ERROR in handleMethodChange: ${error}`);
+    }
+  };
+
+  const testDirectOrchestratorCall = () => {
+    addLog('Testing direct orchestrator call');
+    try {
+      if (orchestrator.abilities && orchestrator.abilities.changeMethod) {
+        const beforeMethod = orchestrator.abilities.method;
+        addLog(`Before: ${beforeMethod}`);
+        
+        orchestrator.abilities.changeMethod('point-buy');
+        
+        const afterMethod = orchestrator.abilities.method;
+        addLog(`After: ${afterMethod}`);
+        addLog('Direct call completed successfully!');
+      } else {
+        addLog('ERROR: orchestrator.abilities.changeMethod not available');
+        addLog(`Available: ${Object.keys(orchestrator.abilities || {}).join(', ')}`);
+      }
+    } catch (error) {
+      addLog(`ERROR in testDirectOrchestratorCall: ${error}`);
+    }
+  };
+
+  const testDirectMethodCall = () => {
+    addLog('Testing direct method call (bypassing context)');
+    try {
+      if (orchestrator.abilities && orchestrator.abilities.changeMethod) {
+        // Converter tipo para compatibilidade
+        const methodMap = {
+          'point-buy': 'point-buy' as const,
+          'standard': 'standard-array' as const,
+          'rolled': 'roll' as const
+        };
+        
+        const method = methodMap['point-buy'];
+        addLog(`Calling changeMethod directly with: ${method}`);
+        orchestrator.abilities.changeMethod(method);
+        addLog(`Direct call result - method is now: ${orchestrator.abilities.method}`);
+      }
+    } catch (error) {
+      addLog(`ERROR in testDirectMethodCall: ${error}`);
+    }
+  };
+
+  const testAbilityUpdate = () => {
+    addLog('Testing ability update');
+    try {
+      if (!updateAbilityScore) {
+        addLog('ERROR: updateAbilityScore is not available');
+        return;
+      }
+      
+      updateAbilityScore('strength', 10);
+      addLog('Ability update test completed');
+    } catch (error) {
+      addLog(`ERROR in testAbilityUpdate: ${error}`);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Debug Panel */}
+      <div className="bg-gray-900/80 rounded-xl p-6 border border-yellow-500/50">
+        <h3 className="text-yellow-400 font-semibold mb-4">🔍 Enhanced Debug Panel v2</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <h4 className="text-sm font-medium text-gray-300 mb-2">Context Status</h4>
+            <div className="text-xs text-gray-400 space-y-1">
+              <div>characterData: {characterData ? '✅' : '❌'}</div>
+              <div>updateCharacterField: {updateCharacterField ? '✅' : '❌'}</div>
+              <div>updateAbilityScore: {updateAbilityScore ? '✅' : '❌'}</div>
+              <div>Current Method: {characterData?.abilityMethod || 'undefined'}</div>
+              <div>Strength: {characterData?.abilityScores?.strength || 'undefined'}</div>
+              <div>orchestrator.abilities: {orchestrator.abilities ? '✅' : '❌'}</div>
+              <div>changeMethod: {orchestrator.abilities?.changeMethod ? '✅' : '❌'}</div>
+              <div>Direct method: {orchestrator.abilities?.method || 'undefined'}</div>
+              <div>Direct scores: {JSON.stringify(orchestrator.abilities?.scores || {})}</div>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="text-sm font-medium text-gray-300 mb-2">Test Buttons</h4>
+            <div className="space-y-2">
+              <button
+                onClick={testAbilityUpdate}
+                className="w-full px-3 py-2 bg-blue-600 text-white text-xs rounded hover:bg-blue-700"
+              >
+                Test Ability Update
+              </button>
+              <button
+                onClick={() => handleMethodChange('point-buy')}
+                className="w-full px-3 py-2 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+              >
+                Test Method Change (Context)
+              </button>
+              <button
+                onClick={testDirectOrchestratorCall}
+                className="w-full px-3 py-2 bg-purple-600 text-white text-xs rounded hover:bg-purple-700"
+              >
+                Test Direct Call
+              </button>
+              <button
+                onClick={testDirectMethodCall}
+                className="w-full px-3 py-2 bg-red-600 text-white text-xs rounded hover:bg-red-700"
+              >
+                Test Direct Method (Mapped)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium text-gray-300 mb-2">Debug Log</h4>
+          <div className="bg-black/50 rounded p-2 max-h-32 overflow-y-auto">
+            {debugLog.length === 0 ? (
+              <div className="text-xs text-gray-500">No logs yet...</div>
+            ) : (
+              debugLog.map((log, index) => (
+                <div key={index} className="text-xs text-green-400 font-mono">
+                  {log}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Method Selection - With Extra Debug */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold text-white">Método de Geração</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {ABILITY_METHODS.map((method) => {
+            const isSelected = characterData?.abilityMethod === method.id;
+            const isDirectSelected = orchestrator.abilities?.method === method.id || 
+              (method.id === 'standard' && orchestrator.abilities?.method === 'standard-array') ||
+              (method.id === 'rolled' && orchestrator.abilities?.method === 'roll');
+            const MethodIcon = method.icon;
+            
+            return (
+              <div key={method.id} className="space-y-2">
+                {/* Button Version */}
+                <button
+                  onClick={() => {
+                    addLog(`Button clicked for ${method.id}`);
+                    handleMethodChange(method.id);
+                  }}
+                  className={`w-full p-4 rounded-xl border transition-all duration-200 text-left ${
+                    isSelected
+                      ? 'bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border-blue-400/50 shadow-lg shadow-blue-500/25'
+                      : 'bg-gray-800/50 border-gray-700/50 hover:border-gray-600/50 hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`p-2 rounded-lg ${
+                      isSelected 
+                        ? 'bg-blue-500/20 text-blue-300' 
+                        : 'bg-gray-700/50 text-gray-400'
+                    }`}>
+                      <MethodIcon className="w-5 h-5" />
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h4 className={`font-medium ${
+                        isSelected ? 'text-blue-300' : 'text-white'
+                      }`}>
+                        {method.name}
+                      </h4>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {method.description}
+                      </p>
+                      <div className="text-xs mt-2">
+                        <span className={isSelected ? 'text-green-400' : 'text-gray-500'}>
+                          Context: {isSelected ? '✅' : '❌'}
+                        </span>
+                        {' | '}
+                        <span className={isDirectSelected ? 'text-green-400' : 'text-gray-500'}>
+                          Direct: {isDirectSelected ? '✅' : '❌'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Raw Data Display */}
+      <div className="bg-gray-800/30 rounded-xl p-4 border border-gray-700/50">
+        <h4 className="font-medium text-white mb-3">Raw Character Data</h4>
+        <pre className="text-xs text-gray-400 overflow-auto max-h-64">
+          {JSON.stringify({
+            characterData: characterData,
+            orchestratorMethod: orchestrator.abilities?.method,
+            orchestratorScores: orchestrator.abilities?.scores,
+            orchestratorFunctions: Object.keys(orchestrator.abilities || {}),
+          }, null, 2)}
+        </pre>
+      </div>
+    </div>
+  );
+}
