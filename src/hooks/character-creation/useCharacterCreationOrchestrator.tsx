@@ -1,5 +1,5 @@
 // ===========================
-// useCharacterCreationOrchestrator.tsx - DEPENDÊNCIAS CORRIGIDAS
+// useCharacterCreationOrchestrator.tsx - CORRIGIDO
 // Hook principal que orquestra todos os hooks de criação de personagem
 // ===========================
 
@@ -127,46 +127,58 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
     equipment.isValid, 
     personality.isValid, 
     spells.isValid
-    // Removemos steps.updateStepValidity das dependências para evitar loop
   ]);
 
   // Configurar steps baseado na classe selecionada - USANDO REF
   useEffect(() => {
-    const selectedClass = basics.basics.selectedClass;
-    
-    // Só processar se a classe realmente mudou
-    if (selectedClass && selectedClass !== lastSelectedClassRef.current) {
-      lastSelectedClassRef.current = selectedClass;
-      
-      const characterClass = selectedClass as DndClass;
-      const isSpellcaster = !!characterClass.spellcasting;
-      
-      // Configurar steps
-      steps.configureStepsForCharacter({ isSpellcaster });
-      
-      // Configurar conjuração se for uma classe conjuradora
-      if (isSpellcaster && spells.configureSpellcasting) {
-        const spellcastingAbilityKey = characterClass.spellcasting.spellcasting_ability.index as keyof AbilityScores;
-        const abilityModifier = abilities.modifiers[spellcastingAbilityKey];
-        spells.configureSpellcasting(characterClass, basics.basics.level, abilityModifier);
-      }
+  const selectedClass = basics.basics.selectedClass;
+  
+  console.log("Classe no orchestrator:", {
+    name: selectedClass?.name,
+    index: selectedClass?.index,
+    spellcasting: !!selectedClass?.spellcasting
+  });
 
-      // Configurar skills de classe
+  // Só processar se a classe realmente mudou e existe
+  if (selectedClass && selectedClass !== lastSelectedClassRef.current) {
+    console.log("Classe alterada:", selectedClass.name);
+    lastSelectedClassRef.current = selectedClass;
+    
+    const characterClass = selectedClass;
+    const isSpellcaster = !!characterClass.spellcasting;
+    
+    // Atualizar steps
+    steps.configureStepsForCharacter({ isSpellcaster });
+    
+    // Configurar conjuração se necessário
+    if (isSpellcaster && spells.configureSpellcasting) {
+      const spellcastingAbilityKey = characterClass.spellcasting.spellcasting_ability.index as keyof AbilityScores;
+      const abilityModifier = abilities.modifiers[spellcastingAbilityKey] || 0;
+      
+      spells.configureSpellcasting(
+        characterClass,
+        basics.basics.level,
+        abilityModifier
+      );
+    }
+
+    // Configurar skills de classe
+    if (skills.setClassSkills) {
       const classSkills = characterClass.proficiency_choices?.[0]?.from?.options?.map(
         option => option.item.index
       ) || [];
-      const choicesCount = characterClass.proficiency_choices?.[0]?.choose || 2;
       
-      if (skills.setClassSkills) {
-        skills.setClassSkills(classSkills, choicesCount);
-      }
+      const choicesCount = characterClass.proficiency_choices?.[0]?.choose || 2;
+      skills.setClassSkills(classSkills, choicesCount);
     }
-  }, [
-    basics.basics.selectedClass,
-    basics.basics.level,
-    abilities.modifiers
-    // Removemos as funções das dependências para evitar loops
-  ]);
+  }
+}, [
+  basics.basics.selectedClass, // Agora usando o objeto completo
+  basics.basics.level,
+  abilities.modifiers,
+  spells.configureSpellcasting,
+  skills.setClassSkills
+]);
 
   // Configurar background - USANDO REF
   useEffect(() => {
@@ -189,8 +201,9 @@ export const useCharacterCreationOrchestrator = (campaignId?: string): Character
       }
     }
   }, [
-    basics.basics.selectedBackground
-    // Removemos as funções das dependências
+    basics.basics.selectedBackground,
+    skills.setBackgroundSkills,
+    personality.setBackgroundOptions
   ]);
 
   // ===========================

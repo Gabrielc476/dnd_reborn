@@ -1,8 +1,3 @@
-// ===========================
-// CHARACTER CREATION WIZARD - CORRIGIDO
-// src/components/character-creation/CharacterCreationWizard.tsx
-// ===========================
-
 "use client";
 
 import { useState } from "react";
@@ -25,8 +20,6 @@ import {
   RotateCcw,
   Loader2
 } from "lucide-react";
-
-// Step components
 import BasicInfoStep from "./steps/BasicInfoStep";
 import AbilityScoresStep from "./steps/AbilityScoresStep";
 import SkillsStep from "./steps/SkillsStep";
@@ -51,30 +44,19 @@ export default function CharacterCreationWizard({
   campaignContext
 }: CharacterCreationWizardProps) {
   const {
-    // Step management via context
     currentStep,
     steps,
     nextStep,
     prevStep,
     goToStep,
-    
-    // Character data
     characterData,
-    
-    // Loading e errors
     loading,
     error,
-    
-    // Validation - usando as funções do contexto
     validateCurrentStep,
-    canProceed,
+    canProceed: contextCanProceed,
     validateStep,
-    
-    // Actions
     resetCharacter,
     createCharacter,
-    
-    // Utility functions
     calculateHitPoints,
     calculateArmorClass,
   } = useCharacterCreationContext();
@@ -83,7 +65,6 @@ export default function CharacterCreationWizard({
   const [isCreating, setIsCreating] = useState(false);
   const [creationError, setCreationError] = useState<string | null>(null);
 
-  // Verificações de segurança
   if (!steps || steps.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black flex items-center justify-center">
@@ -98,10 +79,6 @@ export default function CharacterCreationWizard({
   const currentStepData = steps[currentStep];
   const isFirstStep = currentStep === 0;
   const isLastStep = currentStep === steps.length - 1;
-
-  // ===========================
-  // STEP CONFIGURATION - CORRIGIDO
-  // ===========================
 
   const stepConfig = {
     "basics": {
@@ -136,12 +113,9 @@ export default function CharacterCreationWizard({
     }
   };
 
-  // ===========================
-  // HANDLERS
-  // ===========================
-
   const handleNext = () => {
-    if (canProceed()) {
+    console.log(contextCanProceed)
+    if (contextCanProceed()) {
       nextStep();
     }
   };
@@ -158,13 +132,10 @@ export default function CharacterCreationWizard({
     
     try {
       const result = await createCharacter();
-      console.log("✅ Personagem criado:", result);
-      
       if (onComplete) {
         onComplete(result);
       }
     } catch (error) {
-      console.error("❌ Erro ao criar personagem:", error);
       setCreationError(error instanceof Error ? error.message : "Erro desconhecido");
     } finally {
       setIsCreating(false);
@@ -176,10 +147,6 @@ export default function CharacterCreationWizard({
       resetCharacter();
     }
   };
-
-  // ===========================
-  // RENDER SIDEBAR STEP
-  // ===========================
 
   const renderSidebarStep = (step: any, index: number) => {
     const isActive = index === currentStep;
@@ -200,7 +167,6 @@ export default function CharacterCreationWizard({
             : 'hover:bg-gray-700/30'
         }`}
       >
-        {/* Icon */}
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${
           isActive 
             ? `bg-gradient-to-br ${stepInfo.color} shadow-lg` 
@@ -213,7 +179,6 @@ export default function CharacterCreationWizard({
           }`} />
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <h3 className={`font-semibold transition-colors ${
             isActive ? 'text-white' : isCompleted ? 'text-green-400' : 'text-gray-400'
@@ -227,7 +192,6 @@ export default function CharacterCreationWizard({
           </p>
         </div>
 
-        {/* Validation Status */}
         <div className="ml-4">
           {isCompleted ? (
             <CheckCircle className="w-5 h-5 text-green-400" />
@@ -238,10 +202,6 @@ export default function CharacterCreationWizard({
       </div>
     );
   };
-
-  // ===========================
-  // RENDER CURRENT STEP - CORRIGIDO
-  // ===========================
 
   const renderCurrentStep = () => {
     if (!currentStepData) {
@@ -279,51 +239,24 @@ export default function CharacterCreationWizard({
           </div>
         </div>
         
-        {/* Renderizar componente do step */}
         <div className="bg-gray-900/20 rounded-xl p-6 backdrop-blur-sm border border-gray-700/30">
-          {(() => {
-            switch (currentStepData.id) {
-              case "basics":
-                return <BasicInfoStep />;
-              case "abilities":
-                return <AbilityScoresStep />;
-              case "skills":
-                return <SkillsStep />;
-              case "equipment":
-                return <EquipmentStep />;
-              case "spells":
-                return <SpellsStep />;
-              case "personality":
-                return <PersonalityStep />;
-              default:
-                return (
-                  <div className="text-center py-12">
-                    <AlertCircle className="w-16 h-16 text-orange-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-white mb-2">Step não implementado</h3>
-                    <p className="text-gray-400">
-                      O step "{currentStepData.id}" ainda não foi implementado.
-                    </p>
-                  </div>
-                );
-            }
-          })()}
+          {currentStepData.id === "basics" && <BasicInfoStep />}
+          {currentStepData.id === "abilities" && <AbilityScoresStep />}
+          {currentStepData.id === "skills" && <SkillsStep />}
+          {currentStepData.id === "equipment" && <EquipmentStep />}
+          {currentStepData.id === "spells" && <SpellsStep />}
+          {currentStepData.id === "personality" && <PersonalityStep />}
         </div>
       </div>
     );
   };
 
-  // ===========================
-  // MAIN RENDER
-  // ===========================
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black">
       <div className="flex">
-        {/* Sidebar */}
         {showSidebar && (
           <div className="w-80 bg-gray-800/50 border-r border-gray-700/50 backdrop-blur-sm min-h-screen">
             <div className="p-6">
-              {/* Header */}
               <div className="flex items-center justify-between mb-8">
                 <div>
                   <h1 className="text-2xl font-bold text-white">Criar Personagem</h1>
@@ -339,7 +272,6 @@ export default function CharacterCreationWizard({
                 </button>
               </div>
 
-              {/* Progress */}
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-gray-300">Progresso</span>
@@ -355,12 +287,10 @@ export default function CharacterCreationWizard({
                 </div>
               </div>
 
-              {/* Steps */}
               <div className="space-y-3">
                 {steps.map((step, index) => renderSidebarStep(step, index))}
               </div>
 
-              {/* Actions */}
               <div className="mt-8 space-y-3">
                 <button
                   onClick={handleReset}
@@ -383,9 +313,7 @@ export default function CharacterCreationWizard({
           </div>
         )}
 
-        {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {/* Toggle Sidebar (when hidden) */}
           {!showSidebar && (
             <div className="p-4">
               <button
@@ -397,7 +325,6 @@ export default function CharacterCreationWizard({
             </div>
           )}
 
-          {/* Step Content */}
           <div className="flex-1 p-8">
             {error && (
               <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
@@ -425,7 +352,6 @@ export default function CharacterCreationWizard({
 
             {renderCurrentStep()}
 
-            {/* Navigation */}
             <div className="mt-8 flex items-center justify-between">
               <div>
                 {!isFirstStep && (
@@ -443,7 +369,7 @@ export default function CharacterCreationWizard({
                 {!isLastStep ? (
                   <button
                     onClick={handleNext}
-                    disabled={!canProceed()}
+                    disabled={!contextCanProceed()}
                     className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg"
                   >
                     <span>Próximo</span>
@@ -452,7 +378,7 @@ export default function CharacterCreationWizard({
                 ) : (
                   <button
                     onClick={handleFinish}
-                    disabled={!canProceed() || isCreating}
+                    disabled={!contextCanProceed() || isCreating}
                     className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all shadow-lg"
                   >
                     {isCreating ? (
@@ -471,8 +397,7 @@ export default function CharacterCreationWizard({
               </div>
             </div>
 
-            {/* Validation Info */}
-            {!canProceed() && (
+            {!contextCanProceed() && (
               <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
                 <div className="flex items-start space-x-2">
                   <Info className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />

@@ -1,6 +1,6 @@
 // ===========================
 // useCharacterBasics.ts
-// Hook para gerenciar informações básicas do personagem
+// Hook para gerenciar informações básicas do personagem - CORRIGIDO
 // ===========================
 
 import { useState, useCallback, useMemo } from 'react';
@@ -14,12 +14,13 @@ import {
   AlignmentType 
 } from '@/types/characterCreation';
 
-// Interface específica do hook, usando os tipos corretos
+// Interface atualizada com selectedClassIndex
 export interface CharacterBasics {
   name: string;
   selectedRace: DndRace | null;
   selectedSubrace: DndSubrace | null;
   selectedClass: DndClass | null;
+  selectedClassIndex: string | null; // Adicionado
   selectedSubclass: DndSubclass | null;
   selectedBackground: DndBackground | null;
   alignment: AlignmentType | '';
@@ -31,6 +32,7 @@ const initialBasics: CharacterBasics = {
   selectedRace: null,
   selectedSubrace: null,
   selectedClass: null,
+  selectedClassIndex: null, // Adicionado
   selectedSubclass: null,
   selectedBackground: null,
   alignment: "",
@@ -66,13 +68,17 @@ export const useCharacterBasics = () => {
     setBasics(prev => ({ ...prev, selectedSubrace: subrace }));
   }, []);
 
-  // Atualizar classe
+  // Atualizar classe - CORREÇÃO APLICADA
   const updateClass = useCallback((characterClass: DndClass | null) => {
+    console.log("Atualizando classe:", characterClass?.name);
+    
     setBasics(prev => ({ 
       ...prev, 
       selectedClass: characterClass,
-      selectedSubclass: null // Reset subclass quando muda classe
+      selectedClassIndex: characterClass?.index || null,
+      selectedSubclass: null
     }));
+    
     if (errors.class) {
       setErrors(prev => ({ ...prev, class: '' }));
     }

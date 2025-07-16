@@ -1,8 +1,3 @@
-// ===========================
-// SPELLS STEP - VERSÃO COMPLETA COM DEBUGGING E CORREÇÕES
-// src/components/character-creation/steps/SpellsStep.tsx
-// ===========================
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -38,10 +33,6 @@ import {
   Bug
 } from "lucide-react";
 
-// ===========================
-// SCHOOL CONFIGURATIONS
-// ===========================
-
 const spellSchools = {
   'abjuration': { icon: ShieldIcon, color: 'from-blue-500 to-blue-600', name: 'Abjuração' },
   'conjuration': { icon: Crown, color: 'from-purple-500 to-purple-600', name: 'Conjuração' },
@@ -52,10 +43,6 @@ const spellSchools = {
   'necromancy': { icon: Sparkles, color: 'from-gray-500 to-gray-600', name: 'Necromancia' },
   'transmutation': { icon: Zap, color: 'from-yellow-500 to-yellow-600', name: 'Transmutação' }
 };
-
-// ===========================
-// DEBUGGING PANEL COMPONENT
-// ===========================
 
 interface DebugPanelProps {
   characterData: any;
@@ -116,6 +103,7 @@ function DebugPanel({ characterData, spellsHook, currentClassIndex, spellsFromAP
             <div>selectedSpells: <span className="text-blue-400">{spellsHook.selectedSpells.length}</span></div>
             <div>availableCantrips: <span className="text-blue-400">{spellsHook.availableCantrips.length}</span></div>
             <div>availableSpells: <span className="text-blue-400">{spellsHook.availableSpells.length}</span></div>
+            <div>isValid: <span className={spellsHook.isValid ? 'text-green-400' : 'text-red-400'}>{String(spellsHook.isValid)}</span></div>
           </div>
         </div>
 
@@ -138,7 +126,6 @@ function DebugPanel({ characterData, spellsHook, currentClassIndex, spellsFromAP
           </div>
         )}
 
-        {/* Verificação de problemas */}
         <div>
           <strong className="text-yellow-400">Problemas Detectados:</strong>
           <div className="pl-2">
@@ -147,7 +134,6 @@ function DebugPanel({ characterData, spellsHook, currentClassIndex, spellsFromAP
           </div>
         </div>
 
-        {/* Sugestões baseadas no estado */}
         {hasDataPropagationBug && (
           <div>
             <strong className="text-red-400">🔧 Ação Sugerida:</strong>
@@ -162,10 +148,6 @@ function DebugPanel({ characterData, spellsHook, currentClassIndex, spellsFromAP
     </div>
   );
 }
-
-// ===========================
-// SPELL CARD COMPONENT
-// ===========================
 
 interface SpellCardProps {
   spell: any;
@@ -289,21 +271,15 @@ function SpellCard({
   );
 }
 
-// ===========================
-// COMPONENTE PRINCIPAL
-// ===========================
-
 export default function SpellsStep() {
   const {
     characterData,
     calculateModifier,
   } = useCharacterCreationContext();
 
-  // Hooks
   const spellsHook = useCharacterSpells();
   const { useSpellsQuery } = useCharacterAPI();
 
-  // Estados locais
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('all');
   const [selectedLevel, setSelectedLevel] = useState<number | 'all'>('all');
@@ -312,27 +288,21 @@ export default function SpellsStep() {
   const [activeTab, setActiveTab] = useState<'cantrips' | 'spells'>('cantrips');
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
-  // Função para adicionar logs de debug
   const addDebugLog = (message: string) => {
     console.log(`🔍 SpellsStep: ${message}`);
     setDebugLogs(prev => [...prev.slice(-9), `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
-  // ===========================
-  // BUSCA DE MAGIAS DA API
-  // ===========================
-
-  const currentClassIndex = characterData.characterClass?.index;
+  const currentClassIndex = characterData.selectedClass?.index;
   const { 
     data: spellsFromAPI = [], 
     isLoading: isLoadingSpells, 
     error: spellsError 
   } = useSpellsQuery(currentClassIndex);
 
-  // Debug logs
   useEffect(() => {
-    addDebugLog(`Dados do personagem carregados - Classe: ${characterData.characterClass?.name || 'null'}, IsSpellcaster: ${characterData.isSpellcaster}`);
-  }, [characterData.characterClass, characterData.isSpellcaster]);
+    addDebugLog(`Dados do personagem carregados - Classe: ${characterData.selectedClass?.name || 'null'}, IsSpellcaster: ${characterData.isSpellcaster}`);
+  }, [characterData.selectedClass, characterData.isSpellcaster]);
 
   useEffect(() => {
     addDebugLog(`Hook de magias atualizado - IsSpellcaster: ${spellsHook.isSpellcaster}, Ability: ${spellsHook.spellcastingAbility}`);
@@ -342,33 +312,29 @@ export default function SpellsStep() {
     addDebugLog(`API de magias - Loading: ${isLoadingSpells}, Spells: ${spellsFromAPI.length}, Error: ${!!spellsError}`);
   }, [isLoadingSpells, spellsFromAPI.length, spellsError]);
 
-  // ===========================
-  // SINCRONIZAÇÃO COM HOOK DE MAGIAS
-  // ===========================
-
   useEffect(() => {
-    if (spellsFromAPI.length > 0 && characterData.characterClass) {
+    if (spellsFromAPI.length > 0 && characterData.selectedClass) {
       addDebugLog(`Sincronizando ${spellsFromAPI.length} magias da API com o hook`);
-      spellsHook.setAvailableSpells(spellsFromAPI, characterData.characterClass);
+      spellsHook.setAvailableSpells(spellsFromAPI, characterData.selectedClass);
     }
-  }, [spellsFromAPI, characterData.characterClass, spellsHook.setAvailableSpells]);
+  }, [spellsFromAPI, characterData.selectedClass, spellsHook.setAvailableSpells]);
 
   useEffect(() => {
-    if (characterData.characterClass && characterData.level) {
-      addDebugLog(`Configurando conjuração para ${characterData.characterClass.name} nível ${characterData.level}`);
+    if (characterData.selectedClass && characterData.level) {
+      addDebugLog(`Configurando conjuração para ${characterData.selectedClass.name} nível ${characterData.level}`);
       
       const abilityModifier = spellsHook.spellcastingAbility 
         ? calculateModifier(characterData.abilityScores[spellsHook.spellcastingAbility] || 10)
         : 0;
         
       spellsHook.configureSpellcasting(
-        characterData.characterClass,
+        characterData.selectedClass,
         characterData.level,
         abilityModifier
       );
     }
   }, [
-    characterData.characterClass, 
+    characterData.selectedClass, 
     characterData.level, 
     characterData.abilityScores,
     spellsHook.configureSpellcasting,
@@ -384,25 +350,40 @@ export default function SpellsStep() {
       const proficiencyBonus = Math.ceil((characterData.level || 1) / 4) + 1;
       
       addDebugLog(`Atualizando valores dinâmicos - Modifier: ${abilityModifier}, Proficiency: ${proficiencyBonus}`);
-      
+      console.log("oi eu estou aqui")
+      console.log(characterData)
       spellsHook.updateDynamicValues(
         abilityModifier,
         proficiencyBonus,
-        characterData.characterClass
+        characterData.selectedClass!
       );
     }
   }, [
     characterData.abilityScores,
     characterData.level,
-    characterData.characterClass,
+    characterData.selectedClass,
     spellsHook.spellcastingAbility,
     spellsHook.updateDynamicValues,
     calculateModifier
   ]);
 
-  // ===========================
-  // COMPUTED VALUES
-  // ===========================
+  useEffect(() => {
+    const isValid = (
+      spellsHook.selectedCantrips.length === spellsHook.cantripsKnown && 
+      spellsHook.selectedSpells.length === spellsHook.spellsKnown
+    );
+    
+    spellsHook.setIsValid(isValid);
+    
+    addDebugLog(`Validação atualizada: ${isValid} (Cantrips: ${spellsHook.selectedCantrips.length}/${spellsHook.cantripsKnown}, Spells: ${spellsHook.selectedSpells.length}/${spellsHook.spellsKnown})`);
+    console.log(characterData)
+  }, [
+    spellsHook.selectedCantrips, 
+    spellsHook.selectedSpells,
+    spellsHook.cantripsKnown,
+    spellsHook.spellsKnown,
+    spellsHook.setIsValid
+  ]);
 
   const allAvailableSpells = useMemo(() => {
     return [...spellsHook.availableCantrips, ...spellsHook.availableSpells];
@@ -446,10 +427,6 @@ export default function SpellsStep() {
     return filtered;
   }, [allAvailableSpells, activeTab, searchTerm, selectedSchool, selectedLevel, showOnlyRitual, showOnlyConcentration]);
 
-  // ===========================
-  // HANDLERS
-  // ===========================
-
   const handleToggleSpell = (spell: any) => {
     if (spell.level === 0) {
       if (spellsHook.isKnownCantrip(spell.index)) {
@@ -484,23 +461,13 @@ export default function SpellsStep() {
     }
   };
 
-  // ===========================
-  // VERIFICAÇÃO DE PROBLEMAS
-  // ===========================
-
   const hasSpellcasterBug = useMemo(() => {
-    // Se tem dados de spellcasting mas não é marcado como spellcaster, é um bug
-    return !!characterData.characterClass?.spellcasting && !characterData.isSpellcaster;
-  }, [characterData.characterClass, characterData.isSpellcaster]);
+    return !!characterData.selectedClass?.spellcasting && !characterData.isSpellcaster;
+  }, [characterData.selectedClass, characterData.isSpellcaster]);
 
   const hasDataPropagationBug = useMemo(() => {
-    // Se é spellcaster mas não tem dados da classe, é problema de propagação
-    return characterData.isSpellcaster && !characterData.characterClass;
-  }, [characterData.isSpellcaster, characterData.characterClass]);
-
-  // ===========================
-  // RENDER ESTADOS DE ERRO E LOADING
-  // ===========================
+    return characterData.isSpellcaster && !characterData.selectedClass;
+  }, [characterData.isSpellcaster, characterData.selectedClass]);
 
   if (hasDataPropagationBug) {
     return (
@@ -552,8 +519,8 @@ export default function SpellsStep() {
 
               <div className="text-xs text-orange-300 font-mono bg-orange-900/30 p-2 rounded mt-4">
                 DEBUG: isSpellcaster={String(characterData.isSpellcaster)} | 
-                hasCharacterClass={String(!!characterData.characterClass)} | 
-                characterClass={characterData.characterClass?.name || 'null'}
+                hasCharacterClass={String(!!characterData.selectedClass)} | 
+                characterClass={characterData.selectedClass?.name || 'null'}
               </div>
             </div>
           </div>
@@ -583,7 +550,7 @@ export default function SpellsStep() {
                 🐛 BUG DETECTADO: Lógica de Spellcaster Invertida
               </h3>
               <p className="text-red-200 mb-4">
-                Sua classe <strong>{characterData.characterClass?.name}</strong> TEM habilidades de conjuração, 
+                Sua classe <strong>{characterData.selectedClass?.name}</strong> TEM habilidades de conjuração, 
                 mas está sendo marcada como NÃO-conjuradora devido a um bug no código.
               </p>
               
@@ -598,56 +565,9 @@ export default function SpellsStep() {
               </div>
 
               <div className="text-xs text-red-300 font-mono bg-red-900/30 p-2 rounded">
-                DEBUG: hasSpellcasting={String(!!characterData.characterClass?.spellcasting)} | 
+                DEBUG: hasSpellcasting={String(!!characterData.selectedClass?.spellcasting)} | 
                 isSpellcaster={String(characterData.isSpellcaster)} | 
-                className={characterData.characterClass?.name}
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <DebugPanel 
-          characterData={characterData}
-          spellsHook={spellsHook}
-          currentClassIndex={currentClassIndex}
-          spellsFromAPI={spellsFromAPI}
-          isLoadingSpells={isLoadingSpells}
-          hasSpellcasterBug={hasSpellcasterBug}
-          hasDataPropagationBug={hasDataPropagationBug}
-        />
-      </div>
-    );
-  }
-
-  if (hasSpellcasterBug) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-red-800/20 rounded-xl p-6 border border-red-700/50">
-          <div className="flex items-start space-x-4">
-            <AlertCircle className="w-8 h-8 text-red-400 flex-shrink-0 mt-1" />
-            <div className="flex-1">
-              <h3 className="text-lg font-medium text-red-300 mb-2">
-                🐛 BUG DETECTADO: Lógica de Spellcaster Invertida
-              </h3>
-              <p className="text-red-200 mb-4">
-                Sua classe <strong>{characterData.characterClass?.name}</strong> TEM habilidades de conjuração, 
-                mas está sendo marcada como NÃO-conjuradora devido a um bug no código.
-              </p>
-              
-              <div className="bg-red-900/50 rounded-lg p-4 mb-4">
-                <h4 className="text-red-300 font-medium mb-2">Como Corrigir:</h4>
-                <ol className="text-sm text-red-200 space-y-1 list-decimal list-inside">
-                  <li>Abra <code className="bg-red-800/50 px-1 rounded">src/hooks/character-creation/useCharacterCreationOrchestrator.tsx</code></li>
-                  <li>Encontre a linha: <code className="bg-red-800/50 px-1 rounded">const isSpellcaster = !characterClass.spellcasting;</code></li>
-                  <li>Substitua por: <code className="bg-green-800/50 px-1 rounded">const isSpellcaster = !!characterClass.spellcasting;</code></li>
-                  <li>Salve o arquivo e recarregue a página</li>
-                </ol>
-              </div>
-
-              <div className="text-xs text-red-300 font-mono bg-red-900/30 p-2 rounded">
-                DEBUG: hasSpellcasting={String(!!characterData.characterClass?.spellcasting)} | 
-                isSpellcaster={String(characterData.isSpellcaster)} | 
-                className={characterData.characterClass?.name}
+                className={characterData.selectedClass?.name}
               </div>
             </div>
           </div>
@@ -722,9 +642,9 @@ export default function SpellsStep() {
             Sua classe não possui habilidades de conjuração.
             Você pode pular esta etapa.
           </p>
-          {characterData.characterClass && (
+          {characterData.selectedClass && (
             <p className="text-xs text-gray-400 mt-2">
-              Classe: {characterData.characterClass.name} ({characterData.characterClass.index})
+              Classe: {characterData.selectedClass.name} ({characterData.selectedClass.index})
             </p>
           )}
         </div>
@@ -742,13 +662,21 @@ export default function SpellsStep() {
     );
   }
 
-  // ===========================
-  // RENDER PRINCIPAL
-  // ===========================
-
   return (
     <div className="space-y-6">
-      {/* Header com informações de status */}
+      <div className="fixed bottom-4 left-4 bg-gray-800/80 p-3 rounded-lg border border-purple-500/50 z-50">
+        <div className="flex items-center space-x-2">
+          <div className={`w-3 h-3 rounded-full ${
+            spellsHook.isValid ? 'bg-green-500' : 'bg-yellow-500 animate-pulse'
+          }`} />
+          <span className="text-xs">
+            {spellsHook.isValid 
+              ? "Magias completas!" 
+              : `Selecione ${spellsHook.cantripsKnown - spellsHook.selectedCantrips.length} truques e ${spellsHook.spellsKnown - spellsHook.selectedSpells.length} magias`}
+          </span>
+        </div>
+      </div>
+
       <div className="bg-blue-800/20 rounded-xl p-4 border border-blue-700/50">
         <div className="flex items-center space-x-2">
           <Info className="w-5 h-5 text-blue-400" />
@@ -758,14 +686,13 @@ export default function SpellsStep() {
             </p>
             {currentClassIndex && (
               <p className="text-xs text-blue-400 mt-1">
-                {characterData.characterClass?.name} • Cantrips: {spellsHook.selectedCantrips.length}/{spellsHook.cantripsKnown} • Magias: {spellsHook.selectedSpells.length}/{spellsHook.spellsKnown}
+                {characterData.selectedClass?.name} • Cantrips: {spellsHook.selectedCantrips.length}/{spellsHook.cantripsKnown} • Magias: {spellsHook.selectedSpells.length}/{spellsHook.spellsKnown}
               </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Spellcasting Info */}
       {spellsHook.spellcastingInfo && (
         <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
           <div className="flex items-start justify-between">
@@ -804,7 +731,6 @@ export default function SpellsStep() {
         </div>
       )}
 
-      {/* Tabs de Seleção */}
       <div className="flex space-x-1 bg-gray-800/30 rounded-xl p-1">
         <button
           onClick={() => setActiveTab('cantrips')}
@@ -841,7 +767,6 @@ export default function SpellsStep() {
         </button>
       </div>
 
-      {/* Filtros */}
       <div className="space-y-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -901,7 +826,6 @@ export default function SpellsStep() {
         </div>
       </div>
 
-      {/* Lista de Magias */}
       <div className="space-y-3">
         {filteredSpells.map((spell) => (
           <SpellCard
@@ -916,7 +840,6 @@ export default function SpellsStep() {
         ))}
       </div>
 
-      {/* Empty State */}
       {filteredSpells.length === 0 && !isLoadingSpells && (
         <div className="text-center py-12">
           <MagicIcon className="w-8 h-8 text-gray-500 mx-auto mb-4" />
@@ -929,7 +852,6 @@ export default function SpellsStep() {
         </div>
       )}
 
-      {/* Resumo das Magias Selecionadas */}
       {(spellsHook.selectedCantrips.length > 0 || spellsHook.selectedSpells.length > 0) && (
         <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
           <h4 className="font-medium text-white mb-4">Magias Selecionadas</h4>
@@ -962,7 +884,20 @@ export default function SpellsStep() {
         </div>
       )}
 
-      {/* Debug Panel */}
+      {!spellsHook.isValid && (
+        <div className="bg-yellow-900/20 p-4 rounded-lg border border-yellow-700/50 text-center">
+          <p className="text-yellow-300 mb-3">
+            Parece que há um problema de sincronização. Se você já selecionou todas as magias necessárias:
+          </p>
+          <button
+            onClick={() => spellsHook.setIsValid(true)}
+            className="px-4 py-2 bg-yellow-700 text-white rounded-lg hover:bg-yellow-800"
+          >
+            Forçar Validação
+          </button>
+        </div>
+      )}
+
       <DebugPanel 
         characterData={characterData}
         spellsHook={spellsHook}
@@ -971,238 +906,6 @@ export default function SpellsStep() {
         isLoadingSpells={isLoadingSpells}
         hasSpellcasterBug={hasSpellcasterBug}
         hasDataPropagationBug={hasDataPropagationBug}
-      />
-    </div>
-  );
-}
-
-  // ===========================
-  // RENDER PRINCIPAL
-  // ===========================
-
-  return (
-    <div className="space-y-6">
-      {/* Header com informações de status */}
-      <div className="bg-blue-800/20 rounded-xl p-4 border border-blue-700/50">
-        <div className="flex items-center space-x-2">
-          <Info className="w-5 h-5 text-blue-400" />
-          <div className="flex-1">
-            <p className="text-sm text-blue-300">
-              <span className="font-medium">✅ Conjurador Ativo:</span> {allAvailableSpells.length} magias disponíveis
-            </p>
-            {currentClassIndex && (
-              <p className="text-xs text-blue-400 mt-1">
-                {characterData.characterClass?.name} • Cantrips: {spellsHook.selectedCantrips.length}/{spellsHook.cantripsKnown} • Magias: {spellsHook.selectedSpells.length}/{spellsHook.spellsKnown}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Spellcasting Info */}
-      {spellsHook.spellcastingInfo && (
-        <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-2">
-                Informações de Conjuração
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-400">Habilidade:</span>
-                  <span className="text-white ml-2 font-medium">
-                    {spellsHook.spellcastingInfo.ability.charAt(0).toUpperCase() + spellsHook.spellcastingInfo.ability.slice(1)}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-400">CD de Resistência:</span>
-                  <span className="text-white ml-2 font-medium">
-                    {spellsHook.spellcastingInfo.spellSaveDC}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-gray-400">Bônus de Ataque:</span>
-                  <span className="text-white ml-2 font-medium">
-                    +{spellsHook.spellcastingInfo.spellAttackBonus}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Tabs de Seleção */}
-      <div className="flex space-x-1 bg-gray-800/30 rounded-xl p-1">
-        <button
-          onClick={() => setActiveTab('cantrips')}
-          className={`flex-1 py-3 px-4 rounded-lg transition-all ${
-            activeTab === 'cantrips'
-              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
-          }`}
-        >
-          <div className="flex items-center justify-center space-x-2">
-            <Star className="w-4 h-4" />
-            <span>Truques</span>
-            <span className="text-xs bg-white/20 px-2 py-1 rounded">
-              {spellsHook.selectedCantrips.length}/{spellsHook.cantripsKnown}
-            </span>
-          </div>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('spells')}
-          className={`flex-1 py-3 px-4 rounded-lg transition-all ${
-            activeTab === 'spells'
-              ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg'
-              : 'text-gray-400 hover:text-gray-300 hover:bg-gray-700/50'
-          }`}
-        >
-          <div className="flex items-center justify-center space-x-2">
-            <Sparkles className="w-4 h-4" />
-            <span>Magias</span>
-            <span className="text-xs bg-white/20 px-2 py-1 rounded">
-              {spellsHook.selectedSpells.length}/{spellsHook.spellsKnown}
-            </span>
-          </div>
-        </button>
-      </div>
-
-      {/* Filtros */}
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar magias..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-4 items-center">
-          <select
-            value={selectedSchool}
-            onChange={(e) => setSelectedSchool(e.target.value)}
-            className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-          >
-            <option value="all">Todas as escolas</option>
-            {Object.entries(spellSchools).map(([key, school]) => (
-              <option key={key} value={key}>{school.name}</option>
-            ))}
-          </select>
-
-          {activeTab === 'spells' && (
-            <select
-              value={selectedLevel}
-              onChange={(e) => setSelectedLevel(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-              className="px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-            >
-              <option value="all">Todos os níveis</option>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => (
-                <option key={level} value={level}>Nível {level}</option>
-              ))}
-            </select>
-          )}
-
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showOnlyRitual}
-              onChange={(e) => setShowOnlyRitual(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500/50"
-            />
-            <span className="text-sm text-gray-300">Apenas rituais</span>
-          </label>
-
-          <label className="flex items-center space-x-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showOnlyConcentration}
-              onChange={(e) => setShowOnlyConcentration(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500/50"
-            />
-            <span className="text-sm text-gray-300">Apenas concentração</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Lista de Magias */}
-      <div className="space-y-3">
-        {filteredSpells.map((spell) => (
-          <SpellCard
-            key={spell.index}
-            spell={spell}
-            isSelected={spell.level === 0 ? spellsHook.isKnownCantrip(spell.index) : spellsHook.isKnownSpell(spell.index)}
-            onToggle={() => handleToggleSpell(spell)}
-            canSelect={canSelectSpell(spell)}
-            isCantrip={spell.level === 0}
-            spellcastingInfo={spellsHook.spellcastingInfo}
-          />
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredSpells.length === 0 && !isLoadingSpells && (
-        <div className="text-center py-12">
-          <MagicIcon className="w-8 h-8 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-400 mb-2">
-            Nenhuma magia encontrada
-          </h3>
-          <p className="text-gray-500">
-            Tente ajustar os filtros de busca
-          </p>
-        </div>
-      )}
-
-      {/* Resumo das Magias Selecionadas */}
-      {(spellsHook.selectedCantrips.length > 0 || spellsHook.selectedSpells.length > 0) && (
-        <div className="bg-gray-800/30 rounded-xl p-6 border border-gray-700/50">
-          <h4 className="font-medium text-white mb-4">Magias Selecionadas</h4>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h5 className="text-sm font-medium text-gray-300 mb-2">Truques</h5>
-              {spellsHook.selectedCantrips.map(spell => (
-                <div key={spell.index} className="text-sm text-gray-400 mb-1">
-                  • {spell.name}
-                </div>
-              ))}
-              {spellsHook.selectedCantrips.length === 0 && (
-                <p className="text-xs text-gray-500">Nenhum truque selecionado</p>
-              )}
-            </div>
-
-            <div>
-              <h5 className="text-sm font-medium text-gray-300 mb-2">Magias</h5>
-              {spellsHook.selectedSpells.map(spell => (
-                <div key={spell.index} className="text-sm text-gray-400 mb-1">
-                  • {spell.name} (Nível {spell.level})
-                </div>
-              ))}
-              {spellsHook.selectedSpells.length === 0 && (
-                <p className="text-xs text-gray-500">Nenhuma magia selecionada</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Debug Panel */}
-      <DebugPanel 
-        characterData={characterData}
-        spellsHook={spellsHook}
-        currentClassIndex={currentClassIndex}
-        spellsFromAPI={spellsFromAPI}
-        isLoadingSpells={isLoadingSpells}
       />
     </div>
   );
