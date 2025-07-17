@@ -11,7 +11,11 @@ interface ApiRacesResponse {
     results: DndReference[];
 }
 
-const RacesCreation = () => {
+interface RacesCreationProps {
+    onValidationChange?: (isValid: boolean) => void;
+}
+
+const RacesCreation = ({ onValidationChange }: RacesCreationProps) => {
     const [selectedRace, setSelectedRace] = useState<DndRace | null>(null);
     const [selectedSubRace, setSelectedSubRace] = useState<DndSubrace | null>(null);
     const [apiRaces, setApiRaces] = useState<DndReference[]>([]);
@@ -95,6 +99,16 @@ const RacesCreation = () => {
     useEffect(() => {
         pullRaces();
     }, []);
+
+    // Validação do step - chamada sempre que as seleções mudam
+    useEffect(() => {
+        // Se não há subraças disponíveis, só a raça é suficiente
+        // Se há subraças disponíveis, precisa selecionar uma
+        const isValid = selectedRace !== null && (
+            availableSubraces.length === 0 || selectedSubRace !== null
+        );
+        onValidationChange?.(isValid);
+    }, [selectedRace, selectedSubRace, availableSubraces.length]); // Incluído availableSubraces.length
 
     return (
         <div className="p-4 max-w-4xl mx-auto">
@@ -214,6 +228,23 @@ const RacesCreation = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Mensagem quando não há subraças */}
+                    {availableSubraces.length === 0 && (
+                        <div className="mt-6">
+                            <Card className="p-4 bg-green-50 border border-green-200">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-green-600 text-xl">✓</span>
+                                    <div>
+                                        <h4 className="font-bold text-green-800">Raça Selecionada</h4>
+                                        <p className="text-green-700 text-sm">
+                                            Esta raça não possui sub-raças disponíveis. Você pode prosseguir para o próximo step.
+                                        </p>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
                     
                     {/* Detalhes da Subraça Selecionada */}
                     {selectedSubRace && (
@@ -295,11 +326,23 @@ const RacesCreation = () => {
                             Escolher outra raça
                         </Button>
                         
+                        {/* Botão quando há subraça selecionada */}
                         {selectedSubRace && (
                             <Button 
                                 variant="default"
                                 className="bg-green-600 hover:bg-green-700"
                                 onClick={() => console.log("Raça e subraça selecionadas:", selectedRace, selectedSubRace)}
+                            >
+                                Confirmar Seleção
+                            </Button>
+                        )}
+
+                        {/* Botão quando não há subraças disponíveis */}
+                        {availableSubraces.length === 0 && !selectedSubRace && (
+                            <Button 
+                                variant="default"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => console.log("Raça selecionada (sem subraças):", selectedRace)}
                             >
                                 Confirmar Seleção
                             </Button>
@@ -316,6 +359,16 @@ const RacesCreation = () => {
                 <p>Subraças disponíveis: {availableSubraces.length}</p>
                 <p>Subraça selecionada: {selectedSubRace ? selectedSubRace.name : 'Nenhuma'}</p>
                 <p>Estado de carregamento: {JSON.stringify(isLoading)}</p>
+                {selectedRace && (
+                    <p>Validação: {
+                        availableSubraces.length === 0 
+                            ? '✅ Válido (sem subraças disponíveis)' 
+                            : selectedSubRace 
+                                ? '✅ Válido (raça e subraça selecionadas)'
+                                : '❌ Incompleto (selecione uma subraça)'
+                    }</p>
+                )}
+                {!selectedRace && <p>Validação: ❌ Incompleto (selecione uma raça)</p>}
             </div>
         </div>
     );
