@@ -1,4 +1,5 @@
 // components/character/creation/steps/AbilityScores.tsx
+// ✅ ATUALIZADO: Agora inclui bônus raciais em todos os métodos
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
@@ -14,8 +15,51 @@ interface AbilityScoresProps {
     onValidationChange?: (isValid: boolean) => void;
 }
 
-// ✅ CORRIGIDO: Tipos de método alinhados com o tipo do sistema
 type AbilityMethod = "point-buy" | "standard" | "rolled";
+
+// ===========================
+// STORAGE - SIMPLES E DIRETO + CROSS-STEP
+// ===========================
+
+const STORAGE_KEYS = {
+    ABILITY_METHOD: 'character_creation_ability_method',
+    ABILITY_SCORES: 'character_creation_ability_scores',
+    POINTS_REMAINING: 'character_creation_points_remaining',
+    STANDARD_ASSIGNMENTS: 'character_creation_standard_assignments',
+    ROLLED_ARRAYS: 'character_creation_rolled_arrays',
+    SELECTED_ROLLED_ARRAY: 'character_creation_selected_rolled'
+};
+
+// Keys de outros steps para acessar dados raciais
+const CROSS_STEP_KEYS = {
+    SELECTED_RACE: 'character_creation_race',
+    SELECTED_SUBRACE: 'character_creation_subrace'
+};
+
+const saveToStorage = (key: string, data: any) => {
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+        console.log(`💾 Salvou ${key}`);
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+    }
+};
+
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+    try {
+        const item = localStorage.getItem(key);
+        if (item) {
+            return JSON.parse(item);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar:', error);
+    }
+    return defaultValue;
+};
+
+// ===========================
+// CONSTANTS
+// ===========================
 
 const INITIAL_SCORES: AbilityScores = {
     strength: 8,
@@ -28,27 +72,151 @@ const INITIAL_SCORES: AbilityScores = {
 
 const STANDARD_ARRAY = [15, 14, 13, 12, 10, 8];
 
-// Custos do point-buy system do D&D 5e
 const POINT_BUY_COSTS: Record<number, number> = {
     8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
 };
 
-// ✅ CORRIGIDO: Renomeando para evitar conflito com o tipo importado
-const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProps) => {
-    const [selectedMethod, setSelectedMethod] = useState<AbilityMethod | null>(null);
-    const [abilityScores, setAbilityScores] = useState<AbilityScores>(INITIAL_SCORES);
-    const [pointsRemaining, setPointsRemaining] = useState(27);
-    const [standardArrayValues, setStandardArrayValues] = useState<number[]>([...STANDARD_ARRAY]);
-    const [rolledArrays, setRolledArrays] = useState<number[][]>([]);
-    const [selectedRolledArray, setSelectedRolledArray] = useState<number | null>(null);
-    const [assignedValues, setAssignedValues] = useState<(number | null)[]>([null, null, null, null, null, null]);
+export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProps) => {
+    // ===========================
+    // STATES COM STORAGE
+    // ===========================
+    
+    const [selectedMethod, setSelectedMethod] = useState<AbilityMethod | null>(() => 
+        loadFromStorage<AbilityMethod | null>(STORAGE_KEYS.ABILITY_METHOD, null)
+    );
+    
+    const [abilityScores, setAbilityScores] = useState<AbilityScores>(() => 
+        loadFromStorage<AbilityScores>(STORAGE_KEYS.ABILITY_SCORES, INITIAL_SCORES)
+    );
+    
+    const [pointsRemaining, setPointsRemaining] = useState(() => 
+        loadFromStorage<number>(STORAGE_KEYS.POINTS_REMAINING, 27)
+    );
+    
+    const [standardArrayValues, setStandardArrayValues] = useState<number[]>(() => 
+        loadFromStorage<number[]>('standard_array_values', [...STANDARD_ARRAY])
+    );
+    
+    const [assignedValues, setAssignedValues] = useState<(number | null)[]>(() => 
+        loadFromStorage<(number | null)[]>(STORAGE_KEYS.STANDARD_ASSIGNMENTS, [null, null, null, null, null, null])
+    );
+    
+    const [rolledArrays, setRolledArrays] = useState<number[][]>(() => 
+        loadFromStorage<number[][]>(STORAGE_KEYS.ROLLED_ARRAYS, [])
+    );
+    
+    const [selectedRolledArray, setSelectedRolledArray] = useState<number | null>(() => 
+        loadFromStorage<number | null>(STORAGE_KEYS.SELECTED_ROLLED_ARRAY, null)
+    );
 
-    // Calcula o modificador de atributo
+    // ===========================
+    // DADOS DE OUTROS STEPS (RACIAL BONUSES)
+    // ===========================
+    
+    const [crossStepData, setCrossStepData] = useState({
+        selectedRace: loadFromStorage(CROSS_STEP_KEYS.SELECTED_RACE, null),
+        selectedSubrace: loadFromStorage(CROSS_STEP_KEYS.SELECTED_SUBRACE, null)
+    });
+
+    // ===========================
+    // EFEITOS DE STORAGE
+    // ===========================
+
+    // Salvar método selecionado
+    useEffect(() => {
+        if (selectedMethod) {
+            saveToStorage(STORAGE_KEYS.ABILITY_METHOD, selectedMethod);
+        }
+    }, [selectedMethod]);
+
+    // Salvar pontuações de atributos (incluindo finais com bônus)
+    useEffect(() => {
+        saveToStorage(STORAGE_KEYS.ABILITY_SCORES, abilityScores);
+        
+        // ✅ NOVO: Também salvar scores finais com bônus raciais
+        const finalScores = getFinalAbilityScores();
+        saveToStorage('character_creation_final_ability_scores', finalScores);
+    }, [abilityScores, crossStepData]);
+
+    // Salvar pontos restantes
+    useEffect(() => {
+        saveToStorage(STORAGE_KEYS.POINTS_REMAINING, pointsRemaining);
+    }, [pointsRemaining]);
+
+    // Salvar atribuições do standard array
+    useEffect(() => {
+        saveToStorage(STORAGE_KEYS.STANDARD_ASSIGNMENTS, assignedValues);
+    }, [assignedValues]);
+
+    // Salvar arrays rolados
+    useEffect(() => {
+        if (rolledArrays.length > 0) {
+            saveToStorage(STORAGE_KEYS.ROLLED_ARRAYS, rolledArrays);
+        }
+    }, [rolledArrays]);
+
+    // Salvar array rolado selecionado
+    useEffect(() => {
+        if (selectedRolledArray !== null) {
+            saveToStorage(STORAGE_KEYS.SELECTED_ROLLED_ARRAY, selectedRolledArray);
+        }
+    }, [selectedRolledArray]);
+
+    // ===========================
+    // UTILITY FUNCTIONS + RACIAL BONUSES
+    // ===========================
+
     const getModifier = (score: number): number => {
         return Math.floor((score - 10) / 2);
     };
 
-    // ✅ CORRIGIDO: Função de validação com useCallback para dependências
+    // Calcular bônus raciais
+    const getRacialBonuses = (): Record<keyof AbilityScores, number> => {
+        const bonuses: Record<keyof AbilityScores, number> = {
+            strength: 0,
+            dexterity: 0,
+            constitution: 0,
+            intelligence: 0,
+            wisdom: 0,
+            charisma: 0
+        };
+
+        // Bônus da raça principal
+        if (crossStepData.selectedRace?.ability_bonuses) {
+            crossStepData.selectedRace.ability_bonuses.forEach(bonus => {
+                const abilityKey = bonus.ability_score.index as keyof AbilityScores;
+                if (abilityKey in bonuses) {
+                    bonuses[abilityKey] += bonus.bonus;
+                }
+            });
+        }
+
+        // Bônus da sub-raça
+        if (crossStepData.selectedSubrace?.ability_bonuses) {
+            crossStepData.selectedSubrace.ability_bonuses.forEach(bonus => {
+                const abilityKey = bonus.ability_score.index as keyof AbilityScores;
+                if (abilityKey in bonuses) {
+                    bonuses[abilityKey] += bonus.bonus;
+                }
+            });
+        }
+
+        return bonuses;
+    };
+
+    // Calcular scores finais (base + racial)
+    const getFinalAbilityScores = (): Record<keyof AbilityScores, number> => {
+        const racialBonuses = getRacialBonuses();
+        const finalScores: Record<keyof AbilityScores, number> = {} as Record<keyof AbilityScores, number>;
+
+        Object.keys(abilityScores).forEach(ability => {
+            const abilityKey = ability as keyof AbilityScores;
+            finalScores[abilityKey] = abilityScores[abilityKey] + racialBonuses[abilityKey];
+        });
+
+        return finalScores;
+    };
+
     const validateScores = useCallback((): boolean => {
         if (!selectedMethod) return false;
         
@@ -58,475 +226,594 @@ const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProps) => {
             case "standard":
                 return assignedValues.every(val => val !== null);
             case "rolled":
-                return selectedRolledArray !== null && assignedValues.every(val => val !== null);
+                return selectedRolledArray !== null && Object.values(abilityScores).every(score => score > 0);
             default:
                 return false;
         }
     }, [selectedMethod, abilityScores, assignedValues, selectedRolledArray]);
 
-    // Point-buy: Ajusta um atributo
-    const adjustPointBuyScore = (ability: keyof AbilityScores, newValue: number) => {
-        const currentValue = abilityScores[ability];
-        const currentCost = POINT_BUY_COSTS[currentValue] || 0;
-        const newCost = POINT_BUY_COSTS[newValue] || 0;
-        const costDifference = newCost - currentCost;
-        
-        if (pointsRemaining - costDifference >= 0 && newValue >= 8 && newValue <= 15) {
-            setAbilityScores(prev => ({ ...prev, [ability]: newValue }));
-            setPointsRemaining(prev => prev - costDifference);
-        }
-    };
-
-    // Rolling: Rola 4d6 drop lowest
-    const rollAbility = (): number => {
-        const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
-        rolls.sort((a, b) => b - a);
-        return rolls[0] + rolls[1] + rolls[2]; // Soma os 3 maiores
-    };
-
-    // Rolling: Gera arrays de atributos
-    const generateRolledArrays = () => {
-        const arrays: number[][] = [];
-        for (let i = 0; i < 3; i++) {
-            const array: number[] = [];
-            for (let j = 0; j < 6; j++) {
-                array.push(rollAbility());
-            }
-            arrays.push(array.sort((a, b) => b - a));
-        }
-        setRolledArrays(arrays);
-        setSelectedRolledArray(null);
-        setAssignedValues([null, null, null, null, null, null]);
-    };
-
-    // Standard Array/Rolling: Atribui valor a um atributo
-    const assignValue = (abilityIndex: number, value: number) => {
-        const newAssigned = [...assignedValues];
-        
-        // Remove o valor anterior se existir
-        const oldValue = newAssigned[abilityIndex];
-        if (oldValue !== null) {
-            // ✅ CORRIGIDO: Comparação com método correto
-            if (selectedMethod === "standard") {
-                setStandardArrayValues(prev => [...prev, oldValue].sort((a, b) => b - a));
-            }
-        }
-        
-        // Atribui novo valor
-        newAssigned[abilityIndex] = value;
-        setAssignedValues(newAssigned);
-        
-        // Remove valor da lista disponível
-        if (selectedMethod === "standard") {
-            setStandardArrayValues(prev => {
-                const index = prev.indexOf(value);
-                if (index > -1) {
-                    const newArray = [...prev];
-                    newArray.splice(index, 1);
-                    return newArray;
-                }
-                return prev;
-            });
-        }
-    };
-
-    // Remove valor atribuído
-    const removeAssignedValue = (abilityIndex: number) => {
-        const value = assignedValues[abilityIndex];
-        if (value !== null) {
-            const newAssigned = [...assignedValues];
-            newAssigned[abilityIndex] = null;
-            setAssignedValues(newAssigned);
-            
-            if (selectedMethod === "standard") {
-                setStandardArrayValues(prev => [...prev, value].sort((a, b) => b - a));
-            }
-        }
-    };
-
-    // Reset method
-    const resetMethod = () => {
-        setSelectedMethod(null);
-        setAbilityScores(INITIAL_SCORES);
-        setPointsRemaining(27);
-        setStandardArrayValues([...STANDARD_ARRAY]);
-        setRolledArrays([]);
-        setSelectedRolledArray(null);
-        setAssignedValues([null, null, null, null, null, null]);
-    };
-
-    // ✅ CORRIGIDO: useEffect com dependências corretas
+    // Notificar validação
     useEffect(() => {
         const isValid = validateScores();
         onValidationChange?.(isValid);
     }, [validateScores, onValidationChange]);
 
-    if (!selectedMethod) {
-        return (
-            <div className="p-4 max-w-4xl mx-auto">
-                <h2 className="text-2xl font-bold mb-6">Geração de Atributos</h2>
-                <p className="text-gray-600 mb-6">Escolha como você quer determinar os atributos do seu personagem:</p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Point Buy */}
-                    <Card 
-                        className="p-6 cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-blue-300"
-                        onClick={() => setSelectedMethod("point-buy")}
-                    >
-                        <div className="text-center">
-                            <div className="text-3xl mb-3">📊</div>
-                            <h3 className="text-xl font-bold mb-3 text-blue-700">Point Buy</h3>
-                            <p className="text-gray-600 text-sm mb-4">
-                                Distribua 27 pontos entre os atributos. Valores mais altos custam mais pontos.
-                            </p>
-                            <div className="bg-blue-50 p-3 rounded">
-                                <p className="text-xs text-blue-700">
-                                    <strong>Recomendado:</strong> Máximo controle e balanceamento
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
+    // Atualizar dados de outros steps (polling simples)
+    useEffect(() => {
+        const interval = setInterval(() => {
+            const newRace = loadFromStorage(CROSS_STEP_KEYS.SELECTED_RACE, null);
+            const newSubrace = loadFromStorage(CROSS_STEP_KEYS.SELECTED_SUBRACE, null);
 
-                    {/* Standard Array */}
-                    <Card 
-                        className="p-6 cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-green-300"
-                        onClick={() => setSelectedMethod("standard")}
-                    >
-                        <div className="text-center">
-                            <div className="text-3xl mb-3">📋</div>
-                            <h3 className="text-xl font-bold mb-3 text-green-700">Array Padrão</h3>
-                            <p className="text-gray-600 text-sm mb-4">
-                                Use valores predefinidos: 15, 14, 13, 12, 10, 8. Atribua cada um a um atributo.
-                            </p>
-                            <div className="bg-green-50 p-3 rounded">
-                                <p className="text-xs text-green-700">
-                                    <strong>Recomendado:</strong> Rápido e equilibrado
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
+            setCrossStepData(prev => {
+                const hasChanges = 
+                    JSON.stringify(prev.selectedRace) !== JSON.stringify(newRace) ||
+                    JSON.stringify(prev.selectedSubrace) !== JSON.stringify(newSubrace);
 
-                    {/* Rolling */}
-                    <Card 
-                        className="p-6 cursor-pointer hover:shadow-lg transition-shadow border-2 hover:border-purple-300"
-                        onClick={() => setSelectedMethod("rolled")}
-                    >
-                        <div className="text-center">
-                            <div className="text-3xl mb-3">🎲</div>
-                            <h3 className="text-xl font-bold mb-3 text-purple-700">Rolagem</h3>
-                            <p className="text-gray-600 text-sm mb-4">
-                                Role 4d6 (descarte o menor) seis vezes. Escolha um dos arrays gerados.
-                            </p>
-                            <div className="bg-purple-50 p-3 rounded">
-                                <p className="text-xs text-purple-700">
-                                    <strong>Clássico:</strong> Imprevisível e emocionante
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            </div>
-        );
-    }
+                if (hasChanges) {
+                    console.log('🔄 Dados raciais atualizados no step de atributos');
+                    return {
+                        selectedRace: newRace,
+                        selectedSubrace: newSubrace
+                    };
+                }
+                return prev;
+            });
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    // ===========================
+    // POINT BUY FUNCTIONS
+    // ===========================
+
+    const getPointCost = (currentScore: number, newScore: number): number => {
+        if (newScore < currentScore) {
+            // Retornando pontos
+            let cost = 0;
+            for (let score = newScore + 1; score <= currentScore; score++) {
+                cost -= (POINT_BUY_COSTS[score] - POINT_BUY_COSTS[score - 1]);
+            }
+            return cost;
+        } else {
+            // Gastando pontos
+            let cost = 0;
+            for (let score = currentScore + 1; score <= newScore; score++) {
+                cost += (POINT_BUY_COSTS[score] - POINT_BUY_COSTS[score - 1]);
+            }
+            return cost;
+        }
+    };
+
+    const updatePointBuyScore = (ability: keyof AbilityScores, newValue: number) => {
+        const currentValue = abilityScores[ability];
+        const cost = getPointCost(currentValue, newValue);
+        
+        if (pointsRemaining - cost >= 0 && newValue >= 8 && newValue <= 15) {
+            setAbilityScores(prev => ({ ...prev, [ability]: newValue }));
+            setPointsRemaining(prev => prev - cost);
+        }
+    };
+
+    // ===========================
+    // STANDARD ARRAY FUNCTIONS
+    // ===========================
+
+    const assignStandardValue = (abilityIndex: number, value: number) => {
+        // Remover valor da atribuição anterior se existir
+        const previousValue = assignedValues[abilityIndex];
+        if (previousValue !== null) {
+            setStandardArrayValues(prev => [...prev, previousValue].sort((a, b) => b - a));
+        }
+
+        // Atribuir novo valor
+        const newAssignedValues = [...assignedValues];
+        newAssignedValues[abilityIndex] = value;
+        setAssignedValues(newAssignedValues);
+
+        // Remover valor da lista disponível
+        setStandardArrayValues(prev => {
+            const index = prev.indexOf(value);
+            if (index > -1) {
+                const newArray = [...prev];
+                newArray.splice(index, 1);
+                return newArray;
+            }
+            return prev;
+        });
+
+        // Atualizar scores
+        const abilities: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+        setAbilityScores(prev => ({
+            ...prev,
+            [abilities[abilityIndex]]: value
+        }));
+    };
+
+    // ===========================
+    // ROLLED STATS FUNCTIONS
+    // ===========================
+
+    const rollStats = () => {
+        const newArrays: number[][] = [];
+        
+        for (let arrayIndex = 0; arrayIndex < 6; arrayIndex++) {
+            const array: number[] = [];
+            for (let statIndex = 0; statIndex < 6; statIndex++) {
+                // Rolar 4d6, descartar o menor
+                const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
+                rolls.sort((a, b) => b - a);
+                const total = rolls.slice(0, 3).reduce((sum, roll) => sum + roll, 0);
+                array.push(total);
+            }
+            newArrays.push(array);
+        }
+        
+        setRolledArrays(newArrays);
+        setSelectedRolledArray(null);
+    };
+
+    const selectRolledArray = (arrayIndex: number) => {
+        const selectedArray = rolledArrays[arrayIndex];
+        setSelectedRolledArray(arrayIndex);
+        
+        const abilities: (keyof AbilityScores)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+        const newScores: AbilityScores = abilities.reduce((scores, ability, index) => {
+            scores[ability] = selectedArray[index] || 8;
+            return scores;
+        }, {} as AbilityScores);
+        
+        setAbilityScores(newScores);
+    };
+
+    // ===========================
+    // MÉTODO SELECTION
+    // ===========================
+
+    const selectMethod = (method: AbilityMethod) => {
+        setSelectedMethod(method);
+        
+        // Reset apropriado para cada método
+        switch (method) {
+            case "point-buy":
+                setAbilityScores(INITIAL_SCORES);
+                setPointsRemaining(27);
+                break;
+            case "standard":
+                setAbilityScores(INITIAL_SCORES);
+                setStandardArrayValues([...STANDARD_ARRAY]);
+                setAssignedValues([null, null, null, null, null, null]);
+                break;
+            case "rolled":
+                setAbilityScores(INITIAL_SCORES);
+                if (rolledArrays.length === 0) {
+                    rollStats();
+                }
+                break;
+        }
+    };
+
+    // ===========================
+    // CLEAR STORAGE
+    // ===========================
+
+    const clearStorageData = () => {
+        Object.values(STORAGE_KEYS).forEach(key => {
+            localStorage.removeItem(key);
+        });
+        localStorage.removeItem('standard_array_values');
+        localStorage.removeItem('character_creation_final_ability_scores'); // ✅ NOVO: Limpar scores finais
+        
+        // Reset states
+        setSelectedMethod(null);
+        setAbilityScores(INITIAL_SCORES);
+        setPointsRemaining(27);
+        setStandardArrayValues([...STANDARD_ARRAY]);
+        setAssignedValues([null, null, null, null, null, null]);
+        setRolledArrays([]);
+        setSelectedRolledArray(null);
+        
+        console.log('🧹 Dados de atributos limpos (incluindo scores finais com bônus)');
+    };
+
+    // ===========================
+    // RENDER
+    // ===========================
 
     return (
-        <div className="p-4 max-w-6xl mx-auto">
-            <div className="flex items-center gap-3 mb-6">
-                <Button 
-                    variant="ghost"
-                    onClick={resetMethod}
-                    className="text-blue-600 hover:text-blue-800"
-                >
-                    ← Voltar para métodos
-                </Button>
-                <h2 className="text-2xl font-bold">
-                    Atributos - {selectedMethod === "point-buy" ? "Point Buy" : 
-                                 selectedMethod === "standard" ? "Array Padrão" : "Rolagem"}
-                </h2>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Painel de configuração */}
-                <div className="space-y-6">
-                    {/* Point Buy Controls */}
-                    {selectedMethod === "point-buy" && (
-                        <Card className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-bold">Point Buy System</h3>
-                                <div className="text-right">
-                                    <div className="text-2xl font-bold text-blue-600">{pointsRemaining}</div>
-                                    <div className="text-sm text-gray-500">pontos restantes</div>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-4">
-                                {(Object.keys(ABILITY_SCORE_NAMES) as Array<keyof AbilityScores>).map((ability) => (
-                                    <div key={ability} className="flex items-center justify-between">
-                                        <label className="font-medium text-gray-700 min-w-[100px]">
-                                            {ABILITY_SCORE_NAMES[ability]}
-                                        </label>
-                                        <div className="flex items-center gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => adjustPointBuyScore(ability, abilityScores[ability] - 1)}
-                                                disabled={abilityScores[ability] <= 8}
-                                            >
-                                                -
-                                            </Button>
-                                            <span className="w-8 text-center font-bold">
-                                                {abilityScores[ability]}
-                                            </span>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => adjustPointBuyScore(ability, abilityScores[ability] + 1)}
-                                                disabled={abilityScores[ability] >= 15 || 
-                                                          pointsRemaining < (POINT_BUY_COSTS[abilityScores[ability] + 1] - POINT_BUY_COSTS[abilityScores[ability]])}
-                                            >
-                                                +
-                                            </Button>
-                                            <span className="text-sm text-gray-500 w-16 text-right">
-                                                ({getModifier(abilityScores[ability]) >= 0 ? '+' : ''}{getModifier(abilityScores[ability])})
-                                            </span>
-                                        </div>
-                                    </div>
+        <div className="space-y-6">
+            {/* Debug Info */}
+            {process.env.NODE_ENV === 'development' && (
+                <Card className="p-4 bg-blue-50">
+                    <h4 className="font-bold text-sm mb-2">Debug - Storage Status + Racial Bonuses:</h4>
+                    <div className="text-xs space-y-1">
+                        <p>Método: {selectedMethod || 'Não selecionado'}</p>
+                        <p>Pontos restantes: {pointsRemaining}</p>
+                        <p>Arrays rolados: {rolledArrays.length}</p>
+                        <p>Raça: {crossStepData.selectedRace?.name || 'Não selecionada'}</p>
+                        <p>Sub-raça: {crossStepData.selectedSubrace?.name || 'Não selecionada'}</p>
+                        <div className="mt-2">
+                            <strong>Bônus Raciais:</strong>
+                            <div className="ml-2">
+                                {Object.entries(getRacialBonuses()).map(([ability, bonus]) => (
+                                    bonus > 0 && <p key={ability}>{ability}: +{bonus}</p>
                                 ))}
                             </div>
-                            
-                            <div className="mt-4 p-3 bg-blue-50 rounded text-sm">
-                                <strong>Custos:</strong> 8-13 (1 ponto cada), 14 (2 pontos), 15 (2 pontos)
-                            </div>
-                        </Card>
-                    )}
+                        </div>
+                        <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={clearStorageData}
+                            className="mt-2"
+                        >
+                            Limpar Storage
+                        </Button>
+                    </div>
+                </Card>
+            )}
 
-                    {/* Standard Array Controls */}
-                    {selectedMethod === "standard" && (
-                        <Card className="p-6">
-                            <h3 className="text-lg font-bold mb-4">Array Padrão</h3>
-                            <p className="text-gray-600 mb-4">
-                                Arraste valores para os atributos ou clique para atribuir:
-                            </p>
-                            
-                            <div className="mb-6">
-                                <h4 className="font-medium mb-2">Valores disponíveis:</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {standardArrayValues.map((value, index) => (
-                                        <Button
-                                            key={`${value}-${index}`}
-                                            variant="outline"
-                                            className="w-12 h-12"
-                                            onClick={() => {
-                                                // Encontra o primeiro slot vazio
-                                                const emptyIndex = assignedValues.findIndex(v => v === null);
-                                                if (emptyIndex !== -1) {
-                                                    assignValue(emptyIndex, value);
-                                                }
-                                            }}
-                                        >
-                                            {value}
-                                        </Button>
-                                    ))}
-                                </div>
+            {/* Informações Raciais */}
+            {(crossStepData.selectedRace || crossStepData.selectedSubrace) && (
+                <Card className="p-6 bg-green-50">
+                    <h3 className="text-lg font-bold mb-4">Bônus Raciais Aplicados</h3>
+                    
+                    <div className="space-y-3">
+                        {crossStepData.selectedRace && (
+                            <div>
+                                <h4 className="font-semibold text-green-800">
+                                    {crossStepData.selectedRace.name}
+                                </h4>
+                                {crossStepData.selectedRace.ability_bonuses?.map((bonus, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-block mr-2 px-2 py-1 bg-green-200 text-green-800 rounded text-sm"
+                                    >
+                                        {bonus.ability_score.name}: +{bonus.bonus}
+                                    </span>
+                                ))}
                             </div>
-                        </Card>
-                    )}
+                        )}
 
-                    {/* Rolling Controls */}
-                    {selectedMethod === "rolled" && (
-                        <Card className="p-6">
-                            <h3 className="text-lg font-bold mb-4">Rolagem de Dados</h3>
+                        {crossStepData.selectedSubrace && (
+                            <div>
+                                <h4 className="font-semibold text-green-800">
+                                    {crossStepData.selectedSubrace.name}
+                                </h4>
+                                {crossStepData.selectedSubrace.ability_bonuses?.map((bonus, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-block mr-2 px-2 py-1 bg-green-200 text-green-800 rounded text-sm"
+                                    >
+                                        {bonus.ability_score.name}: +{bonus.bonus}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        <p className="text-sm text-green-700 mt-2">
+                            ✨ Estes bônus serão automaticamente aplicados aos seus atributos finais!
+                        </p>
+                    </div>
+                </Card>
+            )}
+
+            {/* Seleção de Método */}
+            <Card className="p-6">
+                <h3 className="text-lg font-bold mb-4">Escolha o Método de Determinação de Atributos</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button
+                        onClick={() => selectMethod("point-buy")}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                            selectedMethod === "point-buy"
+                                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                                : 'border-gray-300 bg-white hover:border-gray-400'
+                        }`}
+                    >
+                        <h4 className="font-semibold">Point Buy</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Distribua 27 pontos entre os atributos (8-15)
+                        </p>
+                    </button>
+
+                    <button
+                        onClick={() => selectMethod("standard")}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                            selectedMethod === "standard"
+                                ? 'border-green-500 bg-green-50 text-green-700'
+                                : 'border-gray-300 bg-white hover:border-gray-400'
+                        }`}
+                    >
+                        <h4 className="font-semibold">Standard Array</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Atribua os valores: 15, 14, 13, 12, 10, 8
+                        </p>
+                    </button>
+
+                    <button
+                        onClick={() => selectMethod("rolled")}
+                        className={`p-4 border-2 rounded-lg text-left transition-all ${
+                            selectedMethod === "rolled"
+                                ? 'border-purple-500 bg-purple-50 text-purple-700'
+                                : 'border-gray-300 bg-white hover:border-gray-400'
+                        }`}
+                    >
+                        <h4 className="font-semibold">Rolled Stats</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                            Role 4d6, descarte o menor (6 arrays)
+                        </p>
+                    </button>
+                </div>
+            </Card>
+
+            {/* Point Buy */}
+            {selectedMethod === "point-buy" && (
+                <Card className="p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold">Point Buy</h3>
+                        <div className="text-lg font-semibold">
+                            Pontos restantes: <span className="text-blue-600">{pointsRemaining}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(abilityScores).map(([ability, score]) => {
+                            const racialBonuses = getRacialBonuses();
+                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                            const finalScore = score + racialBonus;
+                            const finalModifier = getModifier(finalScore);
                             
-                            {rolledArrays.length === 0 ? (
-                                <div className="text-center">
-                                    <p className="text-gray-600 mb-4">
-                                        Clique para gerar 3 arrays de atributos aleatórios:
-                                    </p>
-                                    <Button onClick={generateRolledArrays} className="bg-purple-600 hover:bg-purple-700">
-                                        🎲 Rolar Atributos
-                                    </Button>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <h4 className="font-medium">Escolha um array:</h4>
-                                        <Button 
-                                            variant="outline" 
-                                            size="sm"
-                                            onClick={generateRolledArrays}
-                                        >
-                                            🎲 Rolar novamente
-                                        </Button>
+                            return (
+                                <div key={ability} className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="font-medium capitalize">{ability}</span>
+                                        <span className="text-sm font-mono">
+                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
+                                        </span>
                                     </div>
                                     
-                                    {rolledArrays.map((array, index) => {
-                                        const total = array.reduce((sum, val) => sum + val, 0);
-                                        const modifierSum = array.reduce((sum, val) => sum + getModifier(val), 0);
+                                    <div className="flex items-center justify-between mb-2">
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => updatePointBuyScore(ability as keyof AbilityScores, score - 1)}
+                                            disabled={score <= 8}
+                                        >
+                                            -
+                                        </Button>
                                         
-                                        return (
-                                            <Card 
-                                                key={index}
-                                                className={`p-4 cursor-pointer transition-all ${
-                                                    selectedRolledArray === index 
-                                                        ? 'border-purple-500 bg-purple-50' 
-                                                        : 'hover:border-purple-300'
-                                                }`}
-                                                onClick={() => {
-                                                    setSelectedRolledArray(index);
-                                                    setAssignedValues([null, null, null, null, null, null]);
-                                                }}
-                                            >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex gap-2">
-                                                        {array.map((value, valIndex) => (
-                                                            <span 
-                                                                key={valIndex}
-                                                                className="w-10 h-10 bg-white border rounded flex items-center justify-center font-bold"
-                                                            >
-                                                                {value}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                    <div className="text-right text-sm">
-                                                        <div>Total: {total}</div>
-                                                        <div>Mod: {modifierSum >= 0 ? '+' : ''}{modifierSum}</div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        );
-                                    })}
+                                        <div className="mx-4 text-center">
+                                            <div className="text-2xl font-bold text-blue-600">{score}</div>
+                                            <div className="text-xs text-gray-600">Base</div>
+                                        </div>
+                                        
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => updatePointBuyScore(ability as keyof AbilityScores, score + 1)}
+                                            disabled={score >= 15 || pointsRemaining <= 0}
+                                        >
+                                            +
+                                        </Button>
+                                    </div>
 
-                                    {selectedRolledArray !== null && (
-                                        <div className="mt-4">
-                                            <h4 className="font-medium mb-2">Valores selecionados:</h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {rolledArrays[selectedRolledArray].map((value, index) => (
-                                                    <Button
-                                                        key={`${value}-${index}`}
-                                                        variant="outline"
-                                                        className="w-12 h-12"
-                                                        onClick={() => {
-                                                            const emptyIndex = assignedValues.findIndex(v => v === null);
-                                                            if (emptyIndex !== -1) {
-                                                                assignValue(emptyIndex, value);
-                                                            }
-                                                        }}
-                                                        disabled={!rolledArrays[selectedRolledArray].includes(value) || 
-                                                                 assignedValues.includes(value)}
-                                                    >
-                                                        {value}
-                                                    </Button>
-                                                ))}
+                                    {/* Score Final com Bônus Racial */}
+                                    <div className="border-t pt-2 text-center">
+                                        <div className="text-sm text-gray-600 mb-1">
+                                            {score} {racialBonus > 0 && `+ ${racialBonus}`} = 
+                                            <span className="font-bold text-green-600 ml-1">{finalScore}</span>
+                                        </div>
+                                        <div className="text-sm text-gray-600">
+                                            Modificador: {finalModifier >= 0 ? '+' : ''}{finalModifier}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
+
+            {/* Standard Array */}
+            {selectedMethod === "standard" && (
+                <Card className="p-6">
+                    <h3 className="text-lg font-bold mb-4">Standard Array</h3>
+                    
+                    <div className="mb-4">
+                        <h4 className="font-medium mb-2">Valores disponíveis:</h4>
+                        <div className="flex flex-wrap gap-2">
+                            {standardArrayValues.map((value, index) => (
+                                <span
+                                    key={`${value}-${index}`}
+                                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded font-medium"
+                                >
+                                    {value}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {Object.entries(abilityScores).map(([ability, score], index) => {
+                            const racialBonuses = getRacialBonuses();
+                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                            const assignedValue = assignedValues[index];
+                            const finalScore = (assignedValue || 8) + racialBonus;
+                            const finalModifier = getModifier(finalScore);
+                            
+                            return (
+                                <div key={ability} className="bg-gray-50 p-4 rounded-lg">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="font-medium capitalize">{ability}</span>
+                                        <span className="text-sm font-mono">
+                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
+                                        </span>
+                                    </div>
+                                    
+                                    <select
+                                        value={assignedValues[index] || ''}
+                                        onChange={(e) => {
+                                            const value = parseInt(e.target.value);
+                                            if (!isNaN(value)) {
+                                                assignStandardValue(index, value);
+                                            }
+                                        }}
+                                        className="w-full p-2 border rounded mb-2"
+                                    >
+                                        <option value="">Selecione um valor</option>
+                                        {[...standardArrayValues, assignedValues[index]].filter(v => v !== null).sort((a, b) => b! - a!).map((value, idx) => (
+                                            <option key={idx} value={value!}>
+                                                {value} ({getModifier(value!) >= 0 ? '+' : ''}{getModifier(value!)})
+                                            </option>
+                                        ))}
+                                    </select>
+                                    
+                                    {assignedValues[index] && (
+                                        <div className="border-t pt-2 text-center">
+                                            <div className="text-xl font-bold text-blue-600 mb-1">{assignedValues[index]}</div>
+                                            <div className="text-xs text-gray-600 mb-2">Base</div>
+                                            
+                                            <div className="text-sm text-gray-600">
+                                                {assignedValues[index]} {racialBonus > 0 && `+ ${racialBonus}`} = 
+                                                <span className="font-bold text-green-600 ml-1">{finalScore}</span>
+                                            </div>
+                                            <div className="text-sm text-gray-600">
+                                                Modificador: {finalModifier >= 0 ? '+' : ''}{finalModifier}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                            )}
-                        </Card>
-                    )}
-                </div>
+                            );
+                        })}
+                    </div>
+                </Card>
+            )}
 
-                {/* Painel de atributos finais */}
-                <div>
-                    <Card className="p-6">
-                        <h3 className="text-lg font-bold mb-4">Atributos do Personagem</h3>
-                        
-                        <div className="space-y-3">
-                            {(Object.keys(ABILITY_SCORE_NAMES) as Array<keyof AbilityScores>).map((ability, index) => {
-                                const finalScore = selectedMethod === "point-buy" 
-                                    ? abilityScores[ability]
-                                    : assignedValues[index] || 0;
-                                const modifier = getModifier(finalScore);
-                                
-                                return (
-                                    <div key={ability} className="flex items-center justify-between p-3 bg-gray-50 rounded">
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-bold text-gray-600 w-8">
-                                                {ABILITY_SCORE_ABBREVIATIONS[ability]}
-                                            </span>
-                                            <span className="font-medium min-w-[100px]">
-                                                {ABILITY_SCORE_NAMES[ability]}
-                                            </span>
+            {/* Rolled Stats */}
+            {selectedMethod === "rolled" && (
+                <Card className="p-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold">Rolled Stats</h3>
+                        <Button onClick={rollStats} variant="outline">
+                            🎲 Rolar Novamente
+                        </Button>
+                    </div>
+
+                    {rolledArrays.length > 0 && (
+                        <div className="space-y-4">
+                            <p className="text-sm text-gray-600">Escolha um dos arrays abaixo:</p>
+                            
+                            {rolledArrays.map((array, arrayIndex) => (
+                                <button
+                                    key={arrayIndex}
+                                    onClick={() => selectRolledArray(arrayIndex)}
+                                    className={`w-full p-4 border-2 rounded-lg transition-all ${
+                                        selectedRolledArray === arrayIndex
+                                            ? 'border-purple-500 bg-purple-50'
+                                            : 'border-gray-300 bg-white hover:border-gray-400'
+                                    }`}
+                                >
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-medium">Array {arrayIndex + 1}:</span>
+                                        <div className="flex gap-2">
+                                            {array.map((value, index) => (
+                                                <span
+                                                    key={index}
+                                                    className="px-2 py-1 bg-gray-100 rounded font-mono"
+                                                >
+                                                    {value}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <span className="text-sm text-gray-600">
+                                            Total: {array.reduce((sum, val) => sum + val, 0)}
+                                        </span>
+                                    </div>
+                                </button>
+                            ))}
+
+                            {selectedRolledArray !== null && (
+                                <div className="mt-6">
+                                    <h4 className="font-medium mb-4">Atributos finais com bônus raciais:</h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                        {Object.entries(abilityScores).map(([ability, score]) => {
+                                            const racialBonuses = getRacialBonuses();
+                                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                                            const finalScore = score + racialBonus;
+                                            const finalModifier = getModifier(finalScore);
+                                            
+                                            return (
+                                                <div key={ability} className="bg-gray-50 p-3 rounded text-center">
+                                                    <div className="font-medium capitalize">{ability}</div>
+                                                    <div className="text-xl font-bold text-blue-600">{score}</div>
+                                                    <div className="text-xs text-gray-600 mb-1">Base</div>
+                                                    
+                                                    <div className="border-t pt-1">
+                                                        <div className="text-sm text-gray-600">
+                                                            {score} {racialBonus > 0 && `+ ${racialBonus}`} = 
+                                                            <span className="font-bold text-green-600 ml-1">{finalScore}</span>
+                                                        </div>
+                                                        <div className="text-sm text-gray-600">
+                                                            {finalModifier >= 0 ? '+' : ''}{finalModifier}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </Card>
+            )}
+
+            {/* Resumo Final dos Atributos */}
+            {selectedMethod && (crossStepData.selectedRace || crossStepData.selectedSubrace) && (
+                <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50">
+                    <h3 className="text-lg font-bold mb-4">📊 Resumo Final dos Atributos</h3>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
+                            const baseScore = abilityScores[ability as keyof AbilityScores];
+                            const racialBonuses = getRacialBonuses();
+                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                            const modifier = getModifier(finalScore);
+                            
+                            return (
+                                <div key={ability} className="bg-white p-4 rounded-lg shadow-sm border">
+                                    <div className="text-center">
+                                        <div className="font-semibold capitalize text-gray-700 mb-1">
+                                            {ability}
+                                        </div>
+                                        <div className="text-sm font-mono text-gray-500 mb-2">
+                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
                                         </div>
                                         
-                                        <div className="flex items-center gap-4">
-                                            {(selectedMethod === "standard" || selectedMethod === "rolled") && (
-                                                <div className="flex items-center gap-2">
-                                                    {assignedValues[index] ? (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => removeAssignedValue(index)}
-                                                            className="text-red-600 hover:text-red-800"
-                                                        >
-                                                            ✕
-                                                        </Button>
-                                                    ) : (
-                                                        <div className="w-8"></div>
-                                                    )}
-                                                </div>
-                                            )}
-                                            
-                                            <div className="text-right">
-                                                <div className="text-2xl font-bold">
-                                                    {finalScore}
-                                                </div>
-                                                <div className="text-sm text-gray-500">
-                                                    {modifier >= 0 ? '+' : ''}{modifier}
-                                                </div>
-                                            </div>
+                                        <div className="text-3xl font-bold text-green-600 mb-1">
+                                            {finalScore}
+                                        </div>
+                                        
+                                        <div className="text-sm text-gray-600 mb-2">
+                                            {baseScore} {racialBonus > 0 && `+ ${racialBonus}`}
+                                        </div>
+                                        
+                                        <div className={`text-sm font-semibold px-2 py-1 rounded ${
+                                            modifier >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                        }`}>
+                                            {modifier >= 0 ? '+' : ''}{modifier}
                                         </div>
                                     </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Resumo */}
-                        <div className="mt-6 p-4 bg-blue-50 rounded">
-                            <h4 className="font-bold text-blue-800 mb-2">Resumo</h4>
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                    <span className="font-medium">Total:</span>{' '}
-                                    {selectedMethod === "point-buy" 
-                                        ? Object.values(abilityScores).reduce((sum, val) => sum + val, 0)
-                                        : assignedValues.reduce((sum, val) => sum + (val || 0), 0)
-                                    }
                                 </div>
-                                <div>
-                                    <span className="font-medium">Modificadores:</span>{' '}
-                                    {selectedMethod === "point-buy"
-                                        ? Object.values(abilityScores).reduce((sum, val) => sum + getModifier(val), 0)
-                                        : assignedValues.reduce((sum, val) => sum + getModifier(val || 0), 0)
-                                    }
-                                </div>
-                                {selectedMethod === "point-buy" && (
-                                    <div>
-                                        <span className="font-medium">Pontos usados:</span> {27 - pointsRemaining}/27
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </Card>
-                </div>
-            </div>
-
-            {/* Debug */}
-            <div className="mt-8 p-4 bg-gray-100 rounded-lg text-sm">
-                <h3 className="font-bold mb-2">Informações de Debug:</h3>
-                <p>Método selecionado: {selectedMethod}</p>
-                <p>Validação: {validateScores() ? '✅ Válido' : '❌ Incompleto'}</p>
-                {selectedMethod === "point-buy" && <p>Pontos restantes: {pointsRemaining}</p>}
-                {selectedMethod === "standard" && (
-                    <p>Valores atribuídos: {assignedValues.filter(v => v !== null).length}/6</p>
-                )}
-                {selectedMethod === "rolled" && (
-                    <p>Array selecionado: {selectedRolledArray !== null ? selectedRolledArray + 1 : 'Nenhum'}, 
-                       Atribuições: {assignedValues.filter(v => v !== null).length}/6</p>
-                )}
-            </div>
+                            );
+                        })}
+                    </div>
+                    
+                    <div className="mt-4 text-center text-sm text-gray-600">
+                        ✨ Estes são seus atributos finais que serão utilizados no jogo!
+                    </div>
+                </Card>
+            )}
         </div>
     );
 };
-
-export default AbilityScoresComponent;
-export { AbilityScoresComponent };
