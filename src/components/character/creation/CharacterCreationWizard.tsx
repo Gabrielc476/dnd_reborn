@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import RacesCreation from "@/components/character/creation/steps/Races";
 import ClassesCreation from "@/components/character/creation/steps/Classes";
+import { AbilityScoresComponent } from "@/components/character/creation/steps/AbilityScores";
 
 interface Step {
   id: string;
@@ -32,7 +33,7 @@ const steps: Step[] = [
     id: "abilities",
     title: "Atributos",
     description: "Distribua os pontos de atributo do personagem",
-    component: () => <div className="p-8 text-center text-gray-500">Step de Atributos - Em desenvolvimento</div>
+    component: AbilityScoresComponent
   },
   {
     id: "skills",

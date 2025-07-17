@@ -1,11 +1,11 @@
 // components/character/creation/steps/AbilityScores.tsx
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
-    AbilityScores, 
+    type AbilityScores, 
     ABILITY_SCORE_NAMES, 
     ABILITY_SCORE_ABBREVIATIONS 
 } from "@/types/characterCreation";
@@ -14,6 +14,7 @@ interface AbilityScoresProps {
     onValidationChange?: (isValid: boolean) => void;
 }
 
+// ✅ CORRIGIDO: Tipos de método alinhados com o tipo do sistema
 type AbilityMethod = "point-buy" | "standard" | "rolled";
 
 const INITIAL_SCORES: AbilityScores = {
@@ -32,7 +33,8 @@ const POINT_BUY_COSTS: Record<number, number> = {
     8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9
 };
 
-const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
+// ✅ CORRIGIDO: Renomeando para evitar conflito com o tipo importado
+const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProps) => {
     const [selectedMethod, setSelectedMethod] = useState<AbilityMethod | null>(null);
     const [abilityScores, setAbilityScores] = useState<AbilityScores>(INITIAL_SCORES);
     const [pointsRemaining, setPointsRemaining] = useState(27);
@@ -46,8 +48,8 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
         return Math.floor((score - 10) / 2);
     };
 
-    // Valida se todos os atributos foram definidos
-    const validateScores = (): boolean => {
+    // ✅ CORRIGIDO: Função de validação com useCallback para dependências
+    const validateScores = useCallback((): boolean => {
         if (!selectedMethod) return false;
         
         switch (selectedMethod) {
@@ -60,7 +62,7 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
             default:
                 return false;
         }
-    };
+    }, [selectedMethod, abilityScores, assignedValues, selectedRolledArray]);
 
     // Point-buy: Ajusta um atributo
     const adjustPointBuyScore = (ability: keyof AbilityScores, newValue: number) => {
@@ -104,7 +106,8 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
         // Remove o valor anterior se existir
         const oldValue = newAssigned[abilityIndex];
         if (oldValue !== null) {
-            if (selectedMethod === "standard-array") {
+            // ✅ CORRIGIDO: Comparação com método correto
+            if (selectedMethod === "standard") {
                 setStandardArrayValues(prev => [...prev, oldValue].sort((a, b) => b - a));
             }
         }
@@ -152,11 +155,11 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
         setAssignedValues([null, null, null, null, null, null]);
     };
 
-    // Validação
+    // ✅ CORRIGIDO: useEffect com dependências corretas
     useEffect(() => {
         const isValid = validateScores();
         onValidationChange?.(isValid);
-    }, [selectedMethod, abilityScores, assignedValues, selectedRolledArray]);
+    }, [validateScores, onValidationChange]);
 
     if (!selectedMethod) {
         return (
@@ -238,7 +241,7 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                 </Button>
                 <h2 className="text-2xl font-bold">
                     Atributos - {selectedMethod === "point-buy" ? "Point Buy" : 
-                                 selectedMethod === "standard-array" ? "Array Padrão" : "Rolagem"}
+                                 selectedMethod === "standard" ? "Array Padrão" : "Rolagem"}
                 </h2>
             </div>
 
@@ -257,10 +260,10 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                             </div>
                             
                             <div className="space-y-4">
-                                {(Object.keys(ABILITY_NAMES) as Array<keyof AbilityScores>).map((ability) => (
+                                {(Object.keys(ABILITY_SCORE_NAMES) as Array<keyof AbilityScores>).map((ability) => (
                                     <div key={ability} className="flex items-center justify-between">
                                         <label className="font-medium text-gray-700 min-w-[100px]">
-                                            {ABILITY_NAMES[ability]}
+                                            {ABILITY_SCORE_NAMES[ability]}
                                         </label>
                                         <div className="flex items-center gap-2">
                                             <Button
@@ -298,7 +301,7 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                     )}
 
                     {/* Standard Array Controls */}
-                    {selectedMethod === "standard-array" && (
+                    {selectedMethod === "standard" && (
                         <Card className="p-6">
                             <h3 className="text-lg font-bold mb-4">Array Padrão</h3>
                             <p className="text-gray-600 mb-4">
@@ -330,7 +333,7 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                     )}
 
                     {/* Rolling Controls */}
-                    {selectedMethod === "rolling" && (
+                    {selectedMethod === "rolled" && (
                         <Card className="p-6">
                             <h3 className="text-lg font-bold mb-4">Rolagem de Dados</h3>
                             
@@ -429,7 +432,7 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                         <h3 className="text-lg font-bold mb-4">Atributos do Personagem</h3>
                         
                         <div className="space-y-3">
-                            {(Object.keys(ABILITY_NAMES) as Array<keyof AbilityScores>).map((ability, index) => {
+                            {(Object.keys(ABILITY_SCORE_NAMES) as Array<keyof AbilityScores>).map((ability, index) => {
                                 const finalScore = selectedMethod === "point-buy" 
                                     ? abilityScores[ability]
                                     : assignedValues[index] || 0;
@@ -439,15 +442,15 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                                     <div key={ability} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                                         <div className="flex items-center gap-3">
                                             <span className="font-bold text-gray-600 w-8">
-                                                {ABILITY_ABBREVIATIONS[ability]}
+                                                {ABILITY_SCORE_ABBREVIATIONS[ability]}
                                             </span>
                                             <span className="font-medium min-w-[100px]">
-                                                {ABILITY_NAMES[ability]}
+                                                {ABILITY_SCORE_NAMES[ability]}
                                             </span>
                                         </div>
                                         
                                         <div className="flex items-center gap-4">
-                                            {(selectedMethod === "standard-array" || selectedMethod === "rolling") && (
+                                            {(selectedMethod === "standard" || selectedMethod === "rolled") && (
                                                 <div className="flex items-center gap-2">
                                                     {assignedValues[index] ? (
                                                         <Button
@@ -513,10 +516,10 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
                 <p>Método selecionado: {selectedMethod}</p>
                 <p>Validação: {validateScores() ? '✅ Válido' : '❌ Incompleto'}</p>
                 {selectedMethod === "point-buy" && <p>Pontos restantes: {pointsRemaining}</p>}
-                {selectedMethod === "standard-array" && (
+                {selectedMethod === "standard" && (
                     <p>Valores atribuídos: {assignedValues.filter(v => v !== null).length}/6</p>
                 )}
-                {selectedMethod === "rolling" && (
+                {selectedMethod === "rolled" && (
                     <p>Array selecionado: {selectedRolledArray !== null ? selectedRolledArray + 1 : 'Nenhum'}, 
                        Atribuições: {assignedValues.filter(v => v !== null).length}/6</p>
                 )}
@@ -525,4 +528,5 @@ const AbilityScores = ({ onValidationChange }: AbilityScoresProps) => {
     );
 };
 
-export default AbilityScores;
+export default AbilityScoresComponent;
+export { AbilityScoresComponent };
