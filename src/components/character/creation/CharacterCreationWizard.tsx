@@ -9,6 +9,7 @@ import RacesCreation from "@/components/character/creation/steps/Races";
 import ClassesCreation from "@/components/character/creation/steps/Classes";
 import { AbilityScoresComponent } from "@/components/character/creation/steps/AbilityScores";
 import { SkillsComponent } from "@/components/character/creation/steps/Skills";
+import EquipmentComponent from "@/components/character/creation/steps/Equipment";
 
 interface Step {
   id: string;
@@ -64,6 +65,7 @@ const getConsolidatedCharacterData = () => {
     const abilityScores = JSON.parse(localStorage.getItem('character_creation_ability_scores') || '{}');
     const finalAbilityScores = JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}'); // ✅ NOVO: Scores com bônus racial
     const selectedSkills = JSON.parse(localStorage.getItem('character_creation_selected_skills') || '[]'); // ✅ NOVO: Perícias
+    const selectedEquipment = JSON.parse(localStorage.getItem('character_creation_selected_equipment') || '[]'); // ✅ NOVO: Equipamentos
     
     return {
       selectedRace: raceData,
@@ -75,6 +77,7 @@ const getConsolidatedCharacterData = () => {
       abilityScores, // Scores base
       finalAbilityScores, // ✅ NOVO: Scores finais com bônus racial
       selectedSkills, // ✅ NOVO: Perícias selecionadas
+      selectedEquipment, // ✅ NOVO: Equipamentos selecionados
       // Adicionar outros dados conforme necessário
     };
   } catch (error) {
@@ -114,6 +117,11 @@ const clearAllCharacterData = () => {
     'character_creation_available_skill_choices',
     'character_creation_class_skill_options',
     'character_creation_background_skills',
+
+    // Equipment step ✅ NOVO
+    'character_creation_selected_equipment',
+    'character_creation_equipment_cache',
+    'character_creation_equipment_search',
     
     // Wizard state
     'character_wizard_current_step',
@@ -126,7 +134,7 @@ const clearAllCharacterData = () => {
     sessionStorage.removeItem(key);
   });
   
-  console.log('🧹 Todos os dados de criação de personagem foram limpos (incluindo perícias)');
+  console.log('🧹 Todos os dados de criação de personagem foram limpos (incluindo perícias e equipamentos)');
 };
 
 // ===========================
@@ -162,7 +170,7 @@ const steps: Step[] = [
     id: "equipment",
     title: "Equipamentos",
     description: "Selecione o equipamento inicial",
-    component: () => <div className="p-8 text-center text-gray-500">Step de Equipamentos - Em desenvolvimento</div>
+    component: EquipmentComponent // ✅ NOVO: Componente de equipamentos com tabela
   },
   {
     id: "review",
@@ -176,82 +184,113 @@ const steps: Step[] = [
           {characterData ? (
             <div className="space-y-6">
               {/* Informações Básicas */}
-              <Card className="p-4">
-                <h4 className="font-semibold mb-3">📝 Informações Básicas</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <Card className="p-6">
+                <h4 className="text-xl font-semibold mb-4">Informações Básicas</h4>
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <strong>Raça:</strong> {characterData.selectedRace?.name || 'N/A'}
+                    <p><strong>Raça:</strong> {characterData.selectedRace?.name || 'N/A'}</p>
                     {characterData.selectedSubrace && (
-                      <span> ({characterData.selectedSubrace.name})</span>
+                      <p><strong>Sub-raça:</strong> {characterData.selectedSubrace.name}</p>
                     )}
                   </div>
                   <div>
-                    <strong>Classe:</strong> {characterData.selectedClass?.name || 'N/A'}
+                    <p><strong>Classe:</strong> {characterData.selectedClass?.name || 'N/A'}</p>
                     {characterData.selectedSubclass && (
-                      <span> ({characterData.selectedSubclass.name})</span>
+                      <p><strong>Subclasse:</strong> {characterData.selectedSubclass.name}</p>
                     )}
-                  </div>
-                  <div>
-                    <strong>Background:</strong> {characterData.selectedBackground?.name || 'N/A'}
-                  </div>
-                  <div>
-                    <strong>Método de Atributos:</strong> {characterData.abilityMethod || 'N/A'}
+                    <p><strong>Background:</strong> {characterData.selectedBackground?.name || 'N/A'}</p>
                   </div>
                 </div>
               </Card>
 
-              {/* Atributos Finais */}
-              {characterData.finalAbilityScores && Object.keys(characterData.finalAbilityScores).length > 0 && (
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-3">💪 Atributos Finais (com bônus raciais)</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(characterData.finalAbilityScores).map(([ability, score]) => (
-                      <div key={ability} className="text-center p-2 bg-gray-50 rounded">
-                        <div className="font-medium capitalize text-sm">{ability}</div>
-                        <div className="text-xl font-bold text-blue-600">{score as number}</div>
-                        <div className="text-xs text-gray-600">
-                          {Math.floor(((score as number) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((score as number) - 10) / 2)}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
+              {/* Atributos */}
+              <Card className="p-6">
+                <h4 className="text-xl font-semibold mb-4">Atributos</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  {Object.entries(characterData.finalAbilityScores || {}).map(([ability, score]) => (
+                    <div key={ability} className="text-center p-3 bg-gray-50 rounded">
+                      <p className="font-medium capitalize">{ability}</p>
+                      <p className="text-2xl font-bold">{score as number}</p>
+                      <p className="text-sm text-gray-600">
+                        ({score as number >= 10 ? '+' : ''}{Math.floor(((score as number) - 10) / 2)})
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </Card>
 
               {/* Perícias */}
               {characterData.selectedSkills && characterData.selectedSkills.length > 0 && (
-                <Card className="p-4">
-                  <h4 className="font-semibold mb-3">🎯 Perícias Selecionadas</h4>
+                <Card className="p-6">
+                  <h4 className="text-xl font-semibold mb-4">Perícias Selecionadas</h4>
                   <div className="flex flex-wrap gap-2">
-                    {characterData.selectedSkills.map((skillKey: string) => (
-                      <span 
-                        key={skillKey}
-                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                      >
-                        {skillKey}
+                    {characterData.selectedSkills.map((skill: string) => (
+                      <span key={skill} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {skill}
                       </span>
                     ))}
                   </div>
                 </Card>
               )}
 
-              {/* Instruções */}
-              <Card className="p-4 bg-green-50">
-                <h4 className="font-semibold mb-2 text-green-800">✅ Personagem Pronto!</h4>
-                <p className="text-sm text-green-700">
-                  Seu personagem está configurado com todas as informações básicas. 
-                  Os dados estão salvos no localStorage do navegador.
-                  Você pode fechar o navegador e retornar posteriormente que seus dados estarão salvos.
-                </p>
+              {/* Equipamentos */}
+              {characterData.selectedEquipment && characterData.selectedEquipment.length > 0 && (
+                <Card className="p-6">
+                  <h4 className="text-xl font-semibold mb-4">Equipamentos Selecionados</h4>
+                  <div className="space-y-2">
+                    {characterData.selectedEquipment.map((item: any) => (
+                      <div key={item.equipment.index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <span>{item.equipment.name}</span>
+                        <span className="text-sm text-gray-600">Qtd: {item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+
+              {/* Status do Personagem */}
+              <Card className="p-6">
+                <h4 className="text-xl font-semibold mb-4">Status Calculados</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded">
+                    <p className="font-medium text-blue-800">Classe de Armadura</p>
+                    <p className="text-3xl font-bold text-blue-600">
+                      {(() => {
+                        const dexScore = characterData.finalAbilityScores?.dexterity || 10;
+                        const dexMod = Math.floor((dexScore - 10) / 2);
+                        // Verificar se tem armadura selecionada
+                        const armor = characterData.selectedEquipment?.find((item: any) => 
+                          item.equipment.equipment_category?.index === 'armor' && item.equipment.armor_class
+                        );
+                        if (armor?.equipment.armor_class) {
+                          const baseAC = armor.equipment.armor_class.base;
+                          if (armor.equipment.armor_class.dex_bonus) {
+                            const maxBonus = armor.equipment.armor_class.max_bonus;
+                            const dexBonus = maxBonus !== undefined ? Math.min(dexMod, maxBonus) : dexMod;
+                            return baseAC + dexBonus;
+                          }
+                          return baseAC;
+                        }
+                        return 10 + dexMod;
+                      })()}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-red-50 rounded">
+                    <p className="font-medium text-red-800">Pontos de Vida</p>
+                    <p className="text-3xl font-bold text-red-600">
+                      {(() => {
+                        const conScore = characterData.finalAbilityScores?.constitution || 10;
+                        const conMod = Math.floor((conScore - 10) / 2);
+                        const hitDie = characterData.selectedClass?.hit_die || 8;
+                        return hitDie + conMod;
+                      })()}
+                    </p>
+                  </div>
+                </div>
               </Card>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">Nenhum dado encontrado</p>
-              <p className="text-sm text-gray-400">
-                Complete os steps anteriores para ver a revisão do personagem
-              </p>
-            </div>
+            <p className="text-gray-500">Erro ao carregar dados do personagem</p>
           )}
         </div>
       );
@@ -259,27 +298,23 @@ const steps: Step[] = [
   }
 ];
 
-export default function CharacterCreationWizard() {
-  // ===========================
-  // STATES COM SESSION STORAGE
-  // ===========================
-  
+// ===========================
+// COMPONENTE PRINCIPAL
+// ===========================
+
+const CharacterCreationWizard = () => {
+  // Estados do wizard
   const [currentStep, setCurrentStep] = useState(() => 
-    loadWizardState<number>(WIZARD_STORAGE_KEYS.CURRENT_STEP, 0)
+    loadWizardState(WIZARD_STORAGE_KEYS.CURRENT_STEP, 0)
   );
-  
-  const [completedSteps, setCompletedSteps] = useState<Set<number>>(() => 
-    new Set(loadWizardState<number[]>(WIZARD_STORAGE_KEYS.COMPLETED_STEPS, []))
+  const [completedSteps, setCompletedSteps] = useState(() => 
+    new Set(loadWizardState(WIZARD_STORAGE_KEYS.COMPLETED_STEPS, []))
   );
-  
-  const [stepValidations, setStepValidations] = useState<Record<number, boolean>>(() => 
-    loadWizardState<Record<number, boolean>>(WIZARD_STORAGE_KEYS.STEP_VALIDATIONS, {})
+  const [stepValidations, setStepValidations] = useState(() => 
+    loadWizardState(WIZARD_STORAGE_KEYS.STEP_VALIDATIONS, {})
   );
 
-  // ===========================
-  // SAVE WIZARD STATE
-  // ===========================
-
+  // Salvar estado do wizard
   useEffect(() => {
     saveWizardState(WIZARD_STORAGE_KEYS.CURRENT_STEP, currentStep);
   }, [currentStep]);
@@ -400,6 +435,7 @@ export default function CharacterCreationWizard() {
                 <p>• Método atributos: {getConsolidatedCharacterData()?.abilityMethod || 'N/A'}</p>
                 <p>• Scores com bônus: {Object.keys(getConsolidatedCharacterData()?.finalAbilityScores || {}).length > 0 ? 'Sim' : 'Não'}</p>
                 <p>• Perícias: {getConsolidatedCharacterData()?.selectedSkills?.length || 0} selecionadas</p>
+                <p>• Equipamentos: {getConsolidatedCharacterData()?.selectedEquipment?.length || 0} selecionados</p>
               </div>
               <div className="flex gap-2 mt-2">
                 <Button 
@@ -529,19 +565,22 @@ export default function CharacterCreationWizard() {
             {/* Validation Status */}
             <div className="text-sm">
               {isCurrentStepValid() ? (
-                <span className="text-green-600 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  Passo válido
-                </span>
+                <span className="text-green-600 font-medium">✓ Step válido</span>
               ) : (
-                <span className="text-orange-600 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
-                  Complete os campos obrigatórios
-                </span>
+                <span className="text-orange-600 font-medium">⚠ Complete as informações</span>
               )}
             </div>
 
-            {currentStep < steps.length - 1 ? (
+            {/* Next/Finish Button */}
+            {currentStep === steps.length - 1 ? (
+              <Button
+                onClick={handleFinalizeCharacter}
+                disabled={!isCurrentStepValid()}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+              >
+                🎉 Finalizar Personagem
+              </Button>
+            ) : (
               <Button
                 onClick={goToNextStep}
                 disabled={!isCurrentStepValid()}
@@ -549,18 +588,12 @@ export default function CharacterCreationWizard() {
               >
                 Próximo →
               </Button>
-            ) : (
-              <Button
-                onClick={handleFinalizeCharacter}
-                disabled={!isCurrentStepValid()}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
-                ✓ Finalizar Personagem
-              </Button>
             )}
           </div>
         </div>
       </Card>
     </div>
   );
-}
+};
+
+export default CharacterCreationWizard;
