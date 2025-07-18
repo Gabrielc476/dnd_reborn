@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import RacesCreation from "@/components/character/creation/steps/Races";
 import ClassesCreation from "@/components/character/creation/steps/Classes";
 import { AbilityScoresComponent } from "@/components/character/creation/steps/AbilityScores";
+import { SkillsComponent } from "@/components/character/creation/steps/Skills";
 
 interface Step {
   id: string;
@@ -62,6 +63,7 @@ const getConsolidatedCharacterData = () => {
     const abilityMethod = JSON.parse(localStorage.getItem('character_creation_ability_method') || 'null');
     const abilityScores = JSON.parse(localStorage.getItem('character_creation_ability_scores') || '{}');
     const finalAbilityScores = JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}'); // ✅ NOVO: Scores com bônus racial
+    const selectedSkills = JSON.parse(localStorage.getItem('character_creation_selected_skills') || '[]'); // ✅ NOVO: Perícias
     
     return {
       selectedRace: raceData,
@@ -72,6 +74,7 @@ const getConsolidatedCharacterData = () => {
       abilityMethod,
       abilityScores, // Scores base
       finalAbilityScores, // ✅ NOVO: Scores finais com bônus racial
+      selectedSkills, // ✅ NOVO: Perícias selecionadas
       // Adicionar outros dados conforme necessário
     };
   } catch (error) {
@@ -106,6 +109,12 @@ const clearAllCharacterData = () => {
     'character_creation_selected_rolled',
     'standard_array_values',
     
+    // Skills step ✅ NOVO
+    'character_creation_selected_skills',
+    'character_creation_available_skill_choices',
+    'character_creation_class_skill_options',
+    'character_creation_background_skills',
+    
     // Wizard state
     'character_wizard_current_step',
     'character_wizard_completed_steps',
@@ -117,7 +126,7 @@ const clearAllCharacterData = () => {
     sessionStorage.removeItem(key);
   });
   
-  console.log('🧹 Todos os dados de criação de personagem foram limpos (incluindo scores finais)');
+  console.log('🧹 Todos os dados de criação de personagem foram limpos (incluindo perícias)');
 };
 
 // ===========================
@@ -147,7 +156,7 @@ const steps: Step[] = [
     id: "skills",
     title: "Perícias",
     description: "Escolha as perícias do seu personagem",
-    component: () => <div className="p-8 text-center text-gray-500">Step de Perícias - Em desenvolvimento</div>
+    component: SkillsComponent // ✅ ATUALIZADO: Usando o componente real
   },
   {
     id: "equipment",
@@ -168,122 +177,70 @@ const steps: Step[] = [
             <div className="space-y-6">
               {/* Informações Básicas */}
               <Card className="p-4">
-                <h4 className="font-semibold mb-3">Informações Básicas</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <h4 className="font-semibold mb-3">📝 Informações Básicas</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <strong>Raça:</strong> {characterData.selectedRace?.name || 'Não selecionada'}
+                    <strong>Raça:</strong> {characterData.selectedRace?.name || 'N/A'}
                     {characterData.selectedSubrace && (
-                      <div className="text-sm text-gray-600 ml-4">
-                        Sub-raça: {characterData.selectedSubrace.name}
-                      </div>
+                      <span> ({characterData.selectedSubrace.name})</span>
                     )}
                   </div>
                   <div>
-                    <strong>Classe:</strong> {characterData.selectedClass?.name || 'Não selecionada'}
+                    <strong>Classe:</strong> {characterData.selectedClass?.name || 'N/A'}
                     {characterData.selectedSubclass && (
-                      <div className="text-sm text-gray-600 ml-4">
-                        Subclasse: {characterData.selectedSubclass.name}
-                      </div>
+                      <span> ({characterData.selectedSubclass.name})</span>
                     )}
                   </div>
-                </div>
-                {characterData.selectedBackground && (
-                  <div className="mt-3">
-                    <strong>Background:</strong> {characterData.selectedBackground.name}
+                  <div>
+                    <strong>Background:</strong> {characterData.selectedBackground?.name || 'N/A'}
                   </div>
-                )}
+                  <div>
+                    <strong>Método de Atributos:</strong> {characterData.abilityMethod || 'N/A'}
+                  </div>
+                </div>
               </Card>
 
-              {/* Atributos */}
-              <Card className="p-4">
-                <h4 className="font-semibold mb-3">Atributos</h4>
-                <div>
-                  <strong>Método:</strong> {characterData.abilityMethod || 'Não selecionado'}
-                </div>
-                
-                {/* Atributos Base */}
-                <div className="mt-3">
-                  <strong>Valores Base:</strong>
-                  <div className="ml-4 mt-2 grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(characterData.abilityScores).map(([ability, score]) => {
-                      const modifier = Math.floor(((score as number) - 10) / 2);
-                      return (
-                        <div key={ability} className="flex justify-between items-center p-2 bg-blue-50 rounded">
-                          <span className="capitalize font-medium">{ability}:</span> 
-                          <div className="text-right">
-                            <span className="font-bold">{score as number}</span>
-                            <span className="text-sm text-gray-600 ml-1">
-                              ({modifier >= 0 ? '+' : ''}{modifier})
-                            </span>
-                          </div>
+              {/* Atributos Finais */}
+              {characterData.finalAbilityScores && Object.keys(characterData.finalAbilityScores).length > 0 && (
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-3">💪 Atributos Finais (com bônus raciais)</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {Object.entries(characterData.finalAbilityScores).map(([ability, score]) => (
+                      <div key={ability} className="text-center p-2 bg-gray-50 rounded">
+                        <div className="font-medium capitalize text-sm">{ability}</div>
+                        <div className="text-xl font-bold text-blue-600">{score as number}</div>
+                        <div className="text-xs text-gray-600">
+                          {Math.floor(((score as number) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((score as number) - 10) / 2)}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
-                </div>
+                </Card>
+              )}
 
-                {/* Atributos Finais com Bônus Racial */}
-                {characterData.finalAbilityScores && Object.keys(characterData.finalAbilityScores).length > 0 && (
-                  <div className="mt-4">
-                    <strong>Valores Finais (com bônus racial):</strong>
-                    <div className="ml-4 mt-2 grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {Object.entries(characterData.finalAbilityScores).map(([ability, finalScore]) => {
-                        const finalModifier = Math.floor(((finalScore as number) - 10) / 2);
-                        const baseScore = characterData.abilityScores[ability] || 0;
-                        const bonus = (finalScore as number) - (baseScore as number);
-                        
-                        return (
-                          <div key={ability} className="flex justify-between items-center p-2 bg-green-50 rounded border border-green-200">
-                            <span className="capitalize font-medium">{ability}:</span> 
-                            <div className="text-right">
-                              <span className="font-bold text-green-700">{finalScore as number}</span>
-                              {bonus > 0 && (
-                                <span className="text-xs text-green-600 ml-1">(+{bonus})</span>
-                              )}
-                              <div className="text-sm text-gray-600">
-                                ({finalModifier >= 0 ? '+' : ''}{finalModifier})
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+              {/* Perícias */}
+              {characterData.selectedSkills && characterData.selectedSkills.length > 0 && (
+                <Card className="p-4">
+                  <h4 className="font-semibold mb-3">🎯 Perícias Selecionadas</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {characterData.selectedSkills.map((skillKey: string) => (
+                      <span 
+                        key={skillKey}
+                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                      >
+                        {skillKey}
+                      </span>
+                    ))}
                   </div>
-                )}
-              </Card>
+                </Card>
+              )}
 
-              {/* Status de Implementação */}
-              <Card className="p-4 bg-yellow-50">
-                <h4 className="font-semibold mb-3">Status dos Steps</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                    <span>Raça e Sub-raça: Implementado ✓</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                    <span>Classes e Background: Implementado ✓</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                    <span>Atributos: Implementado ✓</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
-                    <span>Perícias: Em desenvolvimento</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-3 h-3 bg-gray-400 rounded-full"></span>
-                    <span>Equipamentos: Em desenvolvimento</span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Nota sobre Storage */}
-              <Card className="p-4 bg-blue-50">
-                <h4 className="font-semibold mb-2">💾 Dados Persistentes</h4>
-                <p className="text-sm text-blue-700">
-                  Todos os dados são salvos automaticamente no localStorage. 
+              {/* Instruções */}
+              <Card className="p-4 bg-green-50">
+                <h4 className="font-semibold mb-2 text-green-800">✅ Personagem Pronto!</h4>
+                <p className="text-sm text-green-700">
+                  Seu personagem está configurado com todas as informações básicas. 
+                  Os dados estão salvos no localStorage do navegador.
                   Você pode fechar o navegador e retornar posteriormente que seus dados estarão salvos.
                 </p>
               </Card>
@@ -442,6 +399,7 @@ export default function CharacterCreationWizard() {
                 <p>• Background: {getConsolidatedCharacterData()?.selectedBackground?.name || 'N/A'}</p>
                 <p>• Método atributos: {getConsolidatedCharacterData()?.abilityMethod || 'N/A'}</p>
                 <p>• Scores com bônus: {Object.keys(getConsolidatedCharacterData()?.finalAbilityScores || {}).length > 0 ? 'Sim' : 'Não'}</p>
+                <p>• Perícias: {getConsolidatedCharacterData()?.selectedSkills?.length || 0} selecionadas</p>
               </div>
               <div className="flex gap-2 mt-2">
                 <Button 

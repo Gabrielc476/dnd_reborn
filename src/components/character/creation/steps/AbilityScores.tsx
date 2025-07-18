@@ -1,5 +1,5 @@
 // components/character/creation/steps/AbilityScores.tsx
-// ✅ ATUALIZADO: Agora inclui bônus raciais em todos os métodos
+// ✅ CORRIGIDO: Todos os erros de TypeScript e ESLint resolvidos
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
@@ -7,7 +7,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
     type AbilityScores, 
-    ABILITY_SCORE_NAMES, 
+    type DndRace,
+    type DndSubrace,
+    type DndAbilityBonus,
     ABILITY_SCORE_ABBREVIATIONS 
 } from "@/types/characterCreation";
 
@@ -36,7 +38,7 @@ const CROSS_STEP_KEYS = {
     SELECTED_SUBRACE: 'character_creation_subrace'
 };
 
-const saveToStorage = (key: string, data: any) => {
+const saveToStorage = (key: string, data: unknown) => {
     try {
         localStorage.setItem(key, JSON.stringify(data));
         console.log(`💾 Salvou ${key}`);
@@ -113,10 +115,96 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
     // DADOS DE OUTROS STEPS (RACIAL BONUSES)
     // ===========================
     
-    const [crossStepData, setCrossStepData] = useState({
-        selectedRace: loadFromStorage(CROSS_STEP_KEYS.SELECTED_RACE, null),
-        selectedSubrace: loadFromStorage(CROSS_STEP_KEYS.SELECTED_SUBRACE, null)
+    const [crossStepData, setCrossStepData] = useState<{
+        selectedRace: DndRace | null;
+        selectedSubrace: DndSubrace | null;
+    }>({
+        selectedRace: loadFromStorage<DndRace | null>(CROSS_STEP_KEYS.SELECTED_RACE, null),
+        selectedSubrace: loadFromStorage<DndSubrace | null>(CROSS_STEP_KEYS.SELECTED_SUBRACE, null)
     });
+
+    // ===========================
+    // UTILITY FUNCTIONS + RACIAL BONUSES
+    // ===========================
+
+    const getModifier = (score: number): number => {
+        return Math.floor((score - 10) / 2);
+    };
+
+    // Calcular bônus raciais
+    const getRacialBonuses = useCallback((): Record<keyof AbilityScores, number> => {
+        const bonuses: Record<keyof AbilityScores, number> = {
+            strength: 0,
+            dexterity: 0,
+            constitution: 0,
+            intelligence: 0,
+            wisdom: 0,
+            charisma: 0
+        };
+
+        // Mapeamento correto dos índices da API D&D para nossas chaves
+        const indexToAbilityMap: Record<string, keyof AbilityScores> = {
+            'str': 'strength',
+            'dex': 'dexterity', 
+            'con': 'constitution',
+            'int': 'intelligence',
+            'wis': 'wisdom',
+            'cha': 'charisma'
+        };
+
+        // Bônus da raça principal
+        if (crossStepData.selectedRace?.ability_bonuses) {
+            crossStepData.selectedRace.ability_bonuses.forEach((bonus: DndAbilityBonus) => {
+                const abilityKey = indexToAbilityMap[bonus.ability_score.index];
+                if (abilityKey && abilityKey in bonuses) {
+                    bonuses[abilityKey] += bonus.bonus;
+                    console.log(`🎯 Aplicando bônus racial - ${bonus.ability_score.index} (${abilityKey}): +${bonus.bonus}`);
+                }
+            });
+        }
+
+        // Bônus da sub-raça
+        if (crossStepData.selectedSubrace?.ability_bonuses) {
+            crossStepData.selectedSubrace.ability_bonuses.forEach((bonus: DndAbilityBonus) => {
+                const abilityKey = indexToAbilityMap[bonus.ability_score.index];
+                if (abilityKey && abilityKey in bonuses) {
+                    bonuses[abilityKey] += bonus.bonus;
+                    console.log(`🎯 Aplicando bônus sub-racial - ${bonus.ability_score.index} (${abilityKey}): +${bonus.bonus}`);
+                }
+            });
+        }
+
+        console.log('📊 Bônus raciais calculados:', bonuses);
+        return bonuses;
+    }, [crossStepData.selectedRace, crossStepData.selectedSubrace]);
+
+    // Calcular scores finais (base + racial)
+    const getFinalAbilityScores = useCallback((): Record<keyof AbilityScores, number> => {
+        const racialBonuses = getRacialBonuses();
+        const finalScores: Record<keyof AbilityScores, number> = {} as Record<keyof AbilityScores, number>;
+
+        Object.keys(abilityScores).forEach(ability => {
+            const abilityKey = ability as keyof AbilityScores;
+            finalScores[abilityKey] = abilityScores[abilityKey] + racialBonuses[abilityKey];
+        });
+
+        return finalScores;
+    }, [abilityScores, getRacialBonuses]);
+
+    const validateScores = useCallback((): boolean => {
+        if (!selectedMethod) return false;
+        
+        switch (selectedMethod) {
+            case "point-buy":
+                return Object.values(abilityScores).every(score => score >= 8 && score <= 15);
+            case "standard":
+                return assignedValues.every(val => val !== null);
+            case "rolled":
+                return selectedRolledArray !== null && Object.values(abilityScores).every(score => score > 0);
+            default:
+                return false;
+        }
+    }, [selectedMethod, abilityScores, assignedValues, selectedRolledArray]);
 
     // ===========================
     // EFEITOS DE STORAGE
@@ -136,7 +224,7 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
         // ✅ NOVO: Também salvar scores finais com bônus raciais
         const finalScores = getFinalAbilityScores();
         saveToStorage('character_creation_final_ability_scores', finalScores);
-    }, [abilityScores, crossStepData]);
+    }, [abilityScores, getFinalAbilityScores]);
 
     // Salvar pontos restantes
     useEffect(() => {
@@ -162,76 +250,6 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
         }
     }, [selectedRolledArray]);
 
-    // ===========================
-    // UTILITY FUNCTIONS + RACIAL BONUSES
-    // ===========================
-
-    const getModifier = (score: number): number => {
-        return Math.floor((score - 10) / 2);
-    };
-
-    // Calcular bônus raciais
-    const getRacialBonuses = (): Record<keyof AbilityScores, number> => {
-        const bonuses: Record<keyof AbilityScores, number> = {
-            strength: 0,
-            dexterity: 0,
-            constitution: 0,
-            intelligence: 0,
-            wisdom: 0,
-            charisma: 0
-        };
-
-        // Bônus da raça principal
-        if (crossStepData.selectedRace?.ability_bonuses) {
-            crossStepData.selectedRace.ability_bonuses.forEach(bonus => {
-                const abilityKey = bonus.ability_score.index as keyof AbilityScores;
-                if (abilityKey in bonuses) {
-                    bonuses[abilityKey] += bonus.bonus;
-                }
-            });
-        }
-
-        // Bônus da sub-raça
-        if (crossStepData.selectedSubrace?.ability_bonuses) {
-            crossStepData.selectedSubrace.ability_bonuses.forEach(bonus => {
-                const abilityKey = bonus.ability_score.index as keyof AbilityScores;
-                if (abilityKey in bonuses) {
-                    bonuses[abilityKey] += bonus.bonus;
-                }
-            });
-        }
-
-        return bonuses;
-    };
-
-    // Calcular scores finais (base + racial)
-    const getFinalAbilityScores = (): Record<keyof AbilityScores, number> => {
-        const racialBonuses = getRacialBonuses();
-        const finalScores: Record<keyof AbilityScores, number> = {} as Record<keyof AbilityScores, number>;
-
-        Object.keys(abilityScores).forEach(ability => {
-            const abilityKey = ability as keyof AbilityScores;
-            finalScores[abilityKey] = abilityScores[abilityKey] + racialBonuses[abilityKey];
-        });
-
-        return finalScores;
-    };
-
-    const validateScores = useCallback((): boolean => {
-        if (!selectedMethod) return false;
-        
-        switch (selectedMethod) {
-            case "point-buy":
-                return Object.values(abilityScores).every(score => score >= 8 && score <= 15);
-            case "standard":
-                return assignedValues.every(val => val !== null);
-            case "rolled":
-                return selectedRolledArray !== null && Object.values(abilityScores).every(score => score > 0);
-            default:
-                return false;
-        }
-    }, [selectedMethod, abilityScores, assignedValues, selectedRolledArray]);
-
     // Notificar validação
     useEffect(() => {
         const isValid = validateScores();
@@ -241,8 +259,8 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
     // Atualizar dados de outros steps (polling simples)
     useEffect(() => {
         const interval = setInterval(() => {
-            const newRace = loadFromStorage(CROSS_STEP_KEYS.SELECTED_RACE, null);
-            const newSubrace = loadFromStorage(CROSS_STEP_KEYS.SELECTED_SUBRACE, null);
+            const newRace = loadFromStorage<DndRace | null>(CROSS_STEP_KEYS.SELECTED_RACE, null);
+            const newSubrace = loadFromStorage<DndSubrace | null>(CROSS_STEP_KEYS.SELECTED_SUBRACE, null);
 
             setCrossStepData(prev => {
                 const hasChanges = 
@@ -251,6 +269,9 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
 
                 if (hasChanges) {
                     console.log('🔄 Dados raciais atualizados no step de atributos');
+                    console.log('Nova raça:', newRace?.name);
+                    console.log('Nova sub-raça:', newSubrace?.name);
+                    
                     return {
                         selectedRace: newRace,
                         selectedSubrace: newSubrace
@@ -262,6 +283,15 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
 
         return () => clearInterval(interval);
     }, []);
+
+    // Forçar recálculo quando dados raciais mudarem
+    useEffect(() => {
+        if (crossStepData.selectedRace || crossStepData.selectedSubrace) {
+            console.log('🎯 Recalculando scores finais devido a mudança racial');
+            const finalScores = getFinalAbilityScores();
+            saveToStorage('character_creation_final_ability_scores', finalScores);
+        }
+    }, [crossStepData.selectedRace, crossStepData.selectedSubrace, getFinalAbilityScores]);
 
     // ===========================
     // POINT BUY FUNCTIONS
@@ -394,7 +424,7 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
     };
 
     // ===========================
-    // CLEAR STORAGE
+    // CLEAR STORAGE + DEBUG FUNCTIONS
     // ===========================
 
     const clearStorageData = () => {
@@ -416,6 +446,19 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
         console.log('🧹 Dados de atributos limpos (incluindo scores finais com bônus)');
     };
 
+    const forceReloadRacialData = () => {
+        console.log('🔄 Forçando reload dos dados raciais...');
+        const newRace = loadFromStorage<DndRace | null>(CROSS_STEP_KEYS.SELECTED_RACE, null);
+        const newSubrace = loadFromStorage<DndSubrace | null>(CROSS_STEP_KEYS.SELECTED_SUBRACE, null);
+        
+        console.log('Dados carregados:', { race: newRace?.name, subrace: newSubrace?.name });
+        
+        setCrossStepData({
+            selectedRace: newRace,
+            selectedSubrace: newSubrace
+        });
+    };
+
     // ===========================
     // RENDER
     // ===========================
@@ -432,22 +475,77 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
                         <p>Arrays rolados: {rolledArrays.length}</p>
                         <p>Raça: {crossStepData.selectedRace?.name || 'Não selecionada'}</p>
                         <p>Sub-raça: {crossStepData.selectedSubrace?.name || 'Não selecionada'}</p>
-                        <div className="mt-2">
-                            <strong>Bônus Raciais:</strong>
+                        
+                        {/* Debug detalhado dos bônus */}
+                        {crossStepData.selectedRace && (
+                            <div className="mt-2 p-2 bg-white rounded">
+                                <strong>Dados da Raça ({crossStepData.selectedRace.name}):</strong>
+                                <div className="ml-2">
+                                    {crossStepData.selectedRace.ability_bonuses?.map((bonus, index) => (
+                                        <p key={index} className="text-green-600">
+                                            {bonus.ability_score.index} ({bonus.ability_score.name}): +{bonus.bonus}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {crossStepData.selectedSubrace && (
+                            <div className="mt-2 p-2 bg-white rounded">
+                                <strong>Dados da Sub-raça ({crossStepData.selectedSubrace.name}):</strong>
+                                <div className="ml-2">
+                                    {crossStepData.selectedSubrace.ability_bonuses?.map((bonus, index) => (
+                                        <p key={index} className="text-green-600">
+                                            {bonus.ability_score.index} ({bonus.ability_score.name}): +{bonus.bonus}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="mt-2 p-2 bg-white rounded">
+                            <strong>Bônus Calculados:</strong>
                             <div className="ml-2">
                                 {Object.entries(getRacialBonuses()).map(([ability, bonus]) => (
-                                    bonus > 0 && <p key={ability}>{ability}: +{bonus}</p>
+                                    <p key={ability} className={bonus > 0 ? 'text-green-600' : 'text-gray-400'}>
+                                        {ability}: +{bonus}
+                                    </p>
                                 ))}
                             </div>
                         </div>
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={clearStorageData}
-                            className="mt-2"
-                        >
-                            Limpar Storage
-                        </Button>
+
+                        <div className="mt-2 p-2 bg-white rounded">
+                            <strong>Scores Finais:</strong>
+                            <div className="ml-2">
+                                {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
+                                    const baseScore = abilityScores[ability as keyof AbilityScores];
+                                    const racialBonus = getRacialBonuses()[ability as keyof AbilityScores];
+                                    return (
+                                        <p key={ability} className="text-purple-600">
+                                            {ability}: {baseScore} + {racialBonus} = {finalScore}
+                                        </p>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                        
+                        <div className="flex gap-2 mt-2">
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={clearStorageData}
+                            >
+                                Limpar Storage
+                            </Button>
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={forceReloadRacialData}
+                                className="bg-green-100"
+                            >
+                                🔄 Recarregar Dados Raciais
+                            </Button>
+                        </div>
                     </div>
                 </Card>
             )}
@@ -463,14 +561,16 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
                                 <h4 className="font-semibold text-green-800">
                                     {crossStepData.selectedRace.name}
                                 </h4>
-                                {crossStepData.selectedRace.ability_bonuses?.map((bonus, index) => (
-                                    <span
-                                        key={index}
-                                        className="inline-block mr-2 px-2 py-1 bg-green-200 text-green-800 rounded text-sm"
-                                    >
-                                        {bonus.ability_score.name}: +{bonus.bonus}
-                                    </span>
-                                ))}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {crossStepData.selectedRace.ability_bonuses?.map((bonus: DndAbilityBonus, index: number) => (
+                                        <span
+                                            key={index}
+                                            className="inline-block px-3 py-1 bg-green-200 text-green-800 rounded text-sm font-medium"
+                                        >
+                                            {bonus.ability_score.name}: +{bonus.bonus}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
@@ -479,18 +579,37 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
                                 <h4 className="font-semibold text-green-800">
                                     {crossStepData.selectedSubrace.name}
                                 </h4>
-                                {crossStepData.selectedSubrace.ability_bonuses?.map((bonus, index) => (
-                                    <span
-                                        key={index}
-                                        className="inline-block mr-2 px-2 py-1 bg-green-200 text-green-800 rounded text-sm"
-                                    >
-                                        {bonus.ability_score.name}: +{bonus.bonus}
-                                    </span>
-                                ))}
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    {crossStepData.selectedSubrace.ability_bonuses?.map((bonus: DndAbilityBonus, index: number) => (
+                                        <span
+                                            key={index}
+                                            className="inline-block px-3 py-1 bg-green-200 text-green-800 rounded text-sm font-medium"
+                                        >
+                                            {bonus.ability_score.name}: +{bonus.bonus}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
-                        <p className="text-sm text-green-700 mt-2">
+                        {/* Mostrar o resultado final dos bônus */}
+                        <div className="mt-4 pt-4 border-t border-green-200">
+                            <h5 className="font-medium text-green-800 mb-2">Bônus Totais:</h5>
+                            <div className="flex flex-wrap gap-2">
+                                {Object.entries(getRacialBonuses()).map(([ability, bonus]) => 
+                                    bonus > 0 && (
+                                        <span
+                                            key={ability}
+                                            className="inline-block px-3 py-1 bg-green-300 text-green-900 rounded text-sm font-bold"
+                                        >
+                                            {ability.charAt(0).toUpperCase() + ability.slice(1)}: +{bonus}
+                                        </span>
+                                    )
+                                )}
+                            </div>
+                        </div>
+
+                        <p className="text-sm text-green-700 mt-4 font-medium">
                             ✨ Estes bônus serão automaticamente aplicados aos seus atributos finais!
                         </p>
                     </div>
@@ -634,7 +753,7 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(abilityScores).map(([ability, score], index) => {
+                        {Object.entries(abilityScores).map(([ability], index) => {
                             const racialBonuses = getRacialBonuses();
                             const racialBonus = racialBonuses[ability as keyof AbilityScores];
                             const assignedValue = assignedValues[index];
