@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+// src/components/character/creation/steps/Spells.tsx
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, BookOpen, Sparkles, Zap, Clock, Target, Shield, Wand2, AlertCircle, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
-import { DndSpell } from '@/types/characterCreation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,12 +9,36 @@ import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 // ===========================
-// INTERFACES
+// INTERFACES E TIPOS
 // ===========================
+
+interface DndSpell {
+  index: string;
+  name: string;
+  desc: string[];
+  higher_level?: string[];
+  range: string;
+  components: string[];
+  material?: string;
+  ritual: boolean;
+  duration: string;
+  concentration: boolean;
+  casting_time: string;
+  level: number;
+  attack_type?: string;
+  damage?: {
+    damage_type: { index: string; name: string; url: string };
+    damage_at_slot_level: Record<string, string>;
+  };
+  school: { index: string; name: string; url: string };
+  classes: Array<{ index: string; name: string; url: string }>;
+  subclasses: Array<{ index: string; name: string; url: string }>;
+  url: string;
+}
 
 interface SpellsComponentProps {
   selectedClass?: string;
-  onSpellSelect?: (spell: DndSpell) => void;
+  onSpellSelect?: (spellIndex: string, isSelected: boolean) => void;
   selectedSpells?: string[];
   maxCantrips?: number;
   maxLevel1Spells?: number;
@@ -33,7 +57,7 @@ const SpellCard = ({
 }: {
   spell: DndSpell;
   isSelected: boolean;
-  onSelect?: (spell: DndSpell) => void;
+  onSelect?: (spellIndex: string, isSelected: boolean) => void;
   showSelection: boolean;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -54,6 +78,32 @@ const SpellCard = ({
     }
   };
 
+  const getComponentsDisplay = (components: string[]) => {
+    return components.map(comp => {
+      switch (comp) {
+        case 'V': return 'Verbal';
+        case 'S': return 'Somático';
+        case 'M': return 'Material';
+        default: return comp;
+      }
+    }).join(', ');
+  };
+
+  const handleSelect = () => {
+    console.log('🎯 [SpellCard] Botão clicado - Início da seleção');
+    console.log(`  Magia: ${spell.name} (${spell.index})`);
+    console.log(`  Estado atual: ${isSelected ? 'Selecionada' : 'Não selecionada'}`);
+    console.log(`  Função onSelect disponível? ${!!onSelect}`);
+    
+    if (onSelect) {
+      console.log('🎯 [SpellCard] Chamando onSelect...');
+      console.log(`  Parâmetros: spellIndex=${spell.index}, isSelected=${!isSelected}`);
+      onSelect(spell.index, !isSelected);
+    } else {
+      console.error('❌ [SpellCard] onSelect não está disponível!');
+    }
+  };
+
   return (
     <Card className={`transition-colors ${isSelected ? 'border-blue-500 bg-blue-50' : ''}`}>
       <CardHeader className="pb-3">
@@ -65,75 +115,48 @@ const SpellCard = ({
             </div>
             
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant={spell.level === 0 ? "default" : "secondary"}>
+              <Badge variant={spell.level === 0 ? "secondary" : "default"}>
                 {getSpellLevelDisplay(spell.level)}
               </Badge>
-              <Badge variant="outline" className="capitalize">
-                {spell.school?.name || 'Evocação'}
+              <Badge variant="outline">
+                {spell.school?.name}
               </Badge>
-              {spell.concentration && (
-                <Badge className="bg-orange-100 text-orange-800">
-                  Concentração
-                </Badge>
-              )}
-              {spell.ritual && (
-                <Badge className="bg-green-100 text-green-800">
-                  Ritual
-                </Badge>
-              )}
+              <Badge variant="outline">
+                <Clock className="w-3 h-3 mr-1" />
+                {spell.casting_time}
+              </Badge>
+              <Badge variant="outline">
+                <Target className="w-3 h-3 mr-1" />
+                {spell.range}
+              </Badge>
             </div>
           </div>
-          
-          {showSelection && onSelect && (
+
+          {showSelection && (
             <Button
-              onClick={() => onSelect(spell)}
               variant={isSelected ? "default" : "outline"}
               size="sm"
+              onClick={handleSelect}
+              className={isSelected ? "bg-blue-600 hover:bg-blue-700" : ""}
             >
-              {isSelected ? 'Selecionada' : 'Selecionar'}
+              {isSelected ? "✓ Selecionada" : "Selecionar"}
             </Button>
           )}
         </div>
-      </CardHeader>
 
-      <CardContent className="pt-0">
         {/* Informações Básicas */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-gray-400" />
-            <div>
-              <span className="text-gray-600">Tempo:</span>
-              <div className="font-medium">{spell.casting_time}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Target className="w-4 h-4 text-gray-400" />
-            <div>
-              <span className="text-gray-600">Alcance:</span>
-              <div className="font-medium">{spell.range}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Wand2 className="w-4 h-4 text-gray-400" />
-            <div>
-              <span className="text-gray-600">Componentes:</span>
-              <div className="font-medium">{spell.components?.join(', ')}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4 text-gray-400" />
-            <div>
-              <span className="text-gray-600">Duração:</span>
-              <div className="font-medium">{spell.duration}</div>
-            </div>
+        <div className="mt-2 text-sm text-gray-600">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span>📏 <strong>Alcance:</strong> {spell.range}</span>
+            <span>⏱️ <strong>Duração:</strong> {spell.duration}</span>
+            <span>🔮 <strong>Componentes:</strong> {getComponentsDisplay(spell.components)}</span>
+            {spell.concentration && <span className="text-red-600">🎯 Concentração</span>}
+            {spell.ritual && <span className="text-purple-600">📿 Ritual</span>}
           </div>
         </div>
 
         {/* Descrição Resumida */}
-        <div className="mb-3">
+        <div className="mt-3">
           <p className="text-gray-700 text-sm line-clamp-2">
             {spell.desc?.[0] || 'Descrição não disponível'}
           </p>
@@ -142,7 +165,7 @@ const SpellCard = ({
         {/* Expandir/Recolher */}
         <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full">
+            <Button variant="ghost" size="sm" className="w-full mt-2">
               {isExpanded ? (
                 <>
                   Ver menos <ChevronUp className="w-4 h-4 ml-2" />
@@ -196,7 +219,7 @@ const SpellCard = ({
                   </p>
                   {spell.damage.damage_at_slot_level && (
                     <p className="text-gray-700">
-                      Dano: <span className="font-medium">{spell.damage.damage_at_slot_level["1"]}</span>
+                      Dano: <span className="font-medium">{spell.damage.damage_at_slot_level[spell.level.toString()]}</span>
                     </p>
                   )}
                 </div>
@@ -216,7 +239,7 @@ const SpellCard = ({
             </div>
           </CollapsibleContent>
         </Collapsible>
-      </CardContent>
+      </CardHeader>
     </Card>
   );
 };
@@ -225,81 +248,86 @@ const SpellCard = ({
 // FUNÇÕES DE API
 // ===========================
 
-const fetchSpellsByClass = async (classIndex: string) => {
+const fetchSpellDetails = async (spellIndex: string): Promise<DndSpell> => {
   try {
-    console.log(`🔍 Carregando magias para a classe: ${classIndex}`);
-    
-    // 1. Verificar se a classe é conjuradora
-    const classResponse = await fetch(`https://www.dnd5eapi.co/api/classes/${classIndex}`);
-    if (!classResponse.ok) {
-      throw new Error(`Erro ao buscar classe: ${classResponse.status}`);
+    const response = await fetch(`https://www.dnd5eapi.co/api/spells/${spellIndex}`);
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status} ao buscar magia ${spellIndex}`);
     }
+    return await response.json();
+  } catch (error) {
+    console.error(`Erro ao buscar detalhes de ${spellIndex}:`, error);
+    throw error;
+  }
+};
+
+const fetchSpellsByClass = async (classIndex: string): Promise<DndSpell[]> => {
+  try {
+    console.log(`[API] Buscando magias para classe: ${classIndex}`);
     
-    const classData = await classResponse.json();
+    // Verificar cache local
+    const cacheKey = `spells_cache_${classIndex}`;
+    const cachedData = localStorage.getItem(cacheKey);
     
-    if (!classData.spellcasting) {
-      console.log(`⚠️ Classe ${classIndex} não é conjuradora`);
-      return [];
-    }
-
-    console.log(`✅ Classe ${classIndex} é conjuradora, buscando magias...`);
-
-    // 2. Buscar todas as magias
-    const spellsResponse = await fetch('https://www.dnd5eapi.co/api/spells');
-    if (!spellsResponse.ok) {
-      throw new Error(`Erro ao buscar lista de magias: ${spellsResponse.status}`);
-    }
-    
-    const spellsList = await spellsResponse.json();
-    console.log(`📚 ${spellsList.results.length} magias encontradas na API`);
-
-    // 3. Buscar detalhes de cada magia e filtrar
-    const validSpells = [];
-    const batchSize = 10;
-
-    for (let i = 0; i < spellsList.results.length; i += batchSize) {
-      const batch = spellsList.results.slice(i, i + batchSize);
-      console.log(`📖 Processando lote ${Math.floor(i/batchSize) + 1}/${Math.ceil(spellsList.results.length/batchSize)}...`);
+    if (cachedData) {
+      const { data, timestamp } = JSON.parse(cachedData);
+      const oneHour = 60 * 60 * 1000;
       
-      const batchPromises = batch.map(async (spellRef) => {
-        try {
-          const spellResponse = await fetch(`https://www.dnd5eapi.co${spellRef.url}`);
-          if (!spellResponse.ok) return null;
-          
-          const spell = await spellResponse.json();
-          
-          // Filtrar apenas truques (0) e nível 1
-          if (spell.level > 1) return null;
-          
-          // Verificar se a classe pode usar esta magia
-          const canUseSpell = spell.classes?.some(spellClass => 
-            spellClass.index.toLowerCase() === classIndex.toLowerCase()
-          );
-          
-          if (!canUseSpell) return null;
-          
-          return spell;
-        } catch (error) {
-          console.warn(`⚠️ Erro ao processar magia ${spellRef.index}:`, error);
-          return null;
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-      const validBatchSpells = batchResults.filter(spell => spell !== null);
-      validSpells.push(...validBatchSpells);
-
-      // Pausa entre lotes
-      if (i + batchSize < spellsList.results.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+      if (Date.now() - timestamp < oneHour) {
+        console.log(`[API] Retornando ${data.length} magias do cache`);
+        return data;
       }
     }
 
-    console.log(`✅ ${validSpells.length} magias válidas encontradas para ${classIndex}`);
-    return validSpells;
+    // Buscar lista de magias da classe
+    const response = await fetch(`https://www.dnd5eapi.co/api/classes/${classIndex}/spells`);
+    
+    if (!response.ok) {
+      throw new Error(`Erro ao buscar magias da classe ${classIndex}: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log(`[API] Total de magias encontradas: ${data.count}`);
+    
+    // Filtrar apenas truques (0) e nível 1
+    const filteredSpells = data.results.filter((spell: any) => 
+      spell.level === 0 || spell.level === 1
+    );
+    
+    console.log(`[API] Magias após filtro (nível 0-1): ${filteredSpells.length}`);
+    
+    // Buscar detalhes em lotes com delay
+    const detailedSpells: DndSpell[] = [];
+    const batchSize = 5;
+    const delay = 200; // 200ms entre lotes
+    
+    for (let i = 0; i < filteredSpells.length; i += batchSize) {
+      const batch = filteredSpells.slice(i, i + batchSize);
+      const batchPromises = batch.map(spell => 
+        fetchSpellDetails(spell.index)
+      );
+      
+      const batchResults = await Promise.all(batchPromises);
+      detailedSpells.push(...batchResults);
+      
+      // Aguardar entre lotes para evitar rate limiting
+      if (i + batchSize < filteredSpells.length) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+    
+    // Salvar no cache
+    const cacheData = {
+      data: detailedSpells,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+    
+    console.log(`[API] ${detailedSpells.length} magias detalhadas carregadas`);
+    return detailedSpells;
     
   } catch (error) {
-    console.error(`❌ Erro ao buscar magias para ${classIndex}:`, error);
+    console.error(`[API] Erro ao buscar magias:`, error);
     throw error;
   }
 };
@@ -325,6 +353,7 @@ const SpellsComponent = ({
 
   // Carregar magias quando a classe mudar
   useEffect(() => {
+    console.log(`[SpellsComponent] Classe selecionada alterada: ${selectedClass}`);
     if (!selectedClass) {
       setSpells([]);
       return;
@@ -333,14 +362,17 @@ const SpellsComponent = ({
     const loadSpells = async () => {
       setIsLoading(true);
       setError(null);
+      console.log(`[SpellsComponent] Iniciando carregamento de magias...`);
 
       try {
         const classSpells = await fetchSpellsByClass(selectedClass);
         setSpells(classSpells);
+        console.log(`[SpellsComponent] Magias carregadas: ${classSpells.length}`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao carregar magias';
         setError(errorMessage);
         setSpells([]);
+        console.error(`[SpellsComponent] Erro ao carregar magias: ${errorMessage}`);
       } finally {
         setIsLoading(false);
       }
@@ -354,21 +386,17 @@ const SpellsComponent = ({
     // Filtro por busca
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      if (!spell.name.toLowerCase().includes(searchLower) && 
-          !spell.desc?.[0]?.toLowerCase().includes(searchLower)) {
-        return false;
-      }
+      const matchesName = spell.name.toLowerCase().includes(searchLower);
+      const matchesDesc = spell.desc?.[0]?.toLowerCase().includes(searchLower);
+      
+      if (!matchesName && !matchesDesc) return false;
     }
 
     // Filtro por nível
-    if (selectedLevel !== 'all' && spell.level !== selectedLevel) {
-      return false;
-    }
+    if (selectedLevel !== 'all' && spell.level !== selectedLevel) return false;
 
     // Filtro por escola
-    if (selectedSchool !== 'all' && spell.school?.index !== selectedSchool) {
-      return false;
-    }
+    if (selectedSchool !== 'all' && spell.school?.index !== selectedSchool) return false;
 
     return true;
   });
@@ -388,90 +416,87 @@ const SpellsComponent = ({
   // Escolas disponíveis
   const availableSchools = [...new Set(spells.map(spell => spell.school?.index).filter(Boolean))];
 
-  // Handler para seleção
-  const handleSpellSelect = (spell: DndSpell) => {
-    if (!onSpellSelect) return;
-
-    const isCurrentlySelected = selectedSpells.includes(spell.index);
+  // CORREÇÃO CRÍTICA: Função de seleção corrigida
+  const handleSpellSelect = useCallback((spellIndex: string, shouldBeSelected: boolean) => {
+    console.log('🎯 [handleSpellSelect] Evento de seleção recebido');
+    console.log(`  spellIndex: ${spellIndex}`);
+    console.log(`  shouldBeSelected: ${shouldBeSelected}`);
     
-    if (isCurrentlySelected) {
-      onSpellSelect(spell);
+    if (!onSpellSelect) {
+      console.error('❌ [handleSpellSelect] onSpellSelect não está definido!');
       return;
     }
 
-    // Verificar limites
-    if (spell.level === 0 && selectedCantrips >= maxCantrips) {
-      alert(`Você já selecionou o máximo de ${maxCantrips} truques`);
+    const spell = spells.find(s => s.index === spellIndex);
+    if (!spell) {
+      console.error(`❌ [handleSpellSelect] Magia não encontrada: ${spellIndex}`);
       return;
     }
 
-    if (spell.level === 1 && selectedLevel1 >= maxLevel1Spells) {
-      alert(`Você já selecionou o máximo de ${maxLevel1Spells} magias de 1º nível`);
-      return;
+    console.log(`  Magia encontrada: ${spell.name} (nível ${spell.level})`);
+    
+    // Verificar limites apenas ao ADICIONAR uma magia
+    if (shouldBeSelected) {
+      console.log('  Verificando limites para adição...');
+      
+      if (spell.level === 0 && selectedCantrips >= maxCantrips) {
+        console.warn(`⚠️ [handleSpellSelect] Limite de truques atingido: ${selectedCantrips}/${maxCantrips}`);
+        alert(`Você já selecionou o máximo de ${maxCantrips} truques`);
+        return;
+      }
+
+      if (spell.level === 1 && selectedLevel1 >= maxLevel1Spells) {
+        console.warn(`⚠️ [handleSpellSelect] Limite de magias de nível 1 atingido: ${selectedLevel1}/${maxLevel1Spells}`);
+        alert(`Você já selecionou o máximo de ${maxLevel1Spells} magias de 1º nível`);
+        return;
+      }
     }
 
-    onSpellSelect(spell);
+    console.log(`✅ [handleSpellSelect] Chamando onSpellSelect com: ${spellIndex}, ${shouldBeSelected}`);
+    onSpellSelect(spellIndex, shouldBeSelected);
+  }, [onSpellSelect, spells, selectedCantrips, maxCantrips, selectedLevel1, maxLevel1Spells]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
-  // Render sem classe selecionada
-  if (!selectedClass) {
-    return (
-      <Card className="p-8">
-        <div className="text-center">
-          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            Selecione uma Classe
-          </h3>
-          <p className="text-gray-600">
-            Escolha uma classe primeiro para ver as magias disponíveis
-          </p>
-        </div>
-      </Card>
-    );
-  }
+  const handleLevelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.target.value;
+    let parsedValue: 'all' | 0 | 1;
+    
+    if (newValue === 'all') {
+      parsedValue = 'all';
+    } else {
+      parsedValue = parseInt(newValue) as 0 | 1;
+    }
+    
+    setSelectedLevel(parsedValue);
+  };
 
-  // Render com erro
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Erro ao Carregar Magias</AlertTitle>
-        <AlertDescription>
-          {error}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mt-2"
-            onClick={() => window.location.reload()}
-          >
-            Tentar Novamente
-          </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  const handleSchoolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedSchool(e.target.value);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-start">
             <div>
-              <CardTitle>Magias - {selectedClass}</CardTitle>
-              <p className="text-muted-foreground text-sm">
-                Truques e magias de 1º nível disponíveis para sua classe
-              </p>
-              {isLoading && (
-                <div className="flex items-center gap-2 mt-2 text-blue-600">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span className="text-sm">Carregando magias da API...</span>
-                </div>
-              )}
+              <CardTitle className="flex items-center gap-2">
+                <Wand2 className="w-5 h-5" />
+                Magias Disponíveis
+                {isLoading && (
+                  <div className="flex items-center gap-2 ml-4 text-blue-600">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Carregando magias...</span>
+                  </div>
+                )}
+              </CardTitle>
             </div>
             
             {showSelection && (
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-gray-600">
                 <div>Truques: {selectedCantrips}/{maxCantrips}</div>
                 <div>Nível 1: {selectedLevel1}/{maxLevel1Spells}</div>
               </div>
@@ -482,62 +507,93 @@ const SpellsComponent = ({
         {/* Filtros */}
         {!isLoading && spells.length > 0 && (
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <Input
                   placeholder="Buscar magias..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={handleSearchChange}
                   className="pl-10"
                 />
               </div>
 
               <select
-                value={selectedLevel}
-                onChange={(e) => setSelectedLevel(e.target.value as 'all' | 0 | 1)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                value={selectedLevel.toString()}
+                onChange={handleLevelChange}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="all">Todos os níveis</option>
-                <option value={0}>Truques</option>
-                <option value={1}>1º Nível</option>
+                <option value="0">Truques</option>
+                <option value="1">1º Nível</option>
               </select>
 
               <select
                 value={selectedSchool}
-                onChange={(e) => setSelectedSchool(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                onChange={handleSchoolChange}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="all">Todas as escolas</option>
                 {availableSchools.map(school => (
-                  <option key={school} value={school} className="capitalize">
-                    {school}
+                  <option key={school} value={school}>
+                    {spells.find(s => s.school?.index === school)?.school?.name}
                   </option>
                 ))}
               </select>
-
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedLevel('all');
-                  setSelectedSchool('all');
-                }}
-              >
-                Limpar Filtros
-              </Button>
             </div>
           </CardContent>
         )}
       </Card>
 
+      {/* Painel de Debug */}
+      <Card className="bg-yellow-50 border-yellow-200">
+        <CardHeader>
+          <CardTitle className="text-yellow-800">🐛 Debug Panel</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-xs space-y-2 text-yellow-700">
+            <div><strong>Classe Selecionada:</strong> {selectedClass || 'Nenhuma'}</div>
+            <div><strong>Status:</strong> {isLoading ? 'Carregando...' : error ? 'Erro' : 'Pronto'}</div>
+            <div><strong>Total de Magias:</strong> {spells.length}</div>
+            <div><strong>Magias Filtradas:</strong> {filteredSpells.length}</div>
+            <div><strong>Cache:</strong> {localStorage.getItem(`spells_cache_${selectedClass}`) ? 'Presente' : 'Ausente'}</div>
+            <div><strong>Função onSpellSelect:</strong> {onSpellSelect ? 'Definida' : 'Não definida'}</div>
+            <div><strong>Selecionados:</strong> {selectedSpells.join(', ') || 'Nenhum'}</div>
+            <div><strong>Contadores:</strong> Truques ({selectedCantrips}/{maxCantrips}) | Nível 1 ({selectedLevel1}/{maxLevel1Spells})</div>
+            
+            {spells.length > 0 && (
+              <details className="mt-4">
+                <summary className="cursor-pointer font-bold">📜 Magias Carregadas ({spells.length})</summary>
+                <div className="mt-2 max-h-32 overflow-y-auto">
+                  {spells.map(spell => (
+                    <div key={spell.index} className="text-xs">
+                      • {spell.name} (nível {spell.level}) - Selecionada: {selectedSpells.includes(spell.index) ? 'Sim' : 'Não'}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Conteúdo */}
-      {isLoading ? (
+      {error ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro ao carregar magias</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : isLoading ? (
         <Card className="p-8">
           <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">Carregando magias da API D&D 5e...</p>
-            <p className="text-gray-500 text-sm mt-2">Isso pode levar alguns momentos</p>
+            <Loader2 className="w-16 h-16 text-gray-400 mx-auto mb-4 animate-spin" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Carregando Magias...
+            </h3>
+            <p className="text-gray-600">
+              Buscando magias disponíveis para {selectedClass}
+            </p>
           </div>
         </Card>
       ) : spells.length === 0 ? (
@@ -548,7 +604,7 @@ const SpellsComponent = ({
               Nenhuma magia encontrada
             </h3>
             <p className="text-gray-600">
-              Esta classe não é conjuradora no 1º nível ou não possui magias de truque/1º nível
+              Esta classe não possui magias de truque/1º nível
             </p>
           </div>
         </Card>
@@ -574,7 +630,7 @@ const SpellsComponent = ({
                 <h3 className="text-lg font-semibold">
                   Truques ({cantrips.length})
                   {showSelection && (
-                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                    <span className="text-sm font-normal text-gray-500 ml-2">
                       - {selectedCantrips}/{maxCantrips} selecionados
                     </span>
                   )}
@@ -602,7 +658,7 @@ const SpellsComponent = ({
                 <h3 className="text-lg font-semibold">
                   Magias de 1º Nível ({level1Spells.length})
                   {showSelection && (
-                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                    <span className="text-sm font-normal text-gray-500 ml-2">
                       - {selectedLevel1}/{maxLevel1Spells} selecionadas
                     </span>
                   )}

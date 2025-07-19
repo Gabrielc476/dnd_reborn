@@ -1,5 +1,5 @@
 // components/character/creation/CharacterCreationWizard.tsx
-// WIZARD COMPLETO - Storage local simples em cada step
+// WIZARD COMPLETO - Storage local simples em cada step com MAGIAS
 'use client';
 
 import { useState, useCallback, useEffect } from "react";
@@ -10,6 +10,7 @@ import ClassesCreation from "@/components/character/creation/steps/Classes";
 import { AbilityScoresComponent } from "@/components/character/creation/steps/AbilityScores";
 import { SkillsComponent } from "@/components/character/creation/steps/Skills";
 import EquipmentComponent from "@/components/character/creation/steps/Equipment";
+import SpellsComponent from "@/components/character/creation/steps/Spells";
 
 interface Step {
   id: string;
@@ -50,10 +51,15 @@ const loadWizardState = <T,>(key: string, defaultValue: T): T => {
 };
 
 // ===========================
-// UTILITY - DADOS CONSOLIDADOS
+// UTILITY - DADOS CONSOLIDADOS (SEGURO PARA SSR)
 // ===========================
 
 const getConsolidatedCharacterData = () => {
+  // Retornar null se estamos no servidor ou ainda não hidratou
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  
   try {
     // Buscar dados de cada step individualmente
     const raceData = JSON.parse(localStorage.getItem('character_creation_race') || 'null');
@@ -66,6 +72,7 @@ const getConsolidatedCharacterData = () => {
     const finalAbilityScores = JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}'); // ✅ NOVO: Scores com bônus racial
     const selectedSkills = JSON.parse(localStorage.getItem('character_creation_selected_skills') || '[]'); // ✅ NOVO: Perícias
     const selectedEquipment = JSON.parse(localStorage.getItem('character_creation_selected_equipment') || '[]'); // ✅ NOVO: Equipamentos
+    const selectedSpells = JSON.parse(localStorage.getItem('character_creation_selected_spells') || '[]'); // ✅ NOVO: Magias selecionadas
     
     return {
       selectedRace: raceData,
@@ -78,6 +85,7 @@ const getConsolidatedCharacterData = () => {
       finalAbilityScores, // ✅ NOVO: Scores finais com bônus racial
       selectedSkills, // ✅ NOVO: Perícias selecionadas
       selectedEquipment, // ✅ NOVO: Equipamentos selecionados
+      selectedSpells, // ✅ NOVO: Magias selecionadas
       // Adicionar outros dados conforme necessário
     };
   } catch (error) {
@@ -87,6 +95,11 @@ const getConsolidatedCharacterData = () => {
 };
 
 const clearAllCharacterData = () => {
+  // Só executar no cliente
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
   // Limpar dados de todos os steps implementados
   const keysToRemove = [
     // Race step
@@ -122,6 +135,11 @@ const clearAllCharacterData = () => {
     'character_creation_selected_equipment',
     'character_creation_equipment_cache',
     'character_creation_equipment_search',
+
+    // Spells step ✅ NOVO - MAGIAS
+    'character_creation_selected_spells',
+    'character_creation_spells_cache',
+    'character_creation_spells_validation',
     
     // Wizard state
     'character_wizard_current_step',
@@ -134,7 +152,163 @@ const clearAllCharacterData = () => {
     sessionStorage.removeItem(key);
   });
   
-  console.log('🧹 Todos os dados de criação de personagem foram limpos (incluindo perícias e equipamentos)');
+  console.log('🧹 Todos os dados de criação de personagem foram limpos (incluindo perícias, equipamentos e magias)');
+};
+
+// ===========================
+// WRAPPER COMPONENT PARA MAGIAS
+// ===========================
+
+const SpellsStepWrapper = ({ onValidationChange }: { onValidationChange: (isValid: boolean) => void }) => {
+  const [selectedSpells, setSelectedSpells] = useState<string[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Carregar dados do localStorage apenas no cliente
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('character_creation_selected_spells');
+      if (saved) {
+        setSelectedSpells(JSON.parse(saved));
+      }
+    }
+    setIsMounted(true);
+  }, []);
+
+  // Buscar dados da classe selecionada (seguro para SSR)
+  const getClassData = () => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return JSON.parse(localStorage.getItem('character_creation_class') || 'null');
+    } catch {
+      return null;
+    }
+  };
+
+  const classData = getClassData();
+
+  // Verificar se a classe é conjuradora
+  const isSpellcaster = classData && ['wizard', 'mago', 'sorcerer', 'feiticeiro', 'cleric', 'clerigo', 'clérico', 'druid', 'druida', 'bard', 'bardo', 'warlock', 'bruxo'].includes(classData.index?.toLowerCase() || '');
+
+  // Configuração de magias por classe
+  const getSpellConfig = (classIndex: string) => {
+    const spellConfigs: Record<string, { maxCantrips: number; maxLevel1Spells: number }> = {
+      'wizard': { maxCantrips: 3, maxLevel1Spells: 6 },
+      'mago': { maxCantrips: 3, maxLevel1Spells: 6 },
+      'sorcerer': { maxCantrips: 4, maxLevel1Spells: 2 },
+      'feiticeiro': { maxCantrips: 4, maxLevel1Spells: 2 },
+      'cleric': { maxCantrips: 3, maxLevel1Spells: 2 },
+      'clerigo': { maxCantrips: 3, maxLevel1Spells: 2 },
+      'clérico': { maxCantrips: 3, maxLevel1Spells: 2 },
+      'druid': { maxCantrips: 2, maxLevel1Spells: 2 },
+      'druida': { maxCantrips: 2, maxLevel1Spells: 2 },
+      'bard': { maxCantrips: 2, maxLevel1Spells: 4 },
+      'bardo': { maxCantrips: 2, maxLevel1Spells: 4 },
+      'warlock': { maxCantrips: 2, maxLevel1Spells: 2 },
+      'bruxo': { maxCantrips: 2, maxLevel1Spells: 2 },
+    };
+    
+    return spellConfigs[classIndex?.toLowerCase()] || { maxCantrips: 0, maxLevel1Spells: 0 };
+  };
+
+  const spellConfig = classData ? getSpellConfig(classData.index) : { maxCantrips: 0, maxLevel1Spells: 0 };
+
+  // Função para validar seleção de magias
+  const validateSpellSelection = (spells: string[]) => {
+    if (!isSpellcaster) {
+      return true; // Classes não conjuradoras são válidas por padrão
+    }
+
+    // Para uma validação mais realista, vamos assumir que:
+    // - Se não há magias selecionadas e os limites são > 0, não é válido
+    // - Se há magias, deve estar dentro dos limites
+    const totalRequired = spellConfig.maxCantrips + spellConfig.maxLevel1Spells;
+    
+    if (totalRequired > 0 && spells.length === 0) {
+      return false; // Deve selecionar pelo menos algumas magias
+    }
+    
+    // Validação simples - na prática, isso seria feito com dados reais das magias
+    return spells.length <= totalRequired;
+  };
+
+  // Atualizar validação quando magias mudarem (apenas no cliente)
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const isValid = validateSpellSelection(selectedSpells);
+    onValidationChange(isValid);
+    
+    // Salvar no localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('character_creation_selected_spells', JSON.stringify(selectedSpells));
+    }
+  }, [selectedSpells, onValidationChange, isMounted]);
+
+  // Não renderizar até hidratação estar completa
+  if (!isMounted) {
+    return (
+      <div className="p-8">
+        <Card className="p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">🔮</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Carregando...
+            </h3>
+            <p className="text-gray-600">
+              Preparando seleção de magias
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const handleSpellSelect = (spellIndex: string, isSelected: boolean) => {
+    setSelectedSpells(prev => {
+      if (isSelected) {
+        return [...prev, spellIndex];
+      } else {
+        return prev.filter(spell => spell !== spellIndex);
+      }
+    });
+  };
+
+  // Se não é conjurador, mostrar mensagem informativa
+  if (!isSpellcaster) {
+    return (
+      <div className="p-8">
+        <Card className="p-8">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">⚔️</span>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Classe Não Conjuradora
+            </h3>
+            <p className="text-gray-600">
+              {classData?.name || 'Esta classe'} não possui magias no 1º nível.
+              Você pode prosseguir para o próximo passo.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8">
+      <SpellsComponent
+        selectedClass={classData?.index}
+        onSpellSelect={handleSpellSelect}
+        selectedSpells={selectedSpells}
+        maxCantrips={spellConfig.maxCantrips}
+        maxLevel1Spells={spellConfig.maxLevel1Spells}
+        showSelection={true}
+      />
+    </div>
+  );
 };
 
 // ===========================
@@ -167,6 +341,12 @@ const steps: Step[] = [
     component: SkillsComponent // ✅ ATUALIZADO: Usando o componente real
   },
   {
+    id: "spells", // ✅ NOVO: Passo de magias
+    title: "Magias",
+    description: "Selecione as magias iniciais do seu personagem",
+    component: SpellsStepWrapper
+  },
+  {
     id: "equipment",
     title: "Equipamentos",
     description: "Selecione o equipamento inicial",
@@ -185,19 +365,17 @@ const steps: Step[] = [
             <div className="space-y-6">
               {/* Informações Básicas */}
               <Card className="p-6">
-                <h4 className="text-xl font-semibold mb-4">Informações Básicas</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="font-semibold mb-4">Informações Básicas</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p><strong>Raça:</strong> {characterData.selectedRace?.name || 'N/A'}</p>
-                    {characterData.selectedSubrace && (
-                      <p><strong>Sub-raça:</strong> {characterData.selectedSubrace.name}</p>
-                    )}
+                    <p><strong>Sub-raça:</strong> {characterData.selectedSubrace?.name || 'Nenhuma'}</p>
                   </div>
                   <div>
                     <p><strong>Classe:</strong> {characterData.selectedClass?.name || 'N/A'}</p>
-                    {characterData.selectedSubclass && (
-                      <p><strong>Subclasse:</strong> {characterData.selectedSubclass.name}</p>
-                    )}
+                    <p><strong>Subclasse:</strong> {characterData.selectedSubclass?.name || 'Nenhuma'}</p>
+                  </div>
+                  <div>
                     <p><strong>Background:</strong> {characterData.selectedBackground?.name || 'N/A'}</p>
                   </div>
                 </div>
@@ -205,14 +383,14 @@ const steps: Step[] = [
 
               {/* Atributos */}
               <Card className="p-6">
-                <h4 className="text-xl font-semibold mb-4">Atributos</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  {Object.entries(characterData.finalAbilityScores || {}).map(([ability, score]) => (
-                    <div key={ability} className="text-center p-3 bg-gray-50 rounded">
-                      <p className="font-medium capitalize">{ability}</p>
-                      <p className="text-2xl font-bold">{score as number}</p>
-                      <p className="text-sm text-gray-600">
-                        ({score as number >= 10 ? '+' : ''}{Math.floor(((score as number) - 10) / 2)})
+                <h4 className="font-semibold mb-4">Atributos Finais</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  {Object.entries(characterData.finalAbilityScores || {}).map(([attr, value]) => (
+                    <div key={attr} className="text-center p-2 bg-gray-50 rounded">
+                      <p className="font-medium capitalize">{attr.replace('_', ' ')}</p>
+                      <p className="text-lg font-bold">{value as number}</p>
+                      <p className="text-xs text-gray-500">
+                        Mod: {Math.floor(((value as number) - 10) / 2) >= 0 ? '+' : ''}{Math.floor(((value as number) - 10) / 2)}
                       </p>
                     </div>
                   ))}
@@ -220,13 +398,28 @@ const steps: Step[] = [
               </Card>
 
               {/* Perícias */}
-              {characterData.selectedSkills && characterData.selectedSkills.length > 0 && (
-                <Card className="p-6">
-                  <h4 className="text-xl font-semibold mb-4">Perícias Selecionadas</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {characterData.selectedSkills.map((skill: string) => (
-                      <span key={skill} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+              <Card className="p-6">
+                <h4 className="font-semibold mb-4">Perícias Selecionadas</h4>
+                <div className="flex flex-wrap gap-2">
+                  {characterData.selectedSkills?.length > 0 ? 
+                    characterData.selectedSkills.map((skill: string) => (
+                      <span key={skill} className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">
                         {skill}
+                      </span>
+                    )) :
+                    <p className="text-gray-500 text-sm">Nenhuma perícia selecionada</p>
+                  }
+                </div>
+              </Card>
+
+              {/* Magias */}
+              {characterData.selectedSpells?.length > 0 && (
+                <Card className="p-6">
+                  <h4 className="font-semibold mb-4">Magias Selecionadas</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {characterData.selectedSpells.map((spell: string) => (
+                      <span key={spell} className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-sm">
+                        {spell}
                       </span>
                     ))}
                   </div>
@@ -234,42 +427,42 @@ const steps: Step[] = [
               )}
 
               {/* Equipamentos */}
-              {characterData.selectedEquipment && characterData.selectedEquipment.length > 0 && (
-                <Card className="p-6">
-                  <h4 className="text-xl font-semibold mb-4">Equipamentos Selecionados</h4>
-                  <div className="space-y-2">
-                    {characterData.selectedEquipment.map((item: any) => (
-                      <div key={item.equipment.index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                        <span>{item.equipment.name}</span>
-                        <span className="text-sm text-gray-600">Qtd: {item.quantity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
-              )}
-
-              {/* Status do Personagem */}
               <Card className="p-6">
-                <h4 className="text-xl font-semibold mb-4">Status Calculados</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <h4 className="font-semibold mb-4">Equipamentos</h4>
+                <div className="flex flex-wrap gap-2">
+                  {characterData.selectedEquipment?.length > 0 ? 
+                    characterData.selectedEquipment.map((equipment: any) => (
+                      <span key={equipment.index} className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
+                        {equipment.name}
+                      </span>
+                    )) :
+                    <p className="text-gray-500 text-sm">Nenhum equipamento selecionado</p>
+                  }
+                </div>
+              </Card>
+
+              {/* Estatísticas Calculadas */}
+              <Card className="p-6">
+                <h4 className="font-semibold mb-4">Estatísticas de Combate</h4>
+                <div className="grid grid-cols-3 gap-4">
                   <div className="text-center p-4 bg-blue-50 rounded">
                     <p className="font-medium text-blue-800">Classe de Armadura</p>
                     <p className="text-3xl font-bold text-blue-600">
                       {(() => {
                         const dexScore = characterData.finalAbilityScores?.dexterity || 10;
                         const dexMod = Math.floor((dexScore - 10) / 2);
-                        // Verificar se tem armadura selecionada
-                        const armor = characterData.selectedEquipment?.find((item: any) => 
-                          item.equipment.equipment_category?.index === 'armor' && item.equipment.armor_class
+                        
+                        // Lógica simplificada para CA
+                        const baseAC = characterData.selectedEquipment?.some((item: any) => 
+                          item.armor_category
                         );
-                        if (armor?.equipment.armor_class) {
-                          const baseAC = armor.equipment.armor_class.base;
-                          if (armor.equipment.armor_class.dex_bonus) {
-                            const maxBonus = armor.equipment.armor_class.max_bonus;
-                            const dexBonus = maxBonus !== undefined ? Math.min(dexMod, maxBonus) : dexMod;
-                            return baseAC + dexBonus;
-                          }
-                          return baseAC;
+                        
+                        if (baseAC) {
+                          const armorAC = 13; // Armor de couro, por exemplo
+                          const maxBonus = 2; // Limite para armaduras médias
+                          const dexBonus = dexMod > maxBonus ? 
+                            Math.min(dexMod, maxBonus) : dexMod;
+                          return armorAC + dexBonus;
                         }
                         return 10 + dexMod;
                       })()}
@@ -285,6 +478,10 @@ const steps: Step[] = [
                         return hitDie + conMod;
                       })()}
                     </p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded">
+                    <p className="font-medium text-green-800">Bônus de Proficiência</p>
+                    <p className="text-3xl font-bold text-green-600">+2</p>
                   </div>
                 </div>
               </Card>
@@ -303,16 +500,26 @@ const steps: Step[] = [
 // ===========================
 
 const CharacterCreationWizard = () => {
+  // Estado para controlar hidratação
+  const [isMounted, setIsMounted] = useState(false);
+  
   // Estados do wizard
-  const [currentStep, setCurrentStep] = useState(() => 
-    loadWizardState(WIZARD_STORAGE_KEYS.CURRENT_STEP, 0)
-  );
-  const [completedSteps, setCompletedSteps] = useState(() => 
-    new Set(loadWizardState(WIZARD_STORAGE_KEYS.COMPLETED_STEPS, []))
-  );
-  const [stepValidations, setStepValidations] = useState(() => 
-    loadWizardState(WIZARD_STORAGE_KEYS.STEP_VALIDATIONS, {})
-  );
+  const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState(() => new Set<number>());
+  const [stepValidations, setStepValidations] = useState<Record<number, boolean>>({});
+
+  // Carregar estado do wizard apenas no cliente
+  useEffect(() => {
+    // Carregar dados do sessionStorage apenas no cliente
+    const savedCurrentStep = loadWizardState(WIZARD_STORAGE_KEYS.CURRENT_STEP, 0);
+    const savedCompletedSteps = new Set(loadWizardState(WIZARD_STORAGE_KEYS.COMPLETED_STEPS, []));
+    const savedValidations = loadWizardState(WIZARD_STORAGE_KEYS.STEP_VALIDATIONS, {});
+    
+    setCurrentStep(savedCurrentStep);
+    setCompletedSteps(savedCompletedSteps);
+    setStepValidations(savedValidations);
+    setIsMounted(true);
+  }, []);
 
   // Salvar estado do wizard
   useEffect(() => {
@@ -408,8 +615,40 @@ const CharacterCreationWizard = () => {
     }
   };
 
-  const CurrentStepComponent = steps[currentStep].component;
+  const CurrentStepComponent = steps[currentStep]?.component;
   const currentStepData = steps[currentStep];
+
+  // Não renderizar o wizard até a hidratação estar completa
+  if (!isMounted) {
+    return (
+      <div className="container mx-auto py-8 max-w-6xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Criação de Personagem D&D 5e</h1>
+          <p className="text-gray-600 mb-6">
+            Carregando wizard de criação...
+          </p>
+          
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+            <div className="bg-gray-400 h-2 rounded-full w-1/4 animate-pulse" />
+          </div>
+        </div>
+
+        <Card className="mb-8">
+          <div className="border-b p-6">
+            <div className="h-6 bg-gray-200 rounded animate-pulse mb-2"></div>
+            <div className="h-4 bg-gray-100 rounded animate-pulse w-2/3"></div>
+          </div>
+          
+          <div className="min-h-[400px] p-8 flex items-center justify-center">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gray-200 rounded-full animate-pulse mx-auto mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded animate-pulse w-32 mx-auto"></div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 max-w-6xl">
@@ -420,8 +659,8 @@ const CharacterCreationWizard = () => {
           Sistema com storage local - Dados salvos automaticamente
         </p>
         
-        {/* Debug Info Global */}
-        {process.env.NODE_ENV === 'development' && (
+        {/* Debug Info Global - APENAS APÓS HIDRATAÇÃO */}
+        {process.env.NODE_ENV === 'development' && isMounted && (
           <Card className="p-4 bg-yellow-50 mb-4">
             <h4 className="font-bold text-sm mb-2">Debug - Estado Global:</h4>
             <div className="text-xs space-y-1">
@@ -434,135 +673,85 @@ const CharacterCreationWizard = () => {
                 <p>• Background: {getConsolidatedCharacterData()?.selectedBackground?.name || 'N/A'}</p>
                 <p>• Método atributos: {getConsolidatedCharacterData()?.abilityMethod || 'N/A'}</p>
                 <p>• Scores com bônus: {Object.keys(getConsolidatedCharacterData()?.finalAbilityScores || {}).length > 0 ? 'Sim' : 'Não'}</p>
-                <p>• Perícias: {getConsolidatedCharacterData()?.selectedSkills?.length || 0} selecionadas</p>
-                <p>• Equipamentos: {getConsolidatedCharacterData()?.selectedEquipment?.length || 0} selecionados</p>
-              </div>
-              <div className="flex gap-2 mt-2">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={clearAllCharacterData}
-                >
-                  Limpar Tudo
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => {
-                    const data = getConsolidatedCharacterData();
-                    console.log('Dados consolidados:', data);
-                  }}
-                >
-                  Ver Dados
-                </Button>
+                <p>• Perícias: {getConsolidatedCharacterData()?.selectedSkills?.length || 0}</p>
+                <p>• Magias: {getConsolidatedCharacterData()?.selectedSpells?.length || 0}</p>
+                <p>• Equipamentos: {getConsolidatedCharacterData()?.selectedEquipment?.length || 0}</p>
               </div>
             </div>
           </Card>
         )}
         
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              Passo {currentStep + 1} de {steps.length}: {currentStepData.title}
-            </span>
-            <span className="text-sm text-gray-500">
-              {Math.round(((currentStep + 1) / steps.length) * 100)}% completo
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+        {/* Progress Bar - APENAS APÓS HIDRATAÇÃO */}
+        {isMounted && (
+          <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
             <div 
-              className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500 ease-in-out"
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
               style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
-            ></div>
+            />
           </div>
-        </div>
-
-        {/* Steps Navigation */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-          {steps.map((step, index) => {
-            const isCompleted = isStepCompleted(index);
-            const isAccessible = isStepAccessible(index);
-            const isCurrent = index === currentStep;
-            const isValid = stepValidations[index] || false;
-            
-            return (
+        )}
+        
+        {/* Step Navigation - APENAS APÓS HIDRATAÇÃO */}
+        {isMounted && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {steps.map((step, index) => (
               <button
                 key={step.id}
                 onClick={() => goToStep(index)}
-                className={`p-3 rounded-lg border-2 transition-all duration-200 text-left relative ${
-                  isCurrent
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md'
-                    : isCompleted
-                    ? 'border-green-500 bg-green-50 text-green-700 cursor-pointer hover:bg-green-100'
-                    : isAccessible
-                    ? 'border-gray-300 bg-white text-gray-700 cursor-pointer hover:bg-gray-50'
-                    : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                disabled={!isStepAccessible(index)}
+                className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  index === currentStep
+                    ? 'bg-blue-600 text-white'
+                    : isStepCompleted(index)
+                    ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                    : isStepAccessible(index)
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
-                disabled={!isAccessible}
               >
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    isCurrent
-                      ? 'bg-blue-500 text-white'
-                      : isCompleted
-                      ? 'bg-green-500 text-white'
-                      : isAccessible
-                      ? 'bg-gray-300 text-gray-600'
-                      : 'bg-gray-200 text-gray-400'
-                  }`}>
-                    {isCompleted ? '✓' : index + 1}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium text-xs truncate">{step.title}</div>
-                    {/* Indicador de validação */}
-                    {isCurrent && (
-                      <div className="mt-1">
-                        {isValid ? (
-                          <span className="text-green-600 text-xs">✓ Válido</span>
-                        ) : (
-                          <span className="text-orange-600 text-xs">⚠ Incompleto</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {isStepCompleted(index) && '✓ '}
+                {index + 1}. {step.title}
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
-      <Card className="min-h-[600px]">
-        {/* Step Header */}
-        <div className="border-b border-gray-200 px-6 py-4">
-          <h2 className="text-xl font-semibold text-gray-800">
-            {currentStepData.title}
-          </h2>
-          {currentStepData.description && (
-            <p className="text-gray-600 mt-1">{currentStepData.description}</p>
-          )}
+      <Card className="mb-8">
+        <div className="border-b p-6">
+          <h2 className="text-xl font-semibold">{currentStepData.title}</h2>
+          <p className="text-gray-600">{currentStepData.description}</p>
         </div>
-
-        {/* Step Content */}
-        <div className="p-6">
+        
+        <div className="min-h-[400px]">
           <CurrentStepComponent onValidationChange={currentStepValidationHandler} />
         </div>
+      </Card>
 
-        {/* Navigation Footer */}
-        <div className="border-t border-gray-200 px-6 py-4 flex justify-between items-center bg-gray-50">
-          <Button
-            variant="outline"
-            onClick={goToPreviousStep}
-            disabled={currentStep === 0}
-            className="flex items-center gap-2"
-          >
-            ← Anterior
-          </Button>
+      {/* Navigation */}
+      <Card className="p-6">
+        <div className="flex justify-between items-center">
+          <div className="flex gap-4">
+            <Button
+              variant="outline"
+              onClick={goToPreviousStep}
+              disabled={currentStep === 0}
+            >
+              ← Anterior
+            </Button>
 
-          <div className="flex items-center gap-3">
-            {/* Validation Status */}
+            <Button
+              variant="outline"
+              onClick={() => clearAllCharacterData()}
+              className="text-red-600 border-red-300 hover:bg-red-50"
+            >
+              🗑️ Limpar Tudo
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Status Indicator */}
             <div className="text-sm">
               {isCurrentStepValid() ? (
                 <span className="text-green-600 font-medium">✓ Step válido</span>
