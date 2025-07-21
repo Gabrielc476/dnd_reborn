@@ -1,138 +1,137 @@
 // components/character/creation/steps/Equipment.tsx
-// VERSÃO MELHORADA - Visual aprimorado e collapse para descrições
 'use client';
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useMemo, Fragment } from "react";
+import { 
+    
+    
+    Collapsible, CollapsibleContent 
+} from "@/components/ui/collapsible";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@/components/ui/table"
 import { 
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { 
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { 
-    Search, 
-    Shield, 
-    Heart, 
-    Package, 
-    Filter,
-    Plus,
-    Minus,
-    ChevronUp,
-    ChevronDown,
-    Loader2,
-    Sword,
-    ShieldIcon,
-    Backpack,
-    Info,
-    Star,
-    Weight,
-    Coins,
-    ArrowUpDown
+    Search, Shield, Heart, Package, Filter, Plus, Minus, 
+    ChevronUp, ChevronDown, Loader2, Sword, Shield as ShieldIcon,
+    Backpack, Info, Star, Weight, Coins, ArrowUpDown, ShoppingCart,
+    Gift, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, RefreshCw
 } from "lucide-react";
-import { DndClass, DndBackground, DndRace } from "@/types/characterCreation";
+import type { DndClass, DndBackground, DndRace } from "@/types/characterCreation";
 
 interface EquipmentProps {
     onValidationChange?: (isValid: boolean) => void;
 }
 
 // ===========================
-// EQUIPAMENTOS ESSENCIAIS
+// TIPOS E CONSTANTES
 // ===========================
-
-const ESSENTIAL_EQUIPMENT_INDEXES = [
-    // Armaduras Leves
-    "padded", "leather", "studded-leather",
-    // Armaduras Médias  
-    "hide", "chain-shirt", "scale-mail", "breastplate", "half-plate",
-    // Armaduras Pesadas
-    "ring-mail", "chain-mail", "splint", "plate",
-    // Escudos
-    "shield",
-    // Armas Simples
-    "club", "dagger", "dart", "handaxe", "javelin", "light-hammer", "mace", 
-    "quarterstaff", "sickle", "spear", "unarmed-strike", "light-crossbow", 
-    "dart", "shortbow", "sling",
-    // Armas Marciais
-    "battleaxe", "flail", "glaive", "greataxe", "greatsword", "halberd", 
-    "lance", "longsword", "maul", "morningstar", "pike", "rapier", "scimitar", 
-    "shortsword", "trident", "war-pick", "warhammer", "whip", "blowgun", 
-    "hand-crossbow", "heavy-crossbow", "longbow", "net"
-];
-
-// ===========================
-// TYPES
-// ===========================
-
 interface Equipment {
     index: string;
     name: string;
-    equipment_category: {
-        index: string;
-        name: string;
-        url: string;
-    };
-    cost?: {
-        quantity: number;
-        unit: string;
-    };
+    equipment_category: { index: string; name: string; url: string };
+    cost?: { quantity: number; unit: string };
     weight?: number;
     desc?: string[];
-    armor_class?: {
-        base: number;
-        dex_bonus?: boolean;
-        max_bonus?: number;
-    };
+    armor_class?: { base: number; dex_bonus?: boolean; max_bonus?: number };
     armor_category?: string;
-    damage?: {
-        damage_dice: string;
-        damage_type: {
-            index: string;
-            name: string;
-        };
-    };
+    damage?: { damage_dice: string; damage_type: { index: string; name: string } };
     weapon_category?: string;
     weapon_range?: string;
-    properties?: Array<{
-        index: string;
-        name: string;
-        url: string;
-    }>;
+    properties?: Array<{ index: string; name: string; url: string }>;
     url: string;
 }
 
 interface SelectedEquipment {
     equipment: Equipment;
     quantity: number;
+    source: 'starting' | 'purchased';
+}
+
+interface StartingEquipmentChoice {
+    desc: string;
+    choose: number;
+    type: string;
+    from: {
+        option_set_type: string;
+        equipment_category?: { index: string; name: string };
+        options?: Array<{
+            option_type: string;
+            count?: number;
+            of?: { index: string; name: string; url: string };
+            choice?: { desc: string; choose: number; type: string; from: any };
+        }>;
+    };
+}
+
+interface StartingEquipment {
+    equipment: Array<{ equipment: { index: string; name: string; url: string }; quantity: number }>;
+    starting_equipment_options: StartingEquipmentChoice[];
 }
 
 type SortField = 'name' | 'category' | 'cost' | 'weight' | 'ac' | 'damage';
 type SortDirection = 'asc' | 'desc';
-
-// ===========================
-// STORAGE KEYS
-// ===========================
+type EquipmentMode = 'starting' | 'purchase';
 
 const STORAGE_KEYS = {
     SELECTED_EQUIPMENT: 'character_creation_selected_equipment',
-    EQUIPMENT_CACHE: 'character_creation_equipment_cache_v2',
-    EQUIPMENT_SEARCH: 'character_creation_equipment_search'
+    EQUIPMENT_CACHE: 'character_creation_equipment_cache_v3',
+    EQUIPMENT_SEARCH: 'character_creation_equipment_search',
+    EQUIPMENT_MODE: 'character_creation_equipment_mode',
+    STARTING_CHOICES: 'character_creation_starting_choices',
+    CURRENT_GOLD: 'character_creation_current_gold'
 };
 
-// ===========================
-// UTILITY FUNCTIONS
-// ===========================
+const TEXT = {
+    ARMOR_CLASS: "Classe de Armadura",
+    HIT_POINTS: "Pontos de Vida",
+    EQUIPMENT_METHOD: "Método de Obtenção de Equipamentos",
+    INITIAL_EQUIPMENT: "Equipamento Inicial",
+    INITIAL_DESC: "Equipamentos padrão baseados na sua classe",
+    PURCHASE_EQUIPMENT: "Comprar Equipamentos",
+    PURCHASE_DESC: "Use ouro inicial para comprar o que quiser",
+    GOLD_ROLL: "Rolar Novamente",
+    CHARACTER_DATA: "Dados do Personagem",
+    RACE: "Raça",
+    CLASS: "Classe",
+    BACKGROUND: "Background",
+    PROFICIENCIES: "Proficiências",
+    SELECTED_EQUIPMENT: "Equipamentos Selecionados",
+    SHOP_TITLE: "Loja de Equipamentos",
+    SEARCH_PLACEHOLDER: "Buscar equipamentos...",
+    PROFICIENCY_FILTER: "Apenas Proficientes",
+    NO_EQUIPMENT: "Nenhum equipamento encontrado",
+    NO_EQUIPMENT_DESC: "Tente ajustar os filtros ou o termo de busca.",
+    FIXED_EQUIPMENT: "Equipamentos Fixos:",
+    CHOOSE_EQUIPMENT: "Escolha:",
+    ITEM_DETAILS: "Detalhes",
+    PROPERTIES: "Propriedades:",
+    DESCRIPTION: "Descrição:",
+    ADD: "Adicionar",
+    BUY: "Comprar",
+    NO_GOLD: "Sem Gold",
+    SELECTED: "Selecionado",
+    QUANTITY: "Quantidade:",
+    PROFICIENT: "Proficiente",
+    INITIAL: "Inicial",
+    PURCHASED: "Comprado",
+    LOADING_EQUIPMENT: "Carregando equipamentos...",
+    LOADING_STARTING: "Carregando equipamento inicial...",
+    ERROR_LOADING: "Erro ao carregar equipamentos",
+    RETRY: "Tentar Novamente",
+    GOLD_FORMULA: "Ouro Inicial:",
+    AVERAGE: "Média:",
+    CURRENT: "Atual:",
+    NESTED_CHOICE_WARNING: "Escolhas aninhadas requerem seleção adicional"
+};
 
+const BASE_API_URL = "https://www.dnd5eapi.co/api";
+const BASE_HP = 8;
+
+// ===========================
+// FUNÇÕES UTILITÁRIAS
+// ===========================
 const saveToStorage = (key: string, data: any) => {
     try {
         localStorage.setItem(key, JSON.stringify(data));
@@ -144,27 +143,20 @@ const saveToStorage = (key: string, data: any) => {
 const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
     try {
         const item = localStorage.getItem(key);
-        if (item) {
-            return JSON.parse(item);
-        }
+        return item ? JSON.parse(item) : defaultValue;
     } catch (error) {
         console.error('Erro ao carregar do storage:', { key, error });
+        return defaultValue;
     }
-    return defaultValue;
 };
 
 const getConsolidatedCharacterData = () => {
     try {
-        const selectedRace = JSON.parse(localStorage.getItem('character_creation_race') || 'null');
-        const selectedClass = JSON.parse(localStorage.getItem('character_creation_class') || 'null');
-        const selectedBackground = JSON.parse(localStorage.getItem('character_creation_background') || 'null');
-        const finalAbilityScores = JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}');
-        
         return {
-            selectedRace,
-            selectedClass,
-            selectedBackground,
-            finalAbilityScores
+            selectedRace: JSON.parse(localStorage.getItem('character_creation_race') || 'null'),
+            selectedClass: JSON.parse(localStorage.getItem('character_creation_class') || 'null'),
+            selectedBackground: JSON.parse(localStorage.getItem('character_creation_background') || 'null'),
+            finalAbilityScores: JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}')
         };
     } catch (error) {
         console.error('Erro ao buscar dados consolidados:', error);
@@ -172,356 +164,405 @@ const getConsolidatedCharacterData = () => {
     }
 };
 
-const calculateModifier = (score: number): number => {
-    return Math.floor((score - 10) / 2);
-};
+const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
+const calculateBaseArmorClass = (dexScore: number) => 10 + calculateModifier(dexScore);
+const calculateHitPoints = (classData: DndClass | null, conScore: number) => 
+    (classData?.hit_die || BASE_HP) + calculateModifier(conScore);
 
-const calculateBaseArmorClass = (dexScore: number): number => {
-    const dexModifier = calculateModifier(dexScore);
-    return 10 + dexModifier;
-};
-
-const calculateHitPoints = (classData: DndClass, conScore: number): number => {
-    const conModifier = calculateModifier(conScore);
-    const baseHP = classData?.hit_die || 8;
-    return baseHP + conModifier;
-};
-
-const getEquipmentProficiencies = (classData: DndClass | null, backgroundData: DndBackground | null, raceData: DndRace | null) => {
+const getEquipmentProficiencies = (
+    classData: DndClass | null, 
+    backgroundData: DndBackground | null, 
+    raceData: DndRace | null
+) => {
     const proficiencies = new Set<string>();
     
-    if (classData?.proficiencies) {
-        classData.proficiencies.forEach(prof => {
-            proficiencies.add(prof.index);
-        });
-    }
-    
-    if (backgroundData?.starting_proficiencies) {
-        backgroundData.starting_proficiencies.forEach(prof => {
-            proficiencies.add(prof.index);
-        });
-    }
-    
-    if (raceData?.starting_proficiencies) {
-        raceData.starting_proficiencies.forEach(prof => {
-            proficiencies.add(prof.index);
-        });
-    }
+    [classData, backgroundData, raceData].forEach(data => {
+        data?.proficiencies?.forEach(prof => proficiencies.add(prof.index));
+        data?.starting_proficiencies?.forEach(prof => proficiencies.add(prof.index));
+    });
     
     return Array.from(proficiencies);
 };
 
 const isProficientWith = (equipment: Equipment, proficiencies: string[]) => {
-    const categoryIndex = equipment.equipment_category?.index;
-    const armorCategory = equipment.armor_category?.toLowerCase();
-    const weaponCategory = equipment.weapon_category?.toLowerCase();
+    if (proficiencies.includes(equipment.index) || 
+        proficiencies.includes(equipment.equipment_category.index)) return true;
     
-    if (proficiencies.includes(equipment.index)) {
-        return true;
-    }
-    
-    if (proficiencies.includes(categoryIndex)) {
-        return true;
-    }
-    
-    if (armorCategory) {
-        const armorProficiencies = [
-            `${armorCategory}-armor`,
+    if (equipment.armor_category) {
+        const armorTypes = [
+            `${equipment.armor_category.toLowerCase()}-armor`,
             'all-armor',
             'armor'
         ];
-        
-        if (armorProficiencies.some(prof => proficiencies.includes(prof))) {
-            return true;
-        }
+        if (armorTypes.some(prof => proficiencies.includes(prof))) return true;
     }
     
-    if (weaponCategory) {
-        const weaponProficiencies = [
-            `${weaponCategory}-weapons`,
+    if (equipment.weapon_category) {
+        const weaponTypes = [
+            `${equipment.weapon_category.toLowerCase()}-weapons`,
             'all-weapons',
             'weapon'
         ];
-        
-        if (weaponProficiencies.some(prof => proficiencies.includes(prof))) {
-            return true;
-        }
+        if (weaponTypes.some(prof => proficiencies.includes(prof))) return true;
     }
     
-    if (equipment.index === 'shield' && proficiencies.includes('shields')) {
-        return true;
-    }
-    
-    return false;
+    return equipment.index === 'shield' && proficiencies.includes('shields');
 };
 
 const getCategoryIcon = (category: string) => {
     switch (category) {
-        case 'armor':
-            return <ShieldIcon className="h-4 w-4" />;
-        case 'weapon':
-            return <Sword className="h-4 w-4" />;
-        default:
-            return <Backpack className="h-4 w-4" />;
+        case 'armor': return <ShieldIcon className="h-4 w-4" />;
+        case 'weapon': return <Sword className="h-4 w-4" />;
+        default: return <Backpack className="h-4 w-4" />;
     }
 };
 
-// ===========================
-// MAIN COMPONENT
-// ===========================
+const rollDice = (sides: number, count = 1) => {
+    let total = 0;
+    for (let i = 0; i < count; i++) total += Math.floor(Math.random() * sides) + 1;
+    return total;
+};
 
+const getStartingWealth = (classIndex: string) => {
+    const wealthTable = {
+        barbarian: { formula: '2d4 × 10', average: 50 },
+        druid: { formula: '2d4 × 10', average: 50 },
+        monk: { formula: '5d4', average: 12.5 },
+        sorcerer: { formula: '3d4 × 10', average: 75 },
+        rogue: { formula: '4d4 × 10', average: 100 },
+        warlock: { formula: '4d4 × 10', average: 100 },
+        wizard: { formula: '4d4 × 10', average: 100 },
+        default: { formula: '5d4 × 10', average: 125 }
+    };
+    return wealthTable[classIndex as keyof typeof wealthTable] || wealthTable.default;
+};
+
+const rollStartingGold = (classIndex: string) => {
+    const wealth = getStartingWealth(classIndex);
+    const match = wealth.formula.match(/(\d+)d(\d+)\s*\×\s*(\d+)/i) || wealth.formula.match(/(\d+)d(\d+)/i);
+    if (!match) return wealth.average;
+    
+    const diceCount = parseInt(match[1], 10);
+    const diceSides = parseInt(match[2], 10);
+    const multiplier = match[3] ? parseInt(match[3], 10) : 1;
+    
+    return rollDice(diceSides, diceCount) * multiplier;
+};
+
+const convertCostToGold = (cost: { quantity: number; unit: string }) => {
+    const rates: Record<string, number> = {
+        cp: 0.01,
+        sp: 0.1,
+        ep: 0.5,
+        gp: 1,
+        pp: 10
+    };
+    return cost.quantity * (rates[cost.unit.toLowerCase()] || 1);
+};
+
+// ===========================
+// COMPONENTES AUXILIARES
+// ===========================
+const SortIcon = ({ field, currentField, direction }: { 
+    field: SortField; 
+    currentField: SortField; 
+    direction: SortDirection 
+}) => {
+    if (field !== currentField) return <ArrowUpDown className="h-3 w-3 text-gray-400" />;
+    return direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+};
+
+const DiceIcon = ({ value }: { value: number }) => {
+    const icons = [Dice1, Dice2, Dice3, Dice4, Dice5, Dice6];
+    const Icon = icons[Math.min(value - 1, 5)] || Dice6;
+    return <Icon className="h-4 w-4" />;
+};
+
+// ===========================
+// COMPONENTE PRINCIPAL
+// ===========================
 const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
-    // States
-    const [selectedEquipment, setSelectedEquipment] = useState<SelectedEquipment[]>(() => {
-        return loadFromStorage<SelectedEquipment[]>(STORAGE_KEYS.SELECTED_EQUIPMENT, []);
-    });
-    const [equipmentList, setEquipmentList] = useState<Equipment[]>(() => {
-        return loadFromStorage<Equipment[]>(STORAGE_KEYS.EQUIPMENT_CACHE, []);
-    });
-    const [searchTerm, setSearchTerm] = useState<string>(() => {
-        return loadFromStorage<string>(STORAGE_KEYS.EQUIPMENT_SEARCH, '');
-    });
+    // Estados
+    const [selectedEquipment, setSelectedEquipment] = useState<SelectedEquipment[]>(() => 
+        loadFromStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, []));
+    const [equipmentList, setEquipmentList] = useState<Equipment[]>(() => 
+        loadFromStorage(STORAGE_KEYS.EQUIPMENT_CACHE, []));
+    const [searchTerm, setSearchTerm] = useState(() => 
+        loadFromStorage(STORAGE_KEYS.EQUIPMENT_SEARCH, ''));
+    const [equipmentMode, setEquipmentMode] = useState<EquipmentMode>(() => 
+        loadFromStorage(STORAGE_KEYS.EQUIPMENT_MODE, 'starting'));
+    const [startingEquipment, setStartingEquipment] = useState<StartingEquipment | null>(null);
+    const [startingChoices, setStartingChoices] = useState(() => 
+        loadFromStorage(STORAGE_KEYS.STARTING_CHOICES, {}));
+    const [currentGold, setCurrentGold] = useState(() => 
+        loadFromStorage(STORAGE_KEYS.CURRENT_GOLD, 0));
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selectedCategory, setSelectedCategory] = useState<string>('all');
+    const [selectedCategory, setSelectedCategory] = useState('all');
     const [showOnlyProficient, setShowOnlyProficient] = useState(false);
     const [sortField, setSortField] = useState<SortField>('name');
     const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
     const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
     const [loadingProgress, setLoadingProgress] = useState(0);
+    const [loadingStartingEquipment, setLoadingStartingEquipment] = useState(false);
     
-    // Character data
-    const characterData = getConsolidatedCharacterData();
+    // Dados do personagem
+    const characterData = useMemo(getConsolidatedCharacterData, []);
     const { selectedRace, selectedClass, selectedBackground, finalAbilityScores } = characterData || {};
-    
-    // Calculate character stats
     const dexScore = finalAbilityScores?.dexterity || 10;
     const conScore = finalAbilityScores?.constitution || 10;
-    const baseArmorClass = calculateBaseArmorClass(dexScore);
-    const hitPoints = calculateHitPoints(selectedClass, conScore);
     
-    // Get proficiencies
-    const proficiencies = getEquipmentProficiencies(selectedClass, selectedBackground, selectedRace);
+    // Valores calculados
+    const baseArmorClass = useMemo(() => calculateBaseArmorClass(dexScore), [dexScore]);
+    const hitPoints = useMemo(() => calculateHitPoints(selectedClass, conScore), [selectedClass, conScore]);
+    const proficiencies = useMemo(() => 
+        getEquipmentProficiencies(selectedClass, selectedBackground, selectedRace),
+        [selectedClass, selectedBackground, selectedRace]
+    );
     
-    // Equipment categories
-    const categories = [
+    // Categorias de equipamentos
+    const categories = useMemo(() => [
         { value: 'all', label: 'Todos', icon: <Package className="h-4 w-4" /> },
         { value: 'armor', label: 'Armaduras', icon: <ShieldIcon className="h-4 w-4" /> },
         { value: 'weapon', label: 'Armas', icon: <Sword className="h-4 w-4" /> },
         { value: 'adventuring-gear', label: 'Equipamentos', icon: <Backpack className="h-4 w-4" /> },
         { value: 'tools', label: 'Ferramentas', icon: <Package className="h-4 w-4" /> }
-    ];
-    
-    // ===========================
-    // EFFECTS
-    // ===========================
-    
+    ], []);
+
+    // CA total
+    const totalArmorClass = useMemo(() => {
+        const armorItem = selectedEquipment.find(item => 
+            item.equipment.equipment_category?.index === 'armor' && item.equipment.armor_class);
+        
+        if (!armorItem?.equipment.armor_class) return baseArmorClass;
+        
+        const armorAC = armorItem.equipment.armor_class.base;
+        const dexModifier = calculateModifier(dexScore);
+        
+        if (!armorItem.equipment.armor_class.dex_bonus) return armorAC;
+        
+        const maxBonus = armorItem.equipment.armor_class.max_bonus;
+        return armorAC + (maxBonus !== undefined ? 
+            Math.min(dexModifier, maxBonus) : dexModifier);
+    }, [selectedEquipment, dexScore, baseArmorClass]);
+
+    // Effects
     useEffect(() => {
-        const fetchEquipment = async () => {
-            if (equipmentList.length > 0) {
-                return;
-            }
+        const fetchAllEquipment = async () => {
+            if (equipmentList.length > 0) return;
             
             setIsLoading(true);
             setError(null);
             setLoadingProgress(0);
             
             try {
-                const equipmentPromises = ESSENTIAL_EQUIPMENT_INDEXES.map(async (index, i) => {
+                const response = await fetch(`${BASE_API_URL}/equipment`);
+                if (!response.ok) throw new Error('Falha ao buscar lista de equipamentos');
+                
+                const data = await response.json();
+                const equipmentIndexes = data.results.map((eq: any) => eq.index);
+                setLoadingProgress(10);
+                
+                const equipmentPromises = equipmentIndexes.map(async (index: string, i: number) => {
                     try {
-                        const url = `https://www.dnd5eapi.co/api/equipment/${index}`;
-                        const response = await fetch(url);
-                        
-                        setLoadingProgress(Math.round(((i + 1) / ESSENTIAL_EQUIPMENT_INDEXES.length) * 100));
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            return data;
-                        } else {
-                            return null;
-                        }
-                    } catch (err) {
+                        const response = await fetch(`${BASE_API_URL}/equipment/${index}`);
+                        setLoadingProgress(10 + Math.round(((i + 1) / equipmentIndexes.length) * 90));
+                        return response.ok ? response.json() : null;
+                    } catch {
                         return null;
                     }
                 });
                 
                 const equipments = await Promise.all(equipmentPromises);
-                const validEquipments = equipments.filter(eq => eq !== null);
+                const validEquipments = equipments.filter(Boolean) as Equipment[];
                 
                 if (validEquipments.length > 0) {
                     setEquipmentList(validEquipments);
                     saveToStorage(STORAGE_KEYS.EQUIPMENT_CACHE, validEquipments);
                 } else {
-                    setError('Nenhum equipamento foi carregado da API');
+                    setError(TEXT.ERROR_LOADING);
                 }
-                
             } catch (error) {
-                setError(`Erro ao carregar equipamentos: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+                setError(`${TEXT.ERROR_LOADING}: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
             } finally {
                 setIsLoading(false);
-                setLoadingProgress(100);
             }
         };
         
-        fetchEquipment();
+        fetchAllEquipment();
     }, [equipmentList.length]);
-    
+
     useEffect(() => {
-        saveToStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, selectedEquipment);
-    }, [selectedEquipment]);
-    
-    useEffect(() => {
-        saveToStorage(STORAGE_KEYS.EQUIPMENT_SEARCH, searchTerm);
-    }, [searchTerm]);
-    
-    useEffect(() => {
-        const isValid = selectedEquipment.length > 0;
-        onValidationChange?.(isValid);
-    }, [selectedEquipment, onValidationChange]);
-    
-    // ===========================
-    // HANDLERS
-    // ===========================
-    
-    const handleEquipmentAdd = (equipment: Equipment) => {
-        setSelectedEquipment(prev => {
-            const existing = prev.find(item => item.equipment.index === equipment.index);
-            if (existing) {
-                return prev.map(item => 
-                    item.equipment.index === equipment.index 
-                        ? { ...item, quantity: item.quantity + 1 }
-                        : item
-                );
-            } else {
-                return [...prev, { equipment, quantity: 1 }];
+        const fetchStartingEquipment = async () => {
+            if (!selectedClass?.index || equipmentMode !== 'starting') return;
+
+            setLoadingStartingEquipment(true);
+            setError(null);
+            
+            try {
+                const response = await fetch(`${BASE_API_URL}/classes/${selectedClass.index}/starting-equipment`);
+                if (!response.ok) throw new Error('Erro ao carregar equipamento inicial');
+                
+                const data = await response.json();
+                setStartingEquipment({
+                    equipment: Array.isArray(data.starting_equipment) ? data.starting_equipment : [],
+                    starting_equipment_options: Array.isArray(data.starting_equipment_options) 
+                        ? data.starting_equipment_options 
+                        : []
+                });
+            } catch (error) {
+                setError('Erro ao conectar com a API para equipamento inicial');
+                setStartingEquipment(null);
+            } finally {
+                setLoadingStartingEquipment(false);
             }
+        };
+        
+        fetchStartingEquipment();
+    }, [selectedClass?.index, equipmentMode]);
+
+    useEffect(() => {
+        if (equipmentMode === 'purchase' && currentGold === 0 && selectedClass?.index) {
+            const initialGold = rollStartingGold(selectedClass.index);
+            setCurrentGold(initialGold);
+            saveToStorage(STORAGE_KEYS.CURRENT_GOLD, initialGold);
+        }
+    }, [equipmentMode, currentGold, selectedClass?.index]);
+
+    // Persistência
+    useEffect(() => saveToStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, selectedEquipment), [selectedEquipment]);
+    useEffect(() => saveToStorage(STORAGE_KEYS.EQUIPMENT_SEARCH, searchTerm), [searchTerm]);
+    useEffect(() => saveToStorage(STORAGE_KEYS.EQUIPMENT_MODE, equipmentMode), [equipmentMode]);
+    useEffect(() => saveToStorage(STORAGE_KEYS.STARTING_CHOICES, startingChoices), [startingChoices]);
+    useEffect(() => saveToStorage(STORAGE_KEYS.CURRENT_GOLD, currentGold), [currentGold]);
+    useEffect(() => onValidationChange?.(selectedEquipment.length > 0), [selectedEquipment, onValidationChange]);
+
+    // Handlers
+    const handleEquipmentAdd = (equipment: Equipment, source: 'starting' | 'purchased' = 'purchased') => {
+        if (source === 'purchased') {
+            const cost = equipment.cost ? convertCostToGold(equipment.cost) : 0;
+            if (cost > currentGold) return;
+            setCurrentGold(prev => prev - cost);
+        }
+        
+        setSelectedEquipment(prev => {
+            const existingIndex = prev.findIndex(item => item.equipment.index === equipment.index);
+            if (existingIndex >= 0) {
+                const newItems = [...prev];
+                newItems[existingIndex] = {
+                    ...newItems[existingIndex],
+                    quantity: newItems[existingIndex].quantity + 1
+                };
+                return newItems;
+            }
+            return [...prev, { equipment, quantity: 1, source }];
         });
     };
-    
+
     const handleEquipmentRemove = (equipmentIndex: string) => {
         setSelectedEquipment(prev => {
-            const existing = prev.find(item => item.equipment.index === equipmentIndex);
-            if (existing && existing.quantity > 1) {
-                return prev.map(item => 
-                    item.equipment.index === equipmentIndex 
-                        ? { ...item, quantity: item.quantity - 1 }
-                        : item
-                );
-            } else {
-                return prev.filter(item => item.equipment.index !== equipmentIndex);
+            const existingIndex = prev.findIndex(item => item.equipment.index === equipmentIndex);
+            if (existingIndex < 0) return prev;
+            
+            const existing = prev[existingIndex];
+            if (existing.source === 'purchased' && existing.equipment.cost) {
+                setCurrentGold(prev => prev + convertCostToGold(existing.equipment.cost));
             }
+            
+            return existing.quantity > 1
+                ? prev.map((item, i) => 
+                    i === existingIndex ? { ...item, quantity: item.quantity - 1 } : item)
+                : prev.filter((_, i) => i !== existingIndex);
         });
     };
-    
-    const handleSort = (field: SortField) => {
-        if (sortField === field) {
-            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-        } else {
-            setSortField(field);
-            setSortDirection('asc');
+
+    const handleModeChange = (mode: EquipmentMode) => {
+        setEquipmentMode(mode);
+        setSelectedEquipment([]);
+        if (mode === 'purchase' && selectedClass?.index) {
+            setCurrentGold(rollStartingGold(selectedClass.index));
         }
     };
-    
+
+    const handleRerollGold = () => {
+        if (selectedClass?.index) {
+            setCurrentGold(rollStartingGold(selectedClass.index));
+            setSelectedEquipment(prev => prev.filter(item => item.source === 'starting'));
+        }
+    };
+
+    const handleSort = (field: SortField) => {
+        setSortField(prev => field === prev ? prev : field);
+        setSortDirection(prev => field === sortField ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
+    };
+
     const toggleDescription = (equipmentIndex: string) => {
         setExpandedDescriptions(prev => {
             const newSet = new Set(prev);
-            if (newSet.has(equipmentIndex)) {
-                newSet.delete(equipmentIndex);
-            } else {
-                newSet.add(equipmentIndex);
-            }
+            newSet.has(equipmentIndex) ? newSet.delete(equipmentIndex) : newSet.add(equipmentIndex);
             return newSet;
         });
     };
-    
-    // Filter and sort equipment
-    const filteredAndSortedEquipment = equipmentList
-        .filter(equipment => {
-            const matchesSearch = equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesCategory = selectedCategory === 'all' || equipment.equipment_category?.index === selectedCategory;
-            const matchesProficiency = !showOnlyProficient || isProficientWith(equipment, proficiencies);
-            
-            return matchesSearch && matchesCategory && matchesProficiency;
-        })
-        .sort((a, b) => {
-            let aValue: any;
-            let bValue: any;
-            
-            switch (sortField) {
-                case 'name':
-                    aValue = a.name;
-                    bValue = b.name;
-                    break;
-                case 'category':
-                    aValue = a.equipment_category?.name || '';
-                    bValue = b.equipment_category?.name || '';
-                    break;
-                case 'cost':
-                    aValue = a.cost?.quantity || 0;
-                    bValue = b.cost?.quantity || 0;
-                    break;
-                case 'weight':
-                    aValue = a.weight || 0;
-                    bValue = b.weight || 0;
-                    break;
-                case 'ac':
-                    aValue = a.armor_class?.base || 0;
-                    bValue = b.armor_class?.base || 0;
-                    break;
-                case 'damage':
-                    aValue = a.damage?.damage_dice || '';
-                    bValue = b.damage?.damage_dice || '';
-                    break;
-                default:
-                    aValue = a.name;
-                    bValue = b.name;
+
+    const handleStartingEquipmentChoice = async (choiceIndex: number, optionIndex: number) => {
+        if (!startingEquipment?.starting_equipment_options?.[choiceIndex]) return;
+        const option = startingEquipment.starting_equipment_options[choiceIndex]?.from?.options?.[optionIndex];
+        if (!option) return;
+
+        if (option.of) {
+            try {
+                const response = await fetch(`${BASE_API_URL}${option.of.url}`);
+                if (!response.ok) throw new Error('Falha ao buscar item');
+                
+                const equipmentData = await response.json();
+                const quantity = option.count || 1;
+                for (let i = 0; i < quantity; i++) handleEquipmentAdd(equipmentData, 'starting');
+                setStartingChoices(prev => ({ ...prev, [choiceIndex]: optionIndex }));
+            } catch (error) {
+                console.error('Erro ao buscar equipamento:', error);
             }
-            
-            if (typeof aValue === 'string' && typeof bValue === 'string') {
-                const comparison = aValue.localeCompare(bValue);
-                return sortDirection === 'asc' ? comparison : -comparison;
-            } else {
-                const comparison = aValue - bValue;
-                return sortDirection === 'asc' ? comparison : -comparison;
-            }
-        });
-    
-    // Calculate total AC from armor
-    const calculateTotalArmorClass = () => {
-        const armorItem = selectedEquipment.find(item => 
-            item.equipment.equipment_category?.index === 'armor' && item.equipment.armor_class
-        );
-        
-        if (armorItem?.equipment.armor_class) {
-            const armorAC = armorItem.equipment.armor_class.base;
-            const dexModifier = calculateModifier(dexScore);
-            
-            if (armorItem.equipment.armor_class.dex_bonus) {
-                const maxBonus = armorItem.equipment.armor_class.max_bonus;
-                const dexBonus = maxBonus !== undefined ? Math.min(dexModifier, maxBonus) : dexModifier;
-                return armorAC + dexBonus;
-            } else {
-                return armorAC;
-            }
+        } else if (option.choice) {
+            setStartingChoices(prev => ({ ...prev, [choiceIndex]: optionIndex }));
+            alert(TEXT.NESTED_CHOICE_WARNING);
         }
-        
-        return baseArmorClass;
     };
-    
-    const totalArmorClass = calculateTotalArmorClass();
-    
-    const SortIcon = ({ field }: { field: SortField }) => {
-        if (sortField !== field) return <ArrowUpDown className="h-3 w-3 text-gray-400" />;
-        return sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
-    };
-    
-    // ===========================
-    // RENDER
-    // ===========================
-    
+
+    // Equipamentos filtrados e ordenados
+    const filteredAndSortedEquipment = useMemo(() => {
+        return equipmentList
+            .filter(equipment => {
+                const matchesSearch = equipment.name.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesCategory = selectedCategory === 'all' || equipment.equipment_category?.index === selectedCategory;
+                const matchesProficiency = !showOnlyProficient || isProficientWith(equipment, proficiencies);
+                return matchesSearch && matchesCategory && matchesProficiency;
+            })
+            .sort((a, b) => {
+                const getValue = (eq: Equipment, field: SortField): any => {
+                    switch (field) {
+                        case 'name': return eq.name;
+                        case 'category': return eq.equipment_category?.name || '';
+                        case 'cost': return eq.cost ? convertCostToGold(eq.cost) : 0;
+                        case 'weight': return eq.weight || 0;
+                        case 'ac': return eq.armor_class?.base || 0;
+                        case 'damage': return eq.damage?.damage_dice || '';
+                        default: return eq.name;
+                    }
+                };
+                
+                const aValue = getValue(a, sortField);
+                const bValue = getValue(b, sortField);
+                const direction = sortDirection === 'asc' ? 1 : -1;
+                
+                return typeof aValue === 'string' 
+                    ? direction * aValue.localeCompare(bValue)
+                    : direction * (aValue - bValue);
+            });
+    }, [equipmentList, searchTerm, selectedCategory, showOnlyProficient, proficiencies, sortField, sortDirection]);
+
+    // Renderização
     return (
         <div className="space-y-8">
-            {/* Character Stats */}
+            {/* Estatísticas do Personagem */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
                     <CardContent className="p-6">
@@ -530,7 +571,7 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
                                 <Shield className="h-8 w-8 text-white" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-blue-700">Classe de Armadura</p>
+                                <p className="text-sm font-medium text-blue-700">{TEXT.ARMOR_CLASS}</p>
                                 <p className="text-3xl font-bold text-blue-900">{totalArmorClass}</p>
                             </div>
                         </div>
@@ -544,7 +585,7 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
                                 <Heart className="h-8 w-8 text-white" />
                             </div>
                             <div>
-                                <p className="text-sm font-medium text-red-700">Pontos de Vida</p>
+                                <p className="text-sm font-medium text-red-700">{TEXT.HIT_POINTS}</p>
                                 <p className="text-3xl font-bold text-red-900">{hitPoints}</p>
                             </div>
                         </div>
@@ -552,45 +593,265 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
                 </Card>
             </div>
             
-            {/* Character Info */}
-            {characterData && (
-                <Card className="border-green-200 bg-gradient-to-r from-green-50 to-emerald-50">
-                    <CardHeader className="pb-3">
+            {/* Seleção de Modo */}
+            <Card className="border-purple-200">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-purple-800">
+                        <Package className="h-5 w-5" />
+                        {TEXT.EQUIPMENT_METHOD}
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card 
+                            className={`cursor-pointer transition-all ${
+                                equipmentMode === 'starting' 
+                                    ? 'border-green-500 bg-green-50 shadow-md' 
+                                    : 'border-gray-200 hover:border-green-300'
+                            }`}
+                            onClick={() => handleModeChange('starting')}
+                        >
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-xl shadow-lg ${equipmentMode === 'starting' ? 'bg-green-500' : 'bg-gray-400'}`}>
+                                        <Gift className="h-8 w-8 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className={`text-lg font-bold ${equipmentMode === 'starting' ? 'text-green-900' : 'text-gray-700'}`}>
+                                            {TEXT.INITIAL_EQUIPMENT}
+                                        </h3>
+                                        <p className="text-sm text-gray-600">{TEXT.INITIAL_DESC}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                        
+                        <Card 
+                            className={`cursor-pointer transition-all ${
+                                equipmentMode === 'purchase' 
+                                    ? 'border-yellow-500 bg-yellow-50 shadow-md' 
+                                    : 'border-gray-200 hover:border-yellow-300'
+                            }`}
+                            onClick={() => handleModeChange('purchase')}
+                        >
+                            <CardContent className="p-6">
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-xl shadow-lg ${equipmentMode === 'purchase' ? 'bg-yellow-500' : 'bg-gray-400'}`}>
+                                        <ShoppingCart className="h-8 w-8 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className={`text-lg font-bold ${equipmentMode === 'purchase' ? 'text-yellow-900' : 'text-gray-700'}`}>
+                                            {TEXT.PURCHASE_EQUIPMENT}
+                                        </h3>
+                                        <p className="text-sm text-gray-600">{TEXT.PURCHASE_DESC}</p>
+                                        {equipmentMode === 'purchase' && selectedClass && (
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <Coins className="h-4 w-4 text-yellow-600" />
+                                                <span className="text-lg font-bold text-yellow-800">
+                                                    {currentGold} GO
+                                                </span>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleRerollGold();
+                                                    }}
+                                                    className="ml-2"
+                                                >
+                                                    <RefreshCw className="h-3 w-3 mr-1" />
+                                                    {TEXT.GOLD_ROLL}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                    
+                    {equipmentMode === 'purchase' && selectedClass && (
+                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                                <DiceIcon value={4} />
+                                <span className="font-semibold text-yellow-800">
+                                    {TEXT.GOLD_FORMULA} {getStartingWealth(selectedClass.index).formula} GO
+                                </span>
+                            </div>
+                            <p className="text-sm text-yellow-700">
+                                {TEXT.AVERAGE} {getStartingWealth(selectedClass.index).average} GO | 
+                                {TEXT.CURRENT} <strong>{currentGold} GO</strong>
+                            </p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+            
+            {/* Equipamento Inicial */}
+            {equipmentMode === 'starting' && selectedClass && (
+                <Card className="border-green-200">
+                    <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-green-800">
+                            <Gift className="h-5 w-5" />
+                            {TEXT.INITIAL_EQUIPMENT} {selectedClass?.name}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {loadingStartingEquipment ? (
+                            <div className="text-center py-8">
+                                <Loader2 className="h-8 w-8 animate-spin text-green-600 mx-auto mb-4" />
+                                <p className="text-green-700">{TEXT.LOADING_STARTING}</p>
+                            </div>
+                        ) : startingEquipment ? (
+                            <div className="space-y-6">
+                                {startingEquipment.equipment.length > 0 && (
+                                    <div>
+                                        <h4 className="font-semibold text-green-800 mb-3">{TEXT.FIXED_EQUIPMENT}</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            {startingEquipment.equipment.map((item, index) => (
+                                                <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <p className="font-medium text-green-900">
+                                                                {item.equipment?.name || 'Item desconhecido'}
+                                                            </p>
+                                                            <p className="text-sm text-green-600">
+                                                                {TEXT.QUANTITY} {item.quantity || 1}
+                                                            </p>
+                                                        </div>
+                                                        <Button
+                                                            size="sm"
+                                                            onClick={async () => {
+                                                                if (!item.equipment?.url) return;
+                                                                try {
+                                                                    const response = await fetch(`${BASE_API_URL}${item.equipment.url}`);
+                                                                    if (response.ok) {
+                                                                        const equipmentData = await response.json();
+                                                                        for (let i = 0; i < (item.quantity || 1); i++) {
+                                                                            handleEquipmentAdd(equipmentData, 'starting');
+                                                                        }
+                                                                    }
+                                                                } catch (error) {
+                                                                    console.error('Erro ao buscar equipamento:', error);
+                                                                }
+                                                            }}
+                                                            className="bg-green-600 hover:bg-green-700 text-white"
+                                                        >
+                                                            <Plus className="h-4 w-4 mr-1" />
+                                                            {TEXT.ADD}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {startingEquipment.starting_equipment_options.length > 0 && (
+                                    startingEquipment.starting_equipment_options.map((choice, choiceIndex) => (
+                                        <div key={choiceIndex} className="border border-green-200 rounded-lg p-4">
+                                            <h4 className="font-semibold text-green-800 mb-3">
+                                                {choice.desc || `${TEXT.CHOOSE_EQUIPMENT} ${choice.choose}`}
+                                            </h4>
+                                            {choice.from?.options && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                    {choice.from.options.map((option, optionIndex) => (
+                                                        <Card 
+                                                            key={optionIndex}
+                                                            className={`cursor-pointer transition-all ${
+                                                                startingChoices[choiceIndex] === optionIndex
+                                                                    ? 'border-green-500 bg-green-50' 
+                                                                    : 'border-gray-200 hover:border-green-300'
+                                                            }`}
+                                                            onClick={() => handleStartingEquipmentChoice(choiceIndex, optionIndex)}
+                                                        >
+                                                            <CardContent className="p-3">
+                                                                <div className="flex items-center justify-between">
+                                                                    <div>
+                                                                        <p className="font-medium">
+                                                                            {option.of?.name || option.choice?.desc || 'Opção especial'}
+                                                                        </p>
+                                                                        {option.count > 1 && (
+                                                                            <p className="text-sm text-green-600">
+                                                                                {TEXT.QUANTITY} {option.count}
+                                                                            </p>
+                                                                        )}
+                                                                        {option.option_type === 'choice' && (
+                                                                            <p className="text-xs text-gray-600">
+                                                                                Escolha de categoria
+                                                                            </p>
+                                                                        )}
+                                                                    </div>
+                                                                    {startingChoices[choiceIndex] === optionIndex && (
+                                                                        <Badge className="bg-green-500 text-white">
+                                                                            {TEXT.SELECTED}
+                                                                        </Badge>
+                                                                    )}
+                                                                </div>
+                                                            </CardContent>
+                                                        </Card>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+                                    <p className="text-yellow-800 mb-2">
+                                        Nenhum equipamento inicial encontrado para esta classe.
+                                    </p>
+                                    <p className="text-sm text-yellow-600">
+                                        Você pode usar o modo de compra com gold inicial.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+            
+            {/* Dados do Personagem */}
+            {characterData && (
+                <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-indigo-800">
                             <Info className="h-5 w-5" />
-                            Dados do Personagem
+                            {TEXT.CHARACTER_DATA}
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-0">
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             <div>
-                                <p className="font-medium text-green-700">Raça</p>
-                                <p className="text-green-600">{selectedRace?.name || 'N/A'}</p>
+                                <p className="font-medium text-indigo-700">{TEXT.RACE}</p>
+                                <p className="text-indigo-600">{selectedRace?.name || 'N/A'}</p>
                             </div>
                             <div>
-                                <p className="font-medium text-green-700">Classe</p>
-                                <p className="text-green-600">{selectedClass?.name || 'N/A'}</p>
+                                <p className="font-medium text-indigo-700">{TEXT.CLASS}</p>
+                                <p className="text-indigo-600">{selectedClass?.name || 'N/A'}</p>
                             </div>
                             <div>
-                                <p className="font-medium text-green-700">Background</p>
-                                <p className="text-green-600">{selectedBackground?.name || 'N/A'}</p>
+                                <p className="font-medium text-indigo-700">{TEXT.BACKGROUND}</p>
+                                <p className="text-indigo-600">{selectedBackground?.name || 'N/A'}</p>
                             </div>
                             <div>
-                                <p className="font-medium text-green-700">Proficiências</p>
-                                <p className="text-green-600">{proficiencies.length} itens</p>
+                                <p className="font-medium text-indigo-700">{TEXT.PROFICIENCIES}</p>
+                                <p className="text-indigo-600">{proficiencies.length} itens</p>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
             )}
             
-            {/* Selected Equipment */}
+            {/* Equipamentos Selecionados */}
             {selectedEquipment.length > 0 && (
                 <Card className="border-purple-200">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 text-purple-800">
                             <Package className="h-5 w-5" />
-                            Equipamentos Selecionados ({selectedEquipment.length})
+                            {TEXT.SELECTED_EQUIPMENT} ({selectedEquipment.length})
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -607,34 +868,36 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
                                                 <p className="text-sm text-purple-600 mb-2">
                                                     {item.equipment.equipment_category?.name}
                                                 </p>
-                                                
                                                 <div className="flex flex-wrap gap-2 text-xs">
                                                     <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded">
-                                                        Qtd: {item.quantity}
+                                                        {TEXT.QUANTITY} {item.quantity}
                                                     </span>
-                                                    
+                                                    <span className={`px-2 py-1 rounded ${
+                                                        item.source === 'starting' 
+                                                            ? 'bg-green-200 text-green-800' 
+                                                            : 'bg-yellow-200 text-yellow-800'
+                                                    }`}>
+                                                        {item.source === 'starting' ? TEXT.INITIAL : TEXT.PURCHASED}
+                                                    </span>
                                                     {item.equipment.armor_class && (
                                                         <span className="bg-blue-200 text-blue-800 px-2 py-1 rounded">
                                                             CA: {item.equipment.armor_class.base}
                                                         </span>
                                                     )}
-                                                    
                                                     {item.equipment.damage && (
                                                         <span className="bg-red-200 text-red-800 px-2 py-1 rounded">
                                                             {item.equipment.damage.damage_dice} {item.equipment.damage.damage_type.name}
                                                         </span>
                                                     )}
-                                                    
                                                     {isProficientWith(item.equipment, proficiencies) && (
                                                         <span className="bg-green-200 text-green-800 px-2 py-1 rounded flex items-center gap-1">
                                                             <Star className="h-3 w-3" />
-                                                            Proficiente
+                                                            {TEXT.PROFICIENT}
                                                         </span>
                                                     )}
                                                 </div>
                                             </div>
                                         </div>
-                                        
                                         <Button 
                                             size="sm" 
                                             variant="outline" 
@@ -651,356 +914,291 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
                 </Card>
             )}
             
-            {/* Equipment Search and Filters */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Search className="h-5 w-5" />
-                        Equipamentos Disponíveis
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex flex-col lg:flex-row gap-4 mb-6">
-                        <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                            <Input
-                                placeholder="Buscar equipamentos..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
-                        
-                        <div className="flex flex-wrap gap-3">
-                            <select 
-                                value={selectedCategory} 
-                                onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                            >
-                                {categories.map(cat => (
-                                    <option key={cat.value} value={cat.value}>
-                                        {cat.label}
-                                    </option>
-                                ))}
-                            </select>
-                            
-                            <Button
-                                variant={showOnlyProficient ? "default" : "outline"}
-                                size="sm"
-                                onClick={() => setShowOnlyProficient(!showOnlyProficient)}
-                                className="whitespace-nowrap"
-                            >
-                                <Filter className="h-4 w-4 mr-2" />
-                                Apenas Proficientes
-                            </Button>
-                        </div>
-                    </div>
-                    
-                    {/* Equipment Table */}
-                    {isLoading ? (
-                        <div className="text-center py-12">
-                            <div className="flex flex-col items-center gap-4">
-                                <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                                <div>
-                                    <h3 className="text-lg font-semibold mb-2">Carregando equipamentos...</h3>
-                                    <div className="w-80 bg-gray-200 rounded-full h-3 mb-2">
-                                        <div 
-                                            className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                                            style={{ width: `${loadingProgress}%` }}
-                                        ></div>
-                                    </div>
-                                    <p className="text-sm text-gray-600">
-                                        {loadingProgress}% completo ({ESSENTIAL_EQUIPMENT_INDEXES.length} equipamentos essenciais)
-                                    </p>
-                                </div>
+            {/* Loja de Equipamentos */}
+            {equipmentMode === 'purchase' && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Search className="h-5 w-5" />
+                                {TEXT.SHOP_TITLE}
                             </div>
-                        </div>
-                    ) : error ? (
-                        <div className="text-center py-12">
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-                                <p className="text-red-800 mb-4">{error}</p>
-                                <Button 
-                                    onClick={() => {
-                                        setEquipmentList([]);
-                                        localStorage.removeItem(STORAGE_KEYS.EQUIPMENT_CACHE);
-                                    }}
-                                    variant="outline"
+                            <div className="flex items-center gap-2 text-yellow-600">
+                                <Coins className="h-5 w-5" />
+                                <span className="text-xl font-bold">{currentGold} GO</span>
+                            </div>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                            <div className="flex-1 relative">
+                                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                                <Input
+                                    placeholder={TEXT.SEARCH_PLACEHOLDER}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="pl-10"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <select 
+                                    value={selectedCategory} 
+                                    onChange={(e) => setSelectedCategory(e.target.value)}
+                                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                                 >
-                                    Tentar Novamente
+                                    {categories.map(cat => (
+                                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                    ))}
+                                </select>
+                                <Button
+                                    variant={showOnlyProficient ? "default" : "outline"}
+                                    size="sm"
+                                    onClick={() => setShowOnlyProficient(!showOnlyProficient)}
+                                    className="whitespace-nowrap"
+                                >
+                                    <Filter className="h-4 w-4 mr-2" />
+                                    {TEXT.PROFICIENCY_FILTER}
                                 </Button>
                             </div>
                         </div>
-                    ) : (
-                        <div className="border rounded-lg overflow-hidden">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-gray-50">
-                                        <TableHead 
-                                            className="cursor-pointer hover:bg-gray-100 font-semibold"
-                                            onClick={() => handleSort('name')}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                Nome
-                                                <SortIcon field="name" />
-                                            </div>
-                                        </TableHead>
-                                        <TableHead 
-                                            className="cursor-pointer hover:bg-gray-100 font-semibold"
-                                            onClick={() => handleSort('category')}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                Categoria
-                                                <SortIcon field="category" />
-                                            </div>
-                                        </TableHead>
-                                        <TableHead 
-                                            className="cursor-pointer hover:bg-gray-100 font-semibold text-center"
-                                            onClick={() => handleSort('ac')}
-                                        >
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Shield className="h-4 w-4" />
-                                                CA
-                                                <SortIcon field="ac" />
-                                            </div>
-                                        </TableHead>
-                                        <TableHead 
-                                            className="cursor-pointer hover:bg-gray-100 font-semibold text-center"
-                                            onClick={() => handleSort('damage')}
-                                        >
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Sword className="h-4 w-4" />
-                                                Dano
-                                                <SortIcon field="damage" />
-                                            </div>
-                                        </TableHead>
-                                        <TableHead 
-                                            className="cursor-pointer hover:bg-gray-100 font-semibold text-center"
-                                            onClick={() => handleSort('cost')}
-                                        >
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Coins className="h-4 w-4" />
-                                                Custo
-                                                <SortIcon field="cost" />
-                                            </div>
-                                        </TableHead>
-                                        <TableHead 
-                                            className="cursor-pointer hover:bg-gray-100 font-semibold text-center"
-                                            onClick={() => handleSort('weight')}
-                                        >
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Weight className="h-4 w-4" />
-                                                Peso
-                                                <SortIcon field="weight" />
-                                            </div>
-                                        </TableHead>
-                                        <TableHead className="text-center font-semibold">Prof.</TableHead>
-                                        <TableHead className="text-center font-semibold">Ações</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredAndSortedEquipment.map((equipment) => (
-                                        <>
-                                            <TableRow 
-                                                key={equipment.index}
-                                                className={`transition-colors ${
-                                                    isProficientWith(equipment, proficiencies) 
-                                                        ? 'bg-green-50 hover:bg-green-100' 
-                                                        : 'hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                <TableCell className="font-medium">
-                                                    <div className="flex items-center gap-3">
-                                                        {equipment.desc && equipment.desc.length > 0 && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => toggleDescription(equipment.index)}
-                                                                className="p-1 h-6 w-6"
-                                                            >
-                                                                {expandedDescriptions.has(equipment.index) ? (
-                                                                    <ChevronUp className="h-3 w-3" />
-                                                                ) : (
-                                                                    <ChevronDown className="h-3 w-3" />
-                                                                )}
-                                                            </Button>
-                                                        )}
-                                                        <div className="flex items-center gap-2">
-                                                            {getCategoryIcon(equipment.equipment_category?.index)}
-                                                            <span>{equipment.name}</span>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {equipment.equipment_category?.name}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {equipment.armor_class ? (
-                                                        <span className="text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
-                                                            {equipment.armor_class.base}
-                                                            {equipment.armor_class.dex_bonus && ' + Des'}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {equipment.damage ? (
-                                                        <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded text-xs">
-                                                            {equipment.damage.damage_dice}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {equipment.cost ? (
-                                                        <span className="text-yellow-600 bg-yellow-50 px-2 py-1 rounded text-xs">
-                                                            {equipment.cost.quantity} {equipment.cost.unit}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {equipment.weight ? (
-                                                        <span className="text-gray-600">{equipment.weight} lb</span>
-                                                    ) : (
-                                                        <span className="text-gray-400">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    {isProficientWith(equipment, proficiencies) ? (
-                                                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                                            <Star className="h-3 w-3 mr-1" />
-                                                            Sim
-                                                        </Badge>
-                                                    ) : (
-                                                        <span className="text-gray-400">—</span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Button 
-                                                        size="sm" 
-                                                        onClick={() => handleEquipmentAdd(equipment)}
-                                                        className="bg-green-600 hover:bg-green-700 text-white"
-                                                    >
-                                                        <Plus className="h-4 w-4 mr-1" />
-                                                        Adicionar
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                            
-                                            {/* Collapse for description */}
-                                            {equipment.desc && equipment.desc.length > 0 && expandedDescriptions.has(equipment.index) && (
-                                                <TableRow>
-                                                    <TableCell colSpan={8} className="bg-gray-50 border-t-0">
-                                                        <Collapsible open={expandedDescriptions.has(equipment.index)}>
-                                                            <CollapsibleContent>
-                                                                <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200 m-2">
-                                                                    <h4 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2">
-                                                                        <Info className="h-5 w-5" />
-                                                                        {equipment.name} - Detalhes
-                                                                    </h4>
-                                                                    
-                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                                                                        <div className="space-y-2">
-                                                                            <p className="text-sm">
-                                                                                <strong className="text-gray-700">Categoria:</strong> 
-                                                                                <span className="ml-2">{equipment.equipment_category?.name}</span>
-                                                                            </p>
-                                                                            {equipment.armor_category && (
-                                                                                <p className="text-sm">
-                                                                                    <strong className="text-gray-700">Tipo de Armadura:</strong> 
-                                                                                    <span className="ml-2">{equipment.armor_category}</span>
-                                                                                </p>
-                                                                            )}
-                                                                            {equipment.weapon_category && (
-                                                                                <p className="text-sm">
-                                                                                    <strong className="text-gray-700">Tipo de Arma:</strong> 
-                                                                                    <span className="ml-2">{equipment.weapon_category}</span>
-                                                                                </p>
-                                                                            )}
-                                                                            {equipment.weapon_range && (
-                                                                                <p className="text-sm">
-                                                                                    <strong className="text-gray-700">Alcance:</strong> 
-                                                                                    <span className="ml-2">{equipment.weapon_range}</span>
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                        
-                                                                        <div className="space-y-2">
-                                                                            {equipment.cost && (
-                                                                                <p className="text-sm">
-                                                                                    <strong className="text-gray-700">Custo:</strong> 
-                                                                                    <span className="ml-2">{equipment.cost.quantity} {equipment.cost.unit}</span>
-                                                                                </p>
-                                                                            )}
-                                                                            {equipment.weight && (
-                                                                                <p className="text-sm">
-                                                                                    <strong className="text-gray-700">Peso:</strong> 
-                                                                                    <span className="ml-2">{equipment.weight} lb</span>
-                                                                                </p>
-                                                                            )}
-                                                                            {equipment.armor_class && (
-                                                                                <p className="text-sm">
-                                                                                    <strong className="text-gray-700">CA:</strong> 
-                                                                                    <span className="ml-2">
-                                                                                        {equipment.armor_class.base}
-                                                                                        {equipment.armor_class.dex_bonus && ' + Mod Des'}
-                                                                                        {equipment.armor_class.max_bonus !== undefined && ` (máx ${equipment.armor_class.max_bonus})`}
-                                                                                    </span>
-                                                                                </p>
-                                                                            )}
-                                                                        </div>
-                                                                    </div>
-                                                                    
-                                                                    {equipment.properties && equipment.properties.length > 0 && (
-                                                                        <div className="mb-4">
-                                                                            <p className="font-semibold text-gray-700 mb-2">Propriedades:</p>
-                                                                            <div className="flex flex-wrap gap-2">
-                                                                                {equipment.properties.map(prop => (
-                                                                                    <Badge key={prop.index} variant="outline" className="text-xs">
-                                                                                        {prop.name}
-                                                                                    </Badge>
-                                                                                ))}
-                                                                            </div>
-                                                                        </div>
-                                                                    )}
-                                                                    
-                                                                    <div>
-                                                                        <p className="font-semibold text-gray-700 mb-2">Descrição:</p>
-                                                                        <div className="text-sm text-gray-700 space-y-2 bg-gray-50 p-3 rounded-lg">
-                                                                            {equipment.desc.map((desc, index) => (
-                                                                                <p key={index} className="leading-relaxed">{desc}</p>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </CollapsibleContent>
-                                                        </Collapsible>
-                                                    </TableCell>
-                                                </TableRow>
-                                            )}
-                                        </>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                            
-                            {filteredAndSortedEquipment.length === 0 && (
-                                <div className="text-center py-12">
-                                    <div className="text-gray-500">
-                                        <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                        <p className="text-lg font-medium mb-2">Nenhum equipamento encontrado</p>
-                                        <p className="text-sm">Tente ajustar os filtros ou o termo de busca.</p>
+                        
+                        {isLoading ? (
+                            <div className="text-center py-12">
+                                <div className="flex flex-col items-center gap-4">
+                                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+                                    <div>
+                                        <h3 className="text-lg font-semibold mb-2">{TEXT.LOADING_EQUIPMENT}</h3>
+                                        <div className="w-80 bg-gray-200 rounded-full h-3 mb-2">
+                                            <div 
+                                                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                                                style={{ width: `${loadingProgress}%` }}
+                                            ></div>
+                                        </div>
+                                        <p className="text-sm text-gray-600">{loadingProgress}% completo</p>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+                            </div>
+                        ) : error ? (
+                            <div className="text-center py-12">
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+                                    <p className="text-red-800 mb-4">{error}</p>
+                                    <Button 
+                                        onClick={() => {
+                                            setEquipmentList([]);
+                                            localStorage.removeItem(STORAGE_KEYS.EQUIPMENT_CACHE);
+                                        }}
+                                        variant="outline"
+                                    >
+                                        {TEXT.RETRY}
+                                    </Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="border rounded-lg overflow-hidden">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-gray-50">
+                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold" onClick={() => handleSort('name')}>
+                                                <div className="flex items-center gap-2">
+                                                    Nome
+                                                    <SortIcon field="name" currentField={sortField} direction={sortDirection} />
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold" onClick={() => handleSort('category')}>
+                                                <div className="flex items-center gap-2">
+                                                    Categoria
+                                                    <SortIcon field="category" currentField={sortField} direction={sortDirection} />
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('ac')}>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Shield className="h-4 w-4" />
+                                                    CA
+                                                    <SortIcon field="ac" currentField={sortField} direction={sortDirection} />
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('damage')}>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Sword className="h-4 w-4" />
+                                                    Dano
+                                                    <SortIcon field="damage" currentField={sortField} direction={sortDirection} />
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('cost')}>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Coins className="h-4 w-4" />
+                                                    Custo (GO)
+                                                    <SortIcon field="cost" currentField={sortField} direction={sortDirection} />
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('weight')}>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <Weight className="h-4 w-4" />
+                                                    Peso
+                                                    <SortIcon field="weight" currentField={sortField} direction={sortDirection} />
+                                                </div>
+                                            </TableHead>
+                                            <TableHead className="text-center font-semibold">Prof.</TableHead>
+                                            <TableHead className="text-center font-semibold">Ações</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredAndSortedEquipment.map((equipment) => {
+                                            const cost = equipment.cost ? convertCostToGold(equipment.cost) : 0;
+                                            const canAfford = cost <= currentGold;
+                                            const isExpanded = expandedDescriptions.has(equipment.index);
+                                            
+                                            return (
+                                                <Fragment key={equipment.index}>
+                                                    <TableRow className={`transition-colors ${
+                                                        !canAfford 
+                                                            ? 'bg-red-50 opacity-60' 
+                                                            : isProficientWith(equipment, proficiencies) 
+                                                                ? 'bg-green-50 hover:bg-green-100' 
+                                                                : 'hover:bg-gray-50'
+                                                    }`}>
+                                                        <TableCell className="font-medium">
+                                                            <div className="flex items-center gap-3">
+                                                                {equipment.desc?.length > 0 && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        onClick={() => toggleDescription(equipment.index)}
+                                                                        className="p-1 h-6 w-6"
+                                                                    >
+                                                                        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                                                    </Button>
+                                                                )}
+                                                                <div className="flex items-center gap-2">
+                                                                    {getCategoryIcon(equipment.equipment_category?.index)}
+                                                                    <span>{equipment.name}</span>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Badge variant="outline" className="text-xs">
+                                                                {equipment.equipment_category?.name}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {equipment.armor_class ? (
+                                                                <span className="text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
+                                                                    {equipment.armor_class.base}
+                                                                    {equipment.armor_class.dex_bonus && ' + Des'}
+                                                                </span>
+                                                            ) : <span className="text-gray-400">—</span>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {equipment.damage ? (
+                                                                <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded text-xs">
+                                                                    {equipment.damage.damage_dice}
+                                                                </span>
+                                                            ) : <span className="text-gray-400">—</span>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {equipment.cost ? (
+                                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                                    canAfford ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50'
+                                                                }`}>
+                                                                    {cost.toFixed(2)} GO
+                                                                </span>
+                                                            ) : <span className="text-gray-400">—</span>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {equipment.weight ? (
+                                                                <span className="text-gray-600">{equipment.weight} lb</span>
+                                                            ) : <span className="text-gray-400">—</span>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            {isProficientWith(equipment, proficiencies) ? (
+                                                                <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
+                                                                    <Star className="h-3 w-3 mr-1" />
+                                                                    Sim
+                                                                </Badge>
+                                                            ) : <span className="text-gray-400">—</span>}
+                                                        </TableCell>
+                                                        <TableCell className="text-center">
+                                                            <Button 
+                                                                size="sm" 
+                                                                onClick={() => handleEquipmentAdd(equipment, 'purchased')}
+                                                                disabled={!canAfford}
+                                                                className={`${canAfford 
+                                                                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                                                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+                                                            >
+                                                                <Plus className="h-4 w-4 mr-1" />
+                                                                {canAfford ? TEXT.BUY : TEXT.NO_GOLD}
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                    
+                                                    {isExpanded && equipment.desc?.length > 0 && (
+                                                        <TableRow>
+                                                            <TableCell colSpan={8} className="bg-gray-50 border-t-0">
+                                                                <Collapsible open={isExpanded}>
+                                                                    <CollapsibleContent>
+                                                                        <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200 m-2">
+                                                                            <h4 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2">
+                                                                                <Info className="h-5 w-5" />
+                                                                                {equipment.name} - {TEXT.ITEM_DETAILS}
+                                                                            </h4>
+                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                                                                                <div className="space-y-2">
+                                                                                    <p className="text-sm"><strong className="text-gray-700">Categoria:</strong> {equipment.equipment_category?.name}</p>
+                                                                                    {equipment.armor_category && <p className="text-sm"><strong className="text-gray-700">Tipo de Armadura:</strong> {equipment.armor_category}</p>}
+                                                                                    {equipment.weapon_category && <p className="text-sm"><strong className="text-gray-700">Tipo de Arma:</strong> {equipment.weapon_category}</p>}
+                                                                                    {equipment.weapon_range && <p className="text-sm"><strong className="text-gray-700">Alcance:</strong> {equipment.weapon_range}</p>}
+                                                                                </div>
+                                                                                <div className="space-y-2">
+                                                                                    {equipment.cost && <p className="text-sm"><strong className="text-gray-700">Custo:</strong> {cost.toFixed(2)} GO</p>}
+                                                                                    {equipment.weight && <p className="text-sm"><strong className="text-gray-700">Peso:</strong> {equipment.weight} lb</p>}
+                                                                                    {equipment.armor_class && <p className="text-sm"><strong className="text-gray-700">CA:</strong> {equipment.armor_class.base}{equipment.armor_class.dex_bonus && ' + Mod Des'}{equipment.armor_class.max_bonus !== undefined && ` (máx ${equipment.armor_class.max_bonus})`}</p>}
+                                                                                </div>
+                                                                            </div>
+                                                                            {equipment.properties?.length > 0 && (
+                                                                                <div className="mb-4">
+                                                                                    <p className="font-semibold text-gray-700 mb-2">{TEXT.PROPERTIES}</p>
+                                                                                    <div className="flex flex-wrap gap-2">
+                                                                                        {equipment.properties.map(prop => (
+                                                                                            <Badge key={prop.index} variant="outline" className="text-xs">
+                                                                                                {prop.name}
+                                                                                            </Badge>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                            <div>
+                                                                                <p className="font-semibold text-gray-700 mb-2">{TEXT.DESCRIPTION}</p>
+                                                                                <div className="text-sm text-gray-700 space-y-2 bg-gray-50 p-3 rounded-lg">
+                                                                                    {equipment.desc.map((desc, index) => <p key={index} className="leading-relaxed">{desc}</p>)}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </CollapsibleContent>
+                                                                </Collapsible>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
+                                                </Fragment>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                                
+                                {filteredAndSortedEquipment.length === 0 && (
+                                    <div className="text-center py-12">
+                                        <div className="text-gray-500">
+                                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                            <p className="text-lg font-medium mb-2">{TEXT.NO_EQUIPMENT}</p>
+                                            <p className="text-sm">{TEXT.NO_EQUIPMENT_DESC}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
         </div>
     );
 };
