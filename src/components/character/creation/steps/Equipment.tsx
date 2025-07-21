@@ -504,28 +504,46 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
         });
     };
 
-    const handleStartingEquipmentChoice = async (choiceIndex: number, optionIndex: number) => {
-        if (!startingEquipment?.starting_equipment_options?.[choiceIndex]) return;
-        const option = startingEquipment.starting_equipment_options[choiceIndex]?.from?.options?.[optionIndex];
-        if (!option) return;
+   const handleStartingEquipmentChoice = async (choiceIndex: number, optionIndex: number) => {
+    if (!startingEquipment?.starting_equipment_options?.[choiceIndex]) return;
+    const option = startingEquipment.starting_equipment_options[choiceIndex]?.from?.options?.[optionIndex];
+    if (!option) return;
 
-        if (option.of) {
-            try {
-                const response = await fetch(`${BASE_API_URL}${option.of.url}`);
-                if (!response.ok) throw new Error('Falha ao buscar item');
-                
-                const equipmentData = await response.json();
-                const quantity = option.count || 1;
-                for (let i = 0; i < quantity; i++) handleEquipmentAdd(equipmentData, 'starting');
-                setStartingChoices(prev => ({ ...prev, [choiceIndex]: optionIndex }));
-            } catch (error) {
-                console.error('Erro ao buscar equipamento:', error);
+    if (option.of) {
+        try {
+            // Corrigido: não usar BASE_API_URL pois option.of.url já é completo
+            const response = await fetch(`https://www.dnd5eapi.co${option.of.url}`);
+            
+            if (!response.ok) {
+                // Mensagem mais informativa
+                throw new Error(`Falha ao buscar item (${response.status}): ${option.of.name}`);
             }
-        } else if (option.choice) {
-            setStartingChoices(prev => ({ ...prev, [choiceIndex]: optionIndex }));
-            alert(TEXT.NESTED_CHOICE_WARNING);
+            
+            const equipmentData = await response.json();
+            const quantity = option.count || 1;
+            
+            for (let i = 0; i < quantity; i++) {
+                handleEquipmentAdd(equipmentData, 'starting');
+            }
+            
+            setStartingChoices(prev => ({
+                ...prev,
+                [choiceIndex]: optionIndex
+            }));
+        } catch (error) {
+            console.error('Erro ao buscar equipamento:', error);
+            // Atualiza o estado de erro para mostrar na UI
+            setError(`Erro ao carregar o item: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
         }
-    };
+    } else if (option.choice) {
+        setStartingChoices(prev => ({
+            ...prev,
+            [choiceIndex]: optionIndex
+        }));
+        // Melhor feedback para o usuário
+        setError(TEXT.NESTED_CHOICE_WARNING);
+    }
+};
 
     // Equipamentos filtrados e ordenados
     const filteredAndSortedEquipment = useMemo(() => {
