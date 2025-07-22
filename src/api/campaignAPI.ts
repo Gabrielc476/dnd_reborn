@@ -232,6 +232,11 @@ class CampaignAPI {
     });
   }
 
+  //visualizar personagens da campanha
+  async getCampaignCharacters(campaignId: string): Promise<{ success: boolean; characters?: any[]; error?: string }> {
+  return this.request(`/characters/campaign/${campaignId}/characters`);
+}
+
   // ===========================
   // NPC MANAGEMENT - LEGACY METHODS
   // ===========================

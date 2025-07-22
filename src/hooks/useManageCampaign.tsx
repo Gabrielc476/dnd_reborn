@@ -1,7 +1,3 @@
-// ===========================
-// USE MANAGE CAMPAIGN HOOK - VERSÃO SIMPLIFICADA
-// hooks/useManageCampaign.tsx - Sem endpoints inexistentes
-// ===========================
 "use client";
 
 import {
@@ -37,6 +33,7 @@ import {
   UpdateSessionRequest,
   GameSession,
   ActivityFeed,
+  Character,
 } from "@/types/manageCampaign";
 
 // ===========================
@@ -104,7 +101,7 @@ const calculatePermissions = (
 const ManageCampaignContext = createContext<CampaignManagementContextType | null>(null);
 
 // ===========================
-// HOOK PRINCIPAL - SIMPLIFICADO
+// HOOK PRINCIPAL
 // ===========================
 
 export const useManageCampaign = (campaignId?: string): CampaignManagementContextType => {
@@ -115,9 +112,10 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
   const [dashboard, setDashboard] = useState<CampaignDashboard | null>(null);
   const [permissions, setPermissions] = useState<CampaignPermissions | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [characters, setCharacters] = useState<Character[]>([]);
 
   // ===========================
-  // CAMPAIGN OPERATIONS - SIMPLIFICADO
+  // CAMPAIGN OPERATIONS
   // ===========================
 
   const loadCampaign = useCallback(async (id: string): Promise<void> => {
@@ -130,13 +128,11 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     setIsLoading(true);
     
     try {
-      // SIMPLIFICADO: Apenas carregar campanha básica
       console.log("🌐 Fetching campaign from API:", id);
       const response = await campaignAPI.getCampaignById(id);
       
       console.log("📥 Campaign response:", response);
 
-      // Verificar se response tem os dados
       let campaignData = null;
       if (response.success && response.campaign) {
         campaignData = response.campaign;
@@ -152,11 +148,9 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
         throw new Error("Dados da campanha não encontrados");
       }
 
-      // Normalizar e definir
       const normalized = normalizeCampaignData(campaignData);
       setCampaign(normalized);
 
-      // Calcular permissões
       const newPermissions = calculatePermissions(normalized, user?.id || null);
       setPermissions(newPermissions);
 
@@ -265,7 +259,6 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
 
     try {
-      // Update local state
       setCampaign(prev => {
         if (!prev) return null;
         
@@ -286,7 +279,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
   }, [campaign?.id, permissions?.can_manage_players]);
 
   // ===========================
-  // NPC MANAGEMENT - CORRIGIDO
+  // NPC MANAGEMENT
   // ===========================
 
   const createNPC = useCallback(async (data: CreateNPCRequest): Promise<string | null> => {
@@ -385,92 +378,243 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
   }, [campaign?.id, permissions?.can_create_npcs, loadCampaign]);
 
   // ===========================
-  // ENCOUNTER MANAGEMENT - PLACEHOLDER
+  // CHARACTER MANAGEMENT
+  // ===========================
+
+  const loadCharacters = useCallback(async (): Promise<void> => {
+    if (!campaign?.id) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await campaignAPI.getCampaignCharacters(campaign.id);
+      if (response.success && response.characters) {
+        setCharacters(response.characters);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar personagens:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [campaign?.id]);
+
+  // ===========================
+  // ENCOUNTER MANAGEMENT
   // ===========================
 
   const createEncounter = useCallback(async (data: Encounter): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("createEncounter não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_encounters) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.createEncounter(campaign.id, data);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao criar encontro:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_manage_encounters, loadCampaign]);
 
   const updateEncounter = useCallback(async (name: string, data: UpdateEncounterRequest): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("updateEncounter não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_encounters) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.updateEncounter(campaign.id, name, data);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao atualizar encontro:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_manage_encounters, loadCampaign]);
 
   const completeEncounter = useCallback(async (name: string, data: CompleteEncounterRequest): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("completeEncounter não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_encounters) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.completeEncounter(campaign.id, name, data);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao completar encontro:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_manage_encounters, loadCampaign]);
 
   const deleteEncounter = useCallback(async (name: string): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("deleteEncounter não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_encounters) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.deleteEncounter(campaign.id, name);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao deletar encontro:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_manage_encounters, loadCampaign]);
 
   // ===========================
-  // LOOT MANAGEMENT - PLACEHOLDER
+  // LOOT MANAGEMENT
   // ===========================
 
   const addLoot = useCallback(async (data: LootItem): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("addLoot não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_assign_loot) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.addLoot(campaign.id, data);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao adicionar item:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_assign_loot, loadCampaign]);
 
   const updateLoot = useCallback(async (name: string, data: UpdateLootRequest): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("updateLoot não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_assign_loot) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.updateLoot(campaign.id, name, data);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao atualizar item:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_assign_loot, loadCampaign]);
 
   const assignLoot = useCallback(async (itemName: string, playerId: string): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("assignLoot não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_assign_loot) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.assignLoot(campaign.id, itemName, playerId);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao atribuir item:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_assign_loot, loadCampaign]);
 
   const removeLoot = useCallback(async (name: string): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("removeLoot não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_assign_loot) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.removeLoot(campaign.id, name);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao remover item:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_assign_loot, loadCampaign]);
 
   // ===========================
-  // SESSION MANAGEMENT - PLACEHOLDER
+  // SESSION MANAGEMENT
   // ===========================
 
   const createSession = useCallback(async (data: CreateSessionRequest): Promise<string | null> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("createSession não implementado ainda");
-    return null;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_sessions) {
+      return null;
+    }
+
+    try {
+      const response = await campaignAPI.createSession(campaign.id, data);
+      if (response.success && response.session_id) {
+        await loadCampaign(campaign.id);
+        return response.session_id;
+      }
+      return null;
+    } catch (error) {
+      console.error("Erro ao criar sessão:", error);
+      return null;
+    }
+  }, [campaign?.id, permissions?.can_manage_sessions, loadCampaign]);
 
   const updateSession = useCallback(async (id: string, data: UpdateSessionRequest): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("updateSession não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_sessions) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.updateSession(campaign.id, id, data);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao atualizar sessão:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_manage_sessions, loadCampaign]);
 
   const completeSession = useCallback(async (id: string): Promise<boolean> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("completeSession não implementado ainda");
-    return false;
-  }, []);
+    if (!campaign?.id || !permissions?.can_manage_sessions) {
+      return false;
+    }
+
+    try {
+      const response = await campaignAPI.completeSession(campaign.id, id);
+      if (response.success) {
+        await loadCampaign(campaign.id);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Erro ao completar sessão:", error);
+      return false;
+    }
+  }, [campaign?.id, permissions?.can_manage_sessions, loadCampaign]);
 
   // ===========================
-  // UTILITIES - SIMPLIFICADO
+  // UTILITIES
   // ===========================
 
   const refreshDashboard = useCallback(async (): Promise<void> => {
     if (!campaign?.id) return;
     
     try {
-      // SIMPLIFICADO: Apenas recarregar campanha
       await loadCampaign(campaign.id);
     } catch (error) {
       console.error("Erro ao atualizar dashboard:", error);
@@ -478,10 +622,19 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
   }, [campaign?.id, loadCampaign]);
 
   const getActivityFeed = useCallback(async (page: number = 1): Promise<ActivityFeed[]> => {
-    // TODO: Implementar quando endpoint estiver disponível
-    console.log("getActivityFeed não implementado ainda");
-    return [];
-  }, []);
+    if (!campaign?.id) return [];
+    
+    try {
+      const response = await campaignAPI.getActivityFeed(campaign.id, page);
+      if (response.success && response.activities) {
+        return response.activities;
+      }
+      return [];
+    } catch (error) {
+      console.error("Erro ao obter atividades:", error);
+      return [];
+    }
+  }, [campaign?.id]);
 
   const exportCampaignData = useCallback(async (): Promise<Blob> => {
     if (!campaign?.id) {
@@ -496,7 +649,6 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     }
   }, [campaign?.id]);
 
-  // Utility functions
   const isGM = useMemo(() => {
     return permissions?.role === CampaignRole.GAME_MASTER || false;
   }, [permissions]);
@@ -550,6 +702,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     dashboard,
     permissions,
     isLoading,
+    characters,
 
     // Campaign Operations
     loadCampaign,
@@ -592,6 +745,7 @@ export const useManageCampaign = (campaignId?: string): CampaignManagementContex
     isGM,
     isPlayer,
     canPerformAction,
+    loadCharacters,
   };
 };
 

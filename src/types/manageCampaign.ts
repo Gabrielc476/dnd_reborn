@@ -15,6 +15,50 @@ import {
 } from './createCampaign';
 
 // ===========================
+// CHARACTER TYPE
+// ===========================
+export interface Character {
+  id: string;
+  campaign_id: string;
+  user_id?: string;  // ID do jogador associado
+  name: string;
+  race: string;
+  class: string;
+  level: number;
+  background?: string;
+  alignment?: string;
+  experience?: number;
+  armor_class: number;
+  current_hp: number;
+  max_hp: number;
+  hit_dice?: string;
+  speed?: number;
+  strength: number;
+  dexterity: number;
+  constitution: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+  skills?: Record<string, boolean>; // { "Acrobatics": true, "Stealth": false }
+  proficiencies?: string[];
+  languages?: string[];
+  equipment?: string[];
+  spells?: string[];
+  features?: string[];
+  personality_traits?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+  backstory?: string;
+  appearance?: string;
+  player_name?: string; // Nome do jogador (não do personagem)
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  avatar_url?: string;
+}
+
+// ===========================
 // PLAYER MANAGEMENT
 // ===========================
 
@@ -727,53 +771,55 @@ export interface ActivityFeedResponse {
 // ===========================
 
 export interface CampaignManagementContextType {
-  // Campaign Data
+  // ========== CAMPAIGN DATA ==========
   campaign: Campaign | null;
   dashboard: CampaignDashboard | null;
   permissions: CampaignPermissions | null;
   isLoading: boolean;
-  
-  // Campaign Operations
+  characters: Character[]; // Adicionado
+
+  // ========== CAMPAIGN OPERATIONS ==========
   loadCampaign: (id: string) => Promise<void>;
   updateCampaign: (data: Partial<Campaign>) => Promise<boolean>;
   deleteCampaign: () => Promise<boolean>;
-  
-  // Player Management
+
+  // ========== PLAYER MANAGEMENT ==========
   addPlayer: (request: AddPlayerRequest) => Promise<boolean>;
   removePlayer: (playerId: string) => Promise<boolean>;
   updatePlayer: (playerId: string, data: UpdatePlayerRequest) => Promise<boolean>;
-  
-  // NPC Management
+
+  // ========== NPC MANAGEMENT ==========
   createNPC: (data: CreateNPCRequest) => Promise<string | null>;
   updateNPC: (id: string, data: UpdateNPCRequest) => Promise<boolean>;
   deleteNPC: (id: string) => Promise<boolean>;
   killNPC: (id: string) => Promise<boolean>;
   reviveNPC: (id: string) => Promise<boolean>;
-  
-  // Encounter Management
+
+  // ========== ENCOUNTER MANAGEMENT ==========
   createEncounter: (data: Encounter) => Promise<boolean>;
   updateEncounter: (name: string, data: UpdateEncounterRequest) => Promise<boolean>;
   completeEncounter: (name: string, data: CompleteEncounterRequest) => Promise<boolean>;
   deleteEncounter: (name: string) => Promise<boolean>;
-  
-  // Loot Management
+
+  // ========== LOOT MANAGEMENT ==========
   addLoot: (data: LootItem) => Promise<boolean>;
   updateLoot: (name: string, data: UpdateLootRequest) => Promise<boolean>;
   assignLoot: (itemName: string, playerId: string) => Promise<boolean>;
   removeLoot: (name: string) => Promise<boolean>;
-  
-  // Session Management
+
+  // ========== SESSION MANAGEMENT ==========
   createSession: (data: CreateSessionRequest) => Promise<string | null>;
   updateSession: (id: string, data: UpdateSessionRequest) => Promise<boolean>;
   completeSession: (id: string) => Promise<boolean>;
-  
-  // Utilities
+
+  // ========== UTILITIES ==========
   refreshDashboard: () => Promise<void>;
   getActivityFeed: (page?: number) => Promise<ActivityFeed[]>;
   exportCampaignData: () => Promise<Blob>;
-  isGM: () => boolean;
-  isPlayer: () => boolean;
+  isGM: boolean; // Alterado de função para booleano
+  isPlayer: boolean; // Alterado de função para booleano
   canPerformAction: (action: string) => boolean;
+  loadCharacters: () => Promise<void>; // Adicionado
 }
 
 // ===========================

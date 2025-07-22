@@ -1,7 +1,4 @@
-// ===========================
-// CHARACTER CREATION WIZARD - ATUALIZADO COM PERSONALITY STEP
-// src/components/character/creation/CharacterCreationWizard.tsx
-// ===========================
+//components/character/creation/CharacterCreationWizard.tsx - ATUALIZADO COM REVIEW
 'use client';
 
 import { useState, useCallback, useEffect } from "react";
@@ -13,7 +10,8 @@ import { AbilityScoresComponent } from "@/components/character/creation/steps/Ab
 import { SkillsComponent } from "@/components/character/creation/steps/Skills";
 import EquipmentComponent from "@/components/character/creation/steps/Equipment";
 import SpellsComponent from "@/components/character/creation/steps/Spells";
-import PersonalityStep from "@/components/character/creation/steps/Personality"; // ✅ NOVO: Import do step de personalidade
+import PersonalityStep from "@/components/character/creation/steps/Personality";
+import Review from "@/components/character/creation/steps/Review"; // ✅ NOVO: Import do componente Review
 
 interface Step {
   id: string;
@@ -239,20 +237,15 @@ const SpellsStepWrapper = ({ onValidationChange }: { onValidationChange: (isVali
     });
   };
 
-  if (!isMounted) {
-    return (
-      <div className="p-8 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-2 text-gray-600">Carregando magias...</p>
-      </div>
-    );
-  }
-
+  // Verificar se classe conjura magias
   const classData = typeof window !== 'undefined' 
     ? JSON.parse(localStorage.getItem('character_creation_class') || 'null')
     : null;
+  
+  if (!isMounted) {
+    return <div className="p-8 text-center">Carregando...</div>;
+  }
 
-  // Se a classe não conjura magias, mostrar mensagem
   if (!classData || !['wizard', 'sorcerer', 'warlock', 'bard'].includes(classData.index)) {
     const spellConfig = {
       maxCantrips: 2,
@@ -289,7 +282,54 @@ const SpellsStepWrapper = ({ onValidationChange }: { onValidationChange: (isVali
 };
 
 // ===========================
-// STEPS CONFIGURATION - ATUALIZADO COM PERSONALITY
+// WRAPPER COMPONENT PARA REVIEW
+// ===========================
+
+const ReviewStepWrapper = ({ onValidationChange }: { onValidationChange: (isValid: boolean) => void }) => {
+  const [isCreating, setIsCreating] = useState(false);
+  
+  const handleCreateCharacter = async () => {
+    const characterData = getConsolidatedCharacterData();
+    
+    if (!characterData) {
+      alert('Erro ao consolidar dados do personagem');
+      return;
+    }
+
+    setIsCreating(true);
+    console.log('📋 Dados finais do personagem:', characterData);
+    
+    try {
+      // TODO: Implementar chamada para a API
+      // const response = await createCharacterAPI(characterData);
+      
+      // Simulando delay da API
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      alert('Personagem criado com sucesso! (simulado)\n\nDados salvos no console para inspeção.');
+      
+      // Opcional: Limpar dados após sucesso
+      // clearAllCharacterData();
+      
+    } catch (error) {
+      console.error('Erro ao criar personagem:', error);
+      alert('Erro ao criar personagem');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  return (
+    <Review 
+      onValidationChange={onValidationChange}
+      onCreateCharacter={handleCreateCharacter}
+      isCreating={isCreating}
+    />
+  );
+};
+
+// ===========================
+// STEPS CONFIGURATION - ATUALIZADO COM REVIEW
 // ===========================
 
 const steps: Step[] = [
@@ -330,73 +370,16 @@ const steps: Step[] = [
     component: EquipmentComponent
   },
   {
-    id: "personality", // ✅ NOVO: Step de personalidade
+    id: "personality",
     title: "Personalidade",
     description: "Defina a personalidade e história do seu personagem",
     component: PersonalityStep
   },
   {
-    id: "review",
+    id: "review", // ✅ NOVO: Step de review integrado
     title: "Revisão",
     description: "Revise e finalize seu personagem",
-    component: () => {
-      const characterData = getConsolidatedCharacterData();
-      return (
-        <div className="p-8">
-          <h3 className="text-lg font-bold mb-4">Revisão do Personagem</h3>
-          {characterData ? (
-            <div className="space-y-4">
-              <Card className="p-4">
-                <h4 className="font-semibold mb-2">Informações Básicas</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p><strong>Nome:</strong> {characterData.characterName || 'Não definido'}</p>
-                    <p><strong>Raça:</strong> {characterData.selectedRace?.name || 'Não selecionada'}</p>
-                    <p><strong>Sub-raça:</strong> {characterData.selectedSubrace?.name || 'Nenhuma'}</p>
-                  </div>
-                  <div>
-                    <p><strong>Classe:</strong> {characterData.selectedClass?.name || 'Não selecionada'}</p>
-                    <p><strong>Subclasse:</strong> {characterData.selectedSubclass?.name || 'Nenhuma'}</p>
-                    <p><strong>Background:</strong> {characterData.selectedBackground?.name || 'Não selecionado'}</p>
-                  </div>
-                </div>
-              </Card>
-              
-              <Card className="p-4">
-                <h4 className="font-semibold mb-2">Atributos e Perícias</h4>
-                <div className="text-sm space-y-1">
-                  <p><strong>Método:</strong> {characterData.abilityMethod || 'Não definido'}</p>
-                  <p><strong>Perícias:</strong> {characterData.selectedSkills?.length || 0} selecionadas</p>
-                  <p><strong>Magias:</strong> {characterData.selectedSpells?.length || 0} selecionadas</p>
-                  <p><strong>Equipamentos:</strong> {characterData.selectedEquipment?.length || 0} selecionados</p>
-                </div>
-              </Card>
-
-              {/* ✅ NOVO: Seção de personalidade */}
-              <Card className="p-4">
-                <h4 className="font-semibold mb-2">Personalidade</h4>
-                <div className="text-sm space-y-1">
-                  <p><strong>Traços:</strong> {characterData.personalityTraits?.length || 0} definidos</p>
-                  <p><strong>Ideais:</strong> {characterData.ideals?.length || 0} definidos</p>
-                  <p><strong>Vínculos:</strong> {characterData.bonds?.length || 0} definidos</p>
-                  <p><strong>Defeitos:</strong> {characterData.flaws?.length || 0} definidos</p>
-                  <p><strong>Backstory:</strong> {characterData.backstory ? 'Definida' : 'Não definida'}</p>
-                </div>
-              </Card>
-              
-              <Button 
-                onClick={() => console.log('📋 Dados completos:', characterData)}
-                className="w-full"
-              >
-                Ver Dados Completos (Console)
-              </Button>
-            </div>
-          ) : (
-            <p>Erro ao carregar dados do personagem</p>
-          )}
-        </div>
-      );
-    }
+    component: ReviewStepWrapper
   }
 ];
 
@@ -486,37 +469,6 @@ export default function CharacterCreationWizard() {
     return completedSteps.has(stepIndex);
   };
 
-  // ===========================
-  // FINAL ACTION
-  // ===========================
-
-  const handleFinalizeCharacter = async () => {
-    const characterData = getConsolidatedCharacterData();
-    
-    if (!characterData) {
-      alert('Erro ao consolidar dados do personagem');
-      return;
-    }
-
-    console.log('📋 Dados finais do personagem:', characterData);
-    
-    // Aqui você faria a chamada para a API
-    try {
-      // const response = await createCharacterAPI(characterData);
-      alert('Personagem criado com sucesso! (simulado)\n\nDados salvos no console para inspeção.');
-      
-      // Opcional: Limpar dados após sucesso
-      // clearAllCharacterData();
-      // setCurrentStep(0);
-      // setCompletedSteps(new Set());
-      // setStepValidations({});
-      
-    } catch (error) {
-      console.error('Erro ao criar personagem:', error);
-      alert('Erro ao criar personagem');
-    }
-  };
-
   const CurrentStepComponent = steps[currentStep]?.component;
   const currentStepData = steps[currentStep];
 
@@ -536,15 +488,10 @@ export default function CharacterCreationWizard() {
         </div>
 
         <Card className="mb-8">
-          <div className="border-b p-6">
-            <div className="h-6 bg-gray-200 rounded animate-pulse mb-2"></div>
-            <div className="h-4 bg-gray-100 rounded animate-pulse w-2/3"></div>
-          </div>
-          
-          <div className="min-h-[400px] p-8 flex items-center justify-center">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-gray-200 rounded-full animate-pulse mx-auto mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-32 mx-auto"></div>
+          <div className="p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
             </div>
           </div>
         </Card>
@@ -554,28 +501,22 @@ export default function CharacterCreationWizard() {
 
   return (
     <div className="container mx-auto py-8 max-w-6xl">
-      {/* Header do Wizard */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Criação de Personagem D&D 5e</h1>
         <p className="text-gray-600 mb-6">
-          Sistema com storage local - Dados salvos automaticamente
+          Siga os passos para criar seu personagem
         </p>
-        
-        {/* Debug Info Global */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="p-4 bg-yellow-50 mb-4">
-            <h4 className="font-bold text-sm mb-2">Debug - Estado Global:</h4>
-            <div className="text-xs space-y-1">
-              <p>Step atual: {currentStep + 1}/{steps.length}</p>
-              <p>Steps completos: {Array.from(completedSteps).join(', ')}</p>
-              <p>Dados consolidados disponíveis:</p>
-              <div className="ml-2 space-y-0.5">
-                <p>• Nome: {getConsolidatedCharacterData()?.characterName || 'N/A'}</p>
-                <p>• Raça: {getConsolidatedCharacterData()?.selectedRace?.name || 'N/A'}</p>
-                <p>• Classe: {getConsolidatedCharacterData()?.selectedClass?.name || 'N/A'}</p>
-                <p>• Background: {getConsolidatedCharacterData()?.selectedBackground?.name || 'N/A'}</p>
-                <p>• Método atributos: {getConsolidatedCharacterData()?.abilityMethod || 'N/A'}</p>
-                <p>• Scores com bônus: {Object.keys(getConsolidatedCharacterData()?.finalAbilityScores || {}).length > 0 ? 'Sim' : 'Não'}</p>
+
+        {/* Quick Info Panel */}
+        {getConsolidatedCharacterData() && (
+          <Card className="mb-6 bg-blue-50">
+            <div className="p-4">
+              <h3 className="font-semibold text-blue-900 mb-2">Progresso Atual:</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <p>• Nome: {getConsolidatedCharacterData()?.characterName || 'Não definido'}</p>
+                <p>• Raça: {getConsolidatedCharacterData()?.selectedRace?.name || 'Não selecionada'}</p>
+                <p>• Classe: {getConsolidatedCharacterData()?.selectedClass?.name || 'Não selecionada'}</p>
+                <p>• Atributos: {getConsolidatedCharacterData()?.finalAbilityScores ? 'Sim' : 'Não'}</p>
                 <p>• Perícias: {getConsolidatedCharacterData()?.selectedSkills?.length || 0}</p>
                 <p>• Magias: {getConsolidatedCharacterData()?.selectedSpells?.length || 0}</p>
                 <p>• Equipamentos: {getConsolidatedCharacterData()?.selectedEquipment?.length || 0}</p>
@@ -617,69 +558,72 @@ export default function CharacterCreationWizard() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Current Step Content */}
       <Card className="mb-8">
-        <div className="border-b p-6">
-          <h2 className="text-xl font-semibold">{currentStepData.title}</h2>
-          <p className="text-gray-600">{currentStepData.description}</p>
-        </div>
-        
-        <div className="min-h-[400px]">
-          <CurrentStepComponent onValidationChange={currentStepValidationHandler} />
-        </div>
-      </Card>
-
-      {/* Navigation */}
-      <Card className="p-6">
-        <div className="flex justify-between items-center">
-          <div className="flex gap-4">
-            <Button
-              variant="outline"
-              onClick={goToPreviousStep}
-              disabled={currentStep === 0}
-            >
-              ← Anterior
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => clearAllCharacterData()}
-              className="text-red-600 border-red-300 hover:bg-red-50"
-            >
-              🗑️ Limpar Tudo
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {/* Status Indicator */}
-            <div className="text-sm">
-              {isCurrentStepValid() ? (
-                <span className="text-green-600">✓ Válido</span>
-              ) : (
-                <span className="text-yellow-600">⚠ Incompleto</span>
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold">{currentStepData?.title}</h2>
+              <p className="text-gray-600 text-sm mt-1">{currentStepData?.description}</p>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-gray-500">
+                Passo {currentStep + 1} de {steps.length}
+              </span>
+              {isCurrentStepValid() && (
+                <span className="text-green-600 text-xs bg-green-100 px-2 py-1 rounded">
+                  ✓ Válido
+                </span>
               )}
             </div>
-
-            {/* Next/Finish Button */}
-            {currentStep === steps.length - 1 ? (
-              <Button
-                onClick={handleFinalizeCharacter}
-                disabled={!isCurrentStepValid()}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                🎉 Finalizar Personagem
-              </Button>
-            ) : (
-              <Button
-                onClick={goToNextStep}
-                disabled={!isCurrentStepValid()}
-              >
-                Próximo →
-              </Button>
-            )}
           </div>
         </div>
+
+        {/* Step Component */}
+        {CurrentStepComponent && (
+          <CurrentStepComponent onValidationChange={currentStepValidationHandler} />
+        )}
       </Card>
+
+      {/* Navigation Buttons */}
+      <div className="flex justify-between">
+        <Button 
+          variant="outline" 
+          onClick={goToPreviousStep}
+          disabled={currentStep === 0}
+        >
+          Anterior
+        </Button>
+        
+        <div className="flex gap-2">
+          {currentStep < steps.length - 1 ? (
+            <Button 
+              onClick={goToNextStep}
+              disabled={!isCurrentStepValid()}
+            >
+              Próximo
+            </Button>
+          ) : (
+            // No último step (Review), o botão de criação está dentro do componente
+            <span className="text-sm text-gray-500">
+              Use o botão "Criar Personagem" acima para finalizar
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Debug Panel (desenvolvimento) */}
+      <div className="mt-8 p-4 bg-gray-100 rounded text-xs">
+        <details>
+          <summary className="cursor-pointer font-medium">Debug Info</summary>
+          <div className="mt-2 space-y-1">
+            <p>Step atual: {currentStep} ({steps[currentStep]?.id})</p>
+            <p>Step válido: {isCurrentStepValid() ? 'Sim' : 'Não'}</p>
+            <p>Steps completos: [{Array.from(completedSteps).join(', ')}]</p>
+            <p>Validações: {JSON.stringify(stepValidations)}</p>
+          </div>
+        </details>
+      </div>
     </div>
   );
 }
