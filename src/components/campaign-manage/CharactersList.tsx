@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/hooks/useAuth';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
-import { Character } from '@/types/manageCampaign';
+import { characterAPI } from '@/api/characterAPI';
 import { 
   Shield, 
   Sparkles, 
@@ -15,10 +15,13 @@ import {
   Heart
 } from 'lucide-react';
 
+// Definir tipo compatível com o mapeamento da characterAPI
+type Character = ReturnType<typeof characterAPI.mapCharacterFields>;
+
 const CharactersList = () => {
   const {
     campaign,
-    characters,
+    characters: rawCharacters,
     isLoading: isCampaignLoading,
     loadCharacters,
     isGM,
@@ -30,13 +33,18 @@ const CharactersList = () => {
   const { user } = useAuthContext();
   const [isLoading, setIsLoading] = useState(true);
   const [showGMOnlyActions, setShowGMOnlyActions] = useState(false);
+  
+  // Normalizar personagens usando a API
+  const characters: Character[] = rawCharacters.map(char => 
+    characterAPI.mapCharacterFields(char)
+  );
 
   // Recarregar personagens quando solicitado
   useEffect(() => {
-    if (campaign?.id && characters.length === 0 && !isCampaignLoading) {
+    if (campaign?.id && rawCharacters.length === 0 && !isCampaignLoading) {
       loadCharacters();
     }
-  }, [campaign?.id, characters, isCampaignLoading, loadCharacters]);
+  }, [campaign?.id, rawCharacters, isCampaignLoading, loadCharacters]);
 
   // Atualizar estado de carregamento
   useEffect(() => {
@@ -90,26 +98,6 @@ const CharactersList = () => {
     return false;
   };
 
-  // Função para extrair a classe do personagem
-  const getCharacterClass = (character: Character) => {
-    return character.basic_info?.character_class || 'Desconhecido';
-  };
-
-  // Função para extrair a raça do personagem
-  const getCharacterRace = (character: Character) => {
-    return character.race_info?.display_name || 'Desconhecido';
-  };
-
-  // Função para obter pontos de vida
-  const getHitPoints = (character: Character) => {
-    return character.stats?.hit_points || 0;
-  };
-
-  // Função para obter classe de armadura
-  const getArmorClass = (character: Character) => {
-    return character.stats?.armor_class || 0;
-  };
-
   // Renderizar estado de carregamento
   if (isCampaignLoading || isLoading) {
     return (
@@ -123,7 +111,7 @@ const CharactersList = () => {
   // Calcular estatísticas
   const activeCharacters = characters.filter(c => c.is_active).length;
   const averageLevel = characters.length > 0 
-    ? Math.round(characters.reduce((sum, c) => sum + (c.basic_info?.level || 1), 0) / characters.length)
+    ? Math.round(characters.reduce((sum, c) => sum + (c.level || 1), 0) / characters.length)
     : 0;
   const remainingSlots = (campaign?.max_players || 0) - characters.length;
 
@@ -205,7 +193,7 @@ const CharactersList = () => {
                 {character.avatar_url ? (
                   <img 
                     src={character.avatar_url} 
-                    alt={character.basic_info?.name}
+                    alt={character.name}
                     className="w-16 h-16 rounded-full object-cover border-2 border-purple-500/50"
                   />
                 ) : (
@@ -216,10 +204,10 @@ const CharactersList = () => {
                 
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-white">
-                    {character.basic_info?.name || 'Personagem sem nome'}
+                    {character.name || 'Personagem sem nome'}
                   </h3>
                   <p className="text-sm text-gray-400">
-                    {getCharacterRace(character)} • {getCharacterClass(character)} • Nível {character.basic_info?.level || 1}
+                    {character.race || 'Raça desconhecida'} • {character.class || 'Classe desconhecida'} • Nível {character.level || 1}
                   </p>
                   {character.player_name && (
                     <p className="text-xs text-purple-400 mt-1">
@@ -236,7 +224,7 @@ const CharactersList = () => {
                     <span className="text-sm">PV</span>
                   </div>
                   <div className="text-white font-mono mt-1">
-                    {getHitPoints(character)}/{getHitPoints(character)}
+                    {character.max_hit_points || 0}/{character.max_hit_points || 0}
                   </div>
                 </div>
                 
@@ -246,7 +234,7 @@ const CharactersList = () => {
                     <span className="text-sm">CA</span>
                   </div>
                   <div className="text-white font-mono mt-1">
-                    {getArmorClass(character)}
+                    {character.armor_class || 0}
                   </div>
                 </div>
               </div>

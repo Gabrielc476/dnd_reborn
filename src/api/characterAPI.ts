@@ -1,49 +1,42 @@
-// ===========================
-// CHARACTER API - COMPLETE IMPLEMENTATION
-// src/api/characterAPI.ts
-// ===========================
-
 import { CharacterCreationData } from "@/types/characterCreation";
 
-// ===========================
-// API TYPES
-// ===========================
+export interface Character {
+  id: string;
+  user_id: string;
+  name?: string;
+  class?: string;
+  level?: number;
+  hit_points?: number;
+  max_hit_points?: number;
+  armor_class?: number;
+  conditions?: string[];
+  notes?: string;
+  race?: string;
+  background?: string;
+  alignment?: string;
+  experience_points?: number;
+  skills?: string[];
+  inventory?: string[];
+  spells?: string[];
+  personality_traits?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+}
 
-export interface CreateCharacterResponse {
+export interface CharacterResponse {
   success: boolean;
-  character?: CreatedCharacter;
+  character?: Character;
   error?: string;
 }
 
-export interface CreatedCharacter {
-  id: string;
-  name: string;
-  race: string;
-  class: string;
-  level: number;
-  hitPoints: number;
-  armorClass: number;
-  abilityScores: {
-    strength: number;
-    dexterity: number;
-    constitution: number;
-    intelligence: number;
-    wisdom: number;
-    charisma: number;
-  };
-  createdAt: string;
-  updatedAt: string;
+export interface CampaignCharactersResponse {
+  success: boolean;
+  characters?: Character[];
+  error?: string;
 }
 
-// ===========================
-// API CONFIGURATION
-// ===========================
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
-
-// ===========================
-// CHARACTER API CLASS
-// ===========================
 
 class CharacterAPI {
   private baseURL: string;
@@ -52,9 +45,6 @@ class CharacterAPI {
     this.baseURL = baseURL;
   }
 
-  /**
-   * Faz requisição HTTP genérica
-   */
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -89,12 +79,104 @@ class CharacterAPI {
   }
 
   /**
-   * Valida dados do personagem antes de enviar
+   * Mapeia os campos de um personagem de forma universal
+   * Extrai dados tanto da raiz quanto de subobjetos como basic_info e stats
    */
+  public mapCharacterFields(character: any): Character {
+    // Função helper para obter valor de qualquer nível
+    const getValue = (primaryPath: string, fallbackPaths: string[] = [], defaultValue: any = "") => {
+      // Tenta o caminho principal primeiro
+      if (character[primaryPath] !== undefined && character[primaryPath] !== null) {
+        return character[primaryPath];
+      }
+      
+      // Tenta caminhos alternativos
+      for (const path of fallbackPaths) {
+        const value = this.getNestedValue(character, path);
+        if (value !== undefined && value !== null) return value;
+      }
+      
+      // Valor padrão se não encontrar
+      return defaultValue;
+    };
+
+    // Mapeamento de campos com prioridades
+    return {
+      ...character,
+      id: character.id || "",
+      user_id: character.user_id || "",
+      name: getValue("name", ["basic_info.name"], "Personagem sem nome"),
+      class: getValue("class", ["basic_info.character_class"], "Classe desconhecida"),
+      level: getValue("level", ["basic_info.level"], 1),
+      max_hit_points: getValue("max_hit_points", ["stats.max_hit_points", "stats.hit_points"], 0),
+      armor_class: getValue("armor_class", ["stats.armor_class"], 0),
+      conditions: character.conditions || [],
+      race: getValue("race", ["basic_info.race_info.race_name"], ""),
+      background: getValue("background", ["basic_info.background"], ""),
+      alignment: getValue("alignment", ["basic_info.alignment"], ""),
+      experience_points: getValue("experience_points", ["stats.experience_points"], 0)
+    };
+  }
+
+  /**
+   * Helper para obter valores aninhados em objetos
+   * Ex: getNestedValue(char, "basic_info.race_info.race_name")
+   */
+  private getNestedValue(obj: any, path: string) {
+    return path.split('.').reduce((acc, part) => {
+      if (acc === null || acc === undefined) return undefined;
+      return acc[part];
+    }, obj);
+  }
+
+  async getCharacterById(characterId: string): Promise<CharacterResponse> {
+    try {
+      const response = await this.request<CharacterResponse>(`/characters/${characterId}`);
+      
+      if (response.success && response.character) {
+        return {
+          success: true,
+          character: this.mapCharacterFields(response.character)
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("Erro ao buscar personagem:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Erro ao buscar personagem"
+      };
+    }
+  }
+
+  async getCampaignCharacters(campaignId: string): Promise<CampaignCharactersResponse> {
+    try {
+      const endpoint = `/characters/campaign/${campaignId}/characters`;
+      console.log(`[characterAPI] GET ${endpoint}`);
+      
+      const response = await this.request<CampaignCharactersResponse>(endpoint);
+      
+      if (response.success && response.characters) {
+        return {
+          success: true,
+          characters: response.characters.map(char => this.mapCharacterFields(char))
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error("Erro ao buscar personagens da campanha:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Erro ao buscar personagens"
+      };
+    }
+  }
+
   validateCharacterData(characterData: CharacterCreationData): string[] {
     const errors: string[] = [];
 
-    // Validações básicas
     if (!characterData.name?.trim()) {
       errors.push("Nome é obrigatório");
     }
@@ -115,7 +197,6 @@ class CharacterAPI {
       errors.push("Alinhamento é obrigatório");
     }
 
-    // Validação de atributos
     const abilities = characterData.abilityScores;
     if (abilities) {
       Object.entries(abilities).forEach(([ability, score]) => {
@@ -127,7 +208,6 @@ class CharacterAPI {
       errors.push("Atributos são obrigatórios");
     }
 
-    // Validação de HP e AC
     if (characterData.hitPoints <= 0) {
       errors.push("Pontos de vida devem ser maiores que 0");
     }
@@ -136,13 +216,11 @@ class CharacterAPI {
       errors.push("Classe de armadura deve ser pelo menos 10");
     }
 
-    // Validação de perícias
     if (characterData.availableSkillChoices > 0 && 
         characterData.selectedSkills.length !== characterData.availableSkillChoices) {
       errors.push(`Deve selecionar exatamente ${characterData.availableSkillChoices} perícias`);
     }
 
-    // Validação de magias para conjuradores
     if (characterData.isSpellcaster && !characterData.spellcastingAbility) {
       errors.push("Conjuradores devem ter uma habilidade de conjuração");
     }
@@ -150,12 +228,8 @@ class CharacterAPI {
     return errors;
   }
 
-  /**
-   * Cria um novo personagem
-   */
-  async createCharacter(characterData: CharacterCreationData): Promise<CreateCharacterResponse> {
+  async createCharacter(characterData: CharacterCreationData): Promise<CharacterResponse> {
     try {
-      // Validar dados localmente primeiro
       const validationErrors = this.validateCharacterData(characterData);
       if (validationErrors.length > 0) {
         return {
@@ -164,7 +238,6 @@ class CharacterAPI {
         };
       }
 
-      // Preparar dados para envio
       const characterPayload = {
         name: characterData.name.trim(),
         race: {
@@ -207,8 +280,7 @@ class CharacterAPI {
         flaws: characterData.flaws,
       };
 
-      // Enviar para API
-      const response = await this.request<CreateCharacterResponse>("/characters", {
+      const response = await this.request<CharacterResponse>("/characters", {
         method: "POST",
         body: JSON.stringify(characterPayload),
       });
@@ -225,45 +297,43 @@ class CharacterAPI {
     }
   }
 
-  /**
-   * Busca um personagem por ID
-   */
-  async getCharacter(characterId: string): Promise<CreatedCharacter | null> {
+  async getCharacter(characterId: string): Promise<Character | null> {
     try {
-      const character = await this.request<CreatedCharacter>(`/characters/${characterId}`);
-      return character;
+      const character = await this.request<Character>(`/characters/${characterId}`);
+      return this.mapCharacterFields(character);
     } catch (error) {
       console.error("Erro ao buscar personagem:", error);
       return null;
     }
   }
 
-  /**
-   * Lista personagens do usuário
-   */
-  async getCharacters(userId?: string): Promise<CreatedCharacter[]> {
+  async getCharacters(userId?: string): Promise<Character[]> {
     try {
       const endpoint = userId ? `/characters?userId=${userId}` : "/characters";
-      const characters = await this.request<CreatedCharacter[]>(endpoint);
-      return characters;
+      const characters = await this.request<Character[]>(endpoint);
+      return characters.map(this.mapCharacterFields);
     } catch (error) {
       console.error("Erro ao listar personagens:", error);
       return [];
     }
   }
 
-  /**
-   * Atualiza um personagem
-   */
   async updateCharacter(
     characterId: string, 
     updates: Partial<CharacterCreationData>
-  ): Promise<CreateCharacterResponse> {
+  ): Promise<CharacterResponse> {
     try {
-      const response = await this.request<CreateCharacterResponse>(`/characters/${characterId}`, {
+      const response = await this.request<CharacterResponse>(`/characters/${characterId}`, {
         method: "PUT",
         body: JSON.stringify(updates),
       });
+
+      if (response.success && response.character) {
+        return {
+          success: true,
+          character: this.mapCharacterFields(response.character)
+        };
+      }
 
       return response;
     } catch (error) {
@@ -276,9 +346,6 @@ class CharacterAPI {
     }
   }
 
-  /**
-   * Deleta um personagem
-   */
   async deleteCharacter(characterId: string): Promise<{ success: boolean; error?: string }> {
     try {
       await this.request(`/characters/${characterId}`, {
@@ -296,9 +363,6 @@ class CharacterAPI {
     }
   }
 
-  /**
-   * Verifica se o servidor está funcionando
-   */
   async healthCheck(): Promise<{ status: string; message?: string }> {
     try {
       const response = await this.request<{ status: string; message?: string }>("/health");
@@ -312,9 +376,6 @@ class CharacterAPI {
     }
   }
 
-  /**
-   * Exporta personagem para formato JSON
-   */
   exportCharacter(characterData: CharacterCreationData): string {
     const exportData = {
       ...characterData,
@@ -325,14 +386,10 @@ class CharacterAPI {
     return JSON.stringify(exportData, null, 2);
   }
 
-  /**
-   * Importa personagem de formato JSON
-   */
   importCharacter(jsonData: string): CharacterCreationData | null {
     try {
       const data = JSON.parse(jsonData);
       
-      // Validar se tem os campos necessários
       if (!data.name || !data.selectedRace || !data.selectedClass) {
         throw new Error("Dados de personagem inválidos");
       }
@@ -345,16 +402,8 @@ class CharacterAPI {
   }
 }
 
-// ===========================
-// INSTÂNCIA SINGLETON
-// ===========================
-
 export const characterAPI = new CharacterAPI();
-
-// ===========================
-// EXPORTS
-// ===========================
 
 export default characterAPI;
 export { CharacterAPI };
-export type { CreateCharacterResponse, CreatedCharacter };
+export type { Character, CharacterResponse, CampaignCharactersResponse };

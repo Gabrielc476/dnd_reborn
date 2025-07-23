@@ -1,42 +1,21 @@
-// ===========================
-// PARTY OVERVIEW - VERSÃO CORRIGIDA SEM DADOS MOCK
-// src/components/campaign-manage/PartyOverview.tsx
-// ===========================
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users,
   Eye,
-  Edit,
-  MessageSquare,
-  Settings,
-  RefreshCw,
-  Mail,
-  Shield,
-  Heart,
-  Clock,
   UserPlus,
-  BarChart3,
-  Crown,
-  Sparkles,
-  ChevronUp,
-  ChevronDown,
-  Activity,
-  Zap,
-  AlertCircle,
-  CheckCircle,
-  Sword,
-  UserMinus,
-  Star,
-  Trophy,
-  Loader2,
-  Plus,
-  Minus,
   Search,
-  User
+  Plus,
+  Loader2,
+  AlertCircle,
+  Heart,
+  Shield,
+  UserMinus
 } from 'lucide-react';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { userAPI } from '@/api/userAPI';
+import { characterAPI } from '@/api/characterAPI';
 
 interface PlayerStatus {
   id: string;
@@ -46,7 +25,6 @@ interface PlayerStatus {
   character_name?: string;
   character_class?: string;
   character_level?: number;
-  current_hp?: number;
   max_hp?: number;
   armor_class?: number;
   is_active: boolean;
@@ -63,12 +41,9 @@ interface PlayerStatus {
 const PartyOverview = () => {
   const {
     campaign,
-    dashboard,
-    updatePlayer,
     removePlayer,
     addPlayer,
     isGM,
-    canPerformAction,
     refreshDashboard
   } = useManageCampaignContext();
 
@@ -78,69 +53,98 @@ const PartyOverview = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerStatus | null>(null);
   const [showPlayerDetails, setShowPlayerDetails] = useState(false);
-
-  // Estado simplificado para adicionar jogador (APENAS USERNAME)
   const [newPlayerForm, setNewPlayerForm] = useState({
     username: ''
   });
 
-  // ===========================
-  // CARREGAR DADOS REAIS (SEM MOCK)
-  // ===========================
-  useEffect(() => {
-    loadPlayersData();
-  }, [campaign?.players]);
-
-  const loadPlayersData = async () => {
-    if (!campaign?.players || campaign.players.length === 0) {
+  const loadPlayersData = useCallback(async () => {
+    if (!campaign?.id || !campaign?.players || campaign.players.length === 0) {
+      console.log("[PartyOverview] Campaign sem jogadores ou ID inválido. playersData será vazio.");
       setPlayersData([]);
       return;
     }
 
     setIsLoading(true);
     try {
-      // Buscar dados reais dos usuários e personagens
-      const playersPromises = campaign.players.map(async (player, index) => {
-        try {
-          // Buscar dados do usuário
-          const userResult = await userAPI.getUserById(player.user_id);
-          
-          let playerData: PlayerStatus = {
-            id: player.user_id || `player-${index}`,
-            user_id: player.user_id || '',
-            character_id: player.character_id,
-            username: userResult.success ? userResult.user?.username || `Usuário${index + 1}` : `Usuário${index + 1}`,
-            is_active: player.is_active,
-            last_active: new Date().toISOString(),
-            is_online: false, // Pode ser implementado com WebSocket depois
-            has_character: !!player.character_id,
-            status: player.character_id ? 'ready' : 'no_character',
-            notes: player.notes
-          };
+      console.log(`[PartyOverview] Iniciando carregamento de dados para campanha: ${campaign.id}`);
+      console.log(`[PartyOverview] Número de jogadores na campanha: ${campaign.players.length}`);
+      
+      // 1. Buscar personagens da campanha
+      console.log(`[PartyOverview] Buscando personagens da campanha: ${campaign.id}`);
+      const campaignCharactersResult = await characterAPI.getCampaignCharacters(campaign.id);
+      
+      if (!campaignCharactersResult.success) {
+        console.error("[PartyOverview] Erro ao buscar personagens da campanha:", campaignCharactersResult.error);
+        setPlayersData([]);
+        return;
+      }
 
-          // Se tem personagem, buscar dados do personagem
-          if (player.character_id) {
-            // TODO: Implementar busca de dados do personagem quando a API estiver pronta
-            // const characterResult = await characterAPI.getCharacterById(player.character_id);
-            // if (characterResult.success) {
-            //   playerData.character_name = characterResult.character.name;
-            //   playerData.character_class = characterResult.character.class;
-            //   playerData.character_level = characterResult.character.level;
-            //   playerData.current_hp = characterResult.character.current_hp;
-            //   playerData.max_hp = characterResult.character.max_hp;
-            //   playerData.armor_class = characterResult.character.armor_class;
-            //   playerData.conditions = characterResult.character.conditions || [];
-            // }
-            
-            // Por enquanto, apenas indicar que tem personagem
-            playerData.character_name = "Personagem Criado";
-            playerData.character_class = "Classe não carregada";
-            playerData.character_level = 1;
+      const campaignCharacters = campaignCharactersResult.characters || [];
+      console.log(`[PartyOverview] Total de personagens encontrados na campanha: ${campaignCharacters.length}`);
+      console.log("[PartyOverview] Detalhes dos personagens:", campaignCharacters);
+
+      // 2. Para cada jogador na campanha, buscar dados do usuário e associar ao personagem
+      console.log("[PartyOverview] Processando cada jogador...");
+      const playersPromises = campaign.players.map(async (player, index) => {
+        console.log(`[PartyOverview] Processando jogador ${index}: user_id=${player.user_id}`);
+        try {
+          // 2.1. Buscar dados do usuário
+          const userResult = await userAPI.getUserById(player.user_id);
+          let username = `Usuário${index + 1}`;
+          
+          if (userResult.success && userResult.user) {
+            username = userResult.user.username;
+            console.log(`[PartyOverview] Usuário encontrado: ${username} (${player.user_id})`);
+          } else {
+            console.warn(`[PartyOverview] Usuário não encontrado para ID: ${player.user_id}. Usando nome genérico.`);
           }
 
+          // 2.2. Encontrar personagem associado ao jogador (pelo user_id)
+          const playerCharacter = campaignCharacters.find(char => char.user_id === player.user_id);
+          
+          if (playerCharacter) {
+            console.log(`[PartyOverview] Personagem encontrado para ${username}:`, {
+              id: playerCharacter.id,
+              name: playerCharacter.name,
+              class: playerCharacter.class,
+              level: playerCharacter.level,
+              max_hp: playerCharacter.max_hit_points,
+              ac: playerCharacter.armor_class
+            });
+          } else {
+            console.log(`[PartyOverview] Nenhum personagem encontrado para ${username} (${player.user_id})`);
+          }
+
+          // 2.3. Construir objeto PlayerStatus
+          const playerData: PlayerStatus = {
+            id: player.user_id || `player-${index}`,
+            user_id: player.user_id || '',
+            character_id: playerCharacter?.id,
+            username: username,
+            is_active: player.is_active,
+            last_active: new Date().toISOString(),
+            is_online: false,
+            has_character: !!playerCharacter,
+            status: playerCharacter ? 'ready' : 'no_character',
+            notes: player.notes,
+            character_name: playerCharacter?.name || "Personagem Criado",
+            character_class: playerCharacter?.class || "Classe não carregada",
+            character_level: playerCharacter?.level || 1,
+            max_hp: playerCharacter?.max_hit_points || 0,
+            armor_class: playerCharacter?.armor_class || 0,
+            conditions: playerCharacter?.conditions || []
+          };
+
+          console.log(`[PartyOverview] Dados do jogador ${username} preparados:`, {
+            has_character: playerData.has_character,
+            character_name: playerData.character_name,
+            character_class: playerData.character_class,
+            max_hp: playerData.max_hp
+          });
+          
           return playerData;
         } catch (error) {
-          console.error(`Erro ao carregar dados do jogador ${player.user_id}:`, error);
+          console.error(`[PartyOverview] Erro ao processar jogador ${index} (${player.user_id}):`, error);
           return {
             id: player.user_id || `player-${index}`,
             user_id: player.user_id || '',
@@ -149,26 +153,35 @@ const PartyOverview = () => {
             is_active: player.is_active,
             last_active: new Date().toISOString(),
             is_online: false,
-            has_character: !!player.character_id,
+            has_character: false,
             status: 'no_character' as const,
             notes: player.notes
           };
         }
       });
 
+      // 3. Aguardar todas as promises e atualizar o estado
       const resolvedPlayers = await Promise.all(playersPromises);
+      console.log("[PartyOverview] Todos os jogadores processados. Dados finais:", resolvedPlayers.map(p => ({
+        username: p.username,
+        has_character: p.has_character,
+        character_name: p.character_name
+      })));
+      
       setPlayersData(resolvedPlayers);
     } catch (error) {
-      console.error('Erro ao carregar dados dos jogadores:', error);
+      console.error('[PartyOverview] Erro geral ao carregar dados dos jogadores:', error);
       setPlayersData([]);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [campaign]);
 
-  // ===========================
-  // AÇÕES DE JOGADOR SIMPLIFICADAS
-  // ===========================
+  useEffect(() => {
+    if (campaign?.id) {
+      loadPlayersData();
+    }
+  }, [campaign, loadPlayersData]);
 
   const handleAddPlayer = async () => {
     if (!newPlayerForm.username.trim()) {
@@ -179,9 +192,6 @@ const PartyOverview = () => {
     try {
       setIsLoading(true);
       
-      console.log('🔍 Buscando usuário:', newPlayerForm.username);
-      
-      // 1. BUSCAR USUÁRIO REAL NO BANCO DE DADOS
       const userSearchResult = await userAPI.findUser(newPlayerForm.username.trim());
       
       if (!userSearchResult.success || !userSearchResult.user) {
@@ -190,9 +200,7 @@ const PartyOverview = () => {
       }
       
       const foundUser = userSearchResult.user;
-      console.log('✅ Usuário encontrado:', foundUser);
       
-      // 2. VERIFICAR SE JÁ ESTÁ NA CAMPANHA
       const isAlreadyInCampaign = campaign?.players.some(
         player => player.user_id === foundUser.id
       );
@@ -202,26 +210,16 @@ const PartyOverview = () => {
         return;
       }
       
-      // 3. ADICIONAR À CAMPANHA (SEM DADOS DE PERSONAGEM)
       const success = await addPlayer({
         user_id: foundUser.id,
-        character_id: undefined, // O jogador criará seu personagem depois
+        character_id: undefined,
         notes: `Jogador adicionado: ${foundUser.username}`
       });
       
       if (success) {
-        console.log('✅ Jogador adicionado com sucesso');
-        
-        // Limpar formulário
         setShowAddPlayer(false);
-        setNewPlayerForm({
-          username: ''
-        });
-        
-        // Atualizar dados
+        setNewPlayerForm({ username: '' });
         await refreshDashboard();
-        
-        // Mostrar sucesso
         alert(`${foundUser.username} foi adicionado à campanha! Agora ele pode criar seu personagem.`);
       } else {
         alert('Erro ao adicionar jogador à campanha. Tente novamente.');
@@ -253,10 +251,6 @@ const PartyOverview = () => {
     }
   };
 
-  // ===========================
-  // RENDERIZAÇÃO
-  // ===========================
-
   const getPlayerStatusColor = (player: PlayerStatus) => {
     if (!player.has_character) return 'text-yellow-400';
     if (!player.is_active) return 'text-gray-400';
@@ -273,7 +267,6 @@ const PartyOverview = () => {
 
   return (
     <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -302,13 +295,12 @@ const PartyOverview = () => {
               onClick={() => setIsExpanded(!isExpanded)}
               className="p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
             >
-              {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {isExpanded ? <Plus className="w-4 h-4 rotate-45" /> : <Plus className="w-4 h-4" />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modal de Adicionar Jogador - SIMPLIFICADO */}
       {showAddPlayer && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-800 rounded-lg w-full max-w-md">
@@ -375,7 +367,6 @@ const PartyOverview = () => {
         </div>
       )}
 
-      {/* Content */}
       <div className="p-6">
         {isLoading && playersData.length === 0 ? (
           <div className="text-center py-8">
@@ -390,7 +381,6 @@ const PartyOverview = () => {
                 className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:border-blue-500 transition-colors"
               >
                 <div className="flex items-center justify-between">
-                  {/* Info do Jogador */}
                   <div className="flex items-center space-x-3">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${
                       player.has_character 
@@ -400,7 +390,7 @@ const PartyOverview = () => {
                       {player.has_character ? (
                         player.character_name?.[0] || player.username?.[0] || '?'
                       ) : (
-                        <User className="w-5 h-5" />
+                        <UserPlus className="w-5 h-5" />
                       )}
                     </div>
                     <div>
@@ -422,7 +412,6 @@ const PartyOverview = () => {
                     </div>
                   </div>
 
-                  {/* Ações */}
                   <div className="flex items-center space-x-2">
                     {player.has_character && (
                       <button
@@ -449,14 +438,13 @@ const PartyOverview = () => {
                   </div>
                 </div>
 
-                {/* Expandir detalhes quando há personagem */}
                 {isExpanded && player.has_character && (
                   <div className="mt-3 pt-3 border-t border-gray-600">
                     <div className="grid grid-cols-2 gap-3 text-sm">
                       <div>
-                        <span className="text-gray-400">HP:</span>
+                        <span className="text-gray-400">HP Máx:</span>
                         <span className="text-white ml-2">
-                          {player.current_hp || 0} / {player.max_hp || 0}
+                          {player.max_hp || 0}
                         </span>
                       </div>
                       <div>
@@ -476,7 +464,6 @@ const PartyOverview = () => {
                   </div>
                 )}
 
-                {/* Mostrar aviso para jogadores sem personagem */}
                 {isExpanded && !player.has_character && (
                   <div className="mt-3 pt-3 border-t border-gray-600">
                     <div className="flex items-center space-x-2 text-yellow-400 text-sm">
@@ -507,7 +494,6 @@ const PartyOverview = () => {
         )}
       </div>
 
-      {/* Modal de Detalhes do Jogador - apenas para jogadores com personagem */}
       {showPlayerDetails && selectedPlayer && selectedPlayer.has_character && (
         <PlayerDetailsModal
           player={selectedPlayer}
@@ -516,55 +502,29 @@ const PartyOverview = () => {
             setShowPlayerDetails(false);
             setSelectedPlayer(null);
           }}
-          onUpdate={(playerId, updates) => {
-            setPlayersData(prev => prev.map(p => 
-              p.user_id === playerId ? { ...p, ...updates } : p
-            ));
-          }}
-          canEdit={isGM}
         />
       )}
     </div>
   );
 };
 
-// Modal de detalhes do jogador (simplificado)
 interface PlayerDetailsModalProps {
   player: PlayerStatus;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate?: (playerId: string, updates: any) => void;
-  canEdit: boolean;
 }
 
 const PlayerDetailsModal: React.FC<PlayerDetailsModalProps> = ({
   player,
   isOpen,
-  onClose,
-  onUpdate,
-  canEdit
+  onClose
 }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedPlayer, setEditedPlayer] = useState(player);
-
-  useEffect(() => {
-    setEditedPlayer(player);
-  }, [player]);
-
   if (!isOpen) return null;
-
-  const handleSave = () => {
-    if (onUpdate) {
-      onUpdate(player.user_id, editedPlayer);
-    }
-    setIsEditing(false);
-  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          {/* Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
@@ -583,15 +543,14 @@ const PlayerDetailsModal: React.FC<PlayerDetailsModalProps> = ({
             </button>
           </div>
 
-          {/* Status do Personagem */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-gray-700 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <Heart className="w-5 h-5 text-red-400" />
-                <span className="text-gray-300">Pontos de Vida</span>
+                <span className="text-gray-300">Pontos de Vida Máximos</span>
               </div>
               <p className="text-2xl font-bold text-white">
-                {player.current_hp || 0} / {player.max_hp || 0}
+                {player.max_hp || 0}
               </p>
             </div>
             
@@ -604,7 +563,6 @@ const PlayerDetailsModal: React.FC<PlayerDetailsModalProps> = ({
             </div>
           </div>
 
-          {/* Informações Adicionais */}
           <div className="space-y-4">
             <div>
               <h4 className="text-lg font-semibold text-white mb-2">Status</h4>

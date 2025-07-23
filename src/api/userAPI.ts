@@ -93,6 +93,26 @@ class UserAPI {
       };
     }
   }
+  /**
+   * Buscar usuário por ID
+   */
+  async getUserById(userId: string): Promise<{ 
+    success: boolean; 
+    user?: User; 
+    error?: string 
+  }> {
+    try {
+      const response = await this.request<{ user: User }>(`/auth/users/${userId}`, {
+        method: 'GET'
+      });
+      return { success: true, user: response.user };
+    } catch (error) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Erro ao buscar usuário por ID" 
+      };
+    }
+  }
 }
 
 /**
