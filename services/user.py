@@ -217,3 +217,26 @@ def find_user_by_identifier_service(identifier: str) -> Dict[str, Any]:
 
     except Exception as e:
         return {"success": False, "error": f"Erro interno: {str(e)}"}
+
+def get_user_by_id_service(user_id: str) -> Dict[str, Any]:
+    """Busca usuário pelo ID"""
+    try:
+        # Buscar usuário pelo ID
+        user = get_user_by_id(user_id)
+        if not user:
+            return {"success": False, "error": "Usuário não encontrado"}
+
+        # Retornar dados sem senha
+        user_data = {
+            "id": str(user["_id"]),
+            "username": user["username"],
+            "email": user["email"]
+        }
+
+        return {
+            "success": True,
+            "user": user_data
+        }
+
+    except Exception as e:
+        return {"success": False, "error": f"Erro interno: {str(e)}"}

@@ -2,8 +2,9 @@ from flask import request, jsonify, Blueprint
 import jwt
 import os
 from datetime import datetime, timedelta
+from flask_jwt_extended import jwt_required
 
-from services.user import register_user, login_user, get_user_profile,  search_users_service
+from services.user import register_user, login_user, get_user_profile,  search_users_service, get_user_by_id_service
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -112,6 +113,25 @@ def search_users():
             }), 200
         else:
             return jsonify({"error": result.get("error")}), 400
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@auth_bp.route('/users/<user_id>', methods=['GET'])
+
+def get_user(user_id):
+    """Rota para recuperar usuário por ID"""
+    try:
+        # Chamar service para buscar usuário
+        result = get_user_by_id_service(user_id)
+
+        if result.get("success"):
+            return jsonify({
+                "user": result.get("user")
+            }), 200
+        else:
+            return jsonify({"error": result.get("error")}), 404
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

@@ -1,7 +1,8 @@
 from bson import ObjectId
+from datetime import datetime
 from typing import Optional, List, Dict, Any
 from database.db import mydb
-from database.schemas.campaign import Campaign, CampaignCreate
+from database.schemas.campaign import Campaign, CampaignCreate, Encounter
 
 campaigns_collection = mydb["campaigns"]
 
@@ -15,6 +16,8 @@ def create_campaign(campaign: CampaignCreate) -> ObjectId:
     campaign_dict["encounters"] = []
     campaign_dict["loot"] = []
     campaign_dict["status"] = "recrutando"
+    campaign_dict["created_date"] = datetime.utcnow()
+    campaign_dict["updated_date"] = datetime.utcnow()
 
     result = campaigns_collection.insert_one(campaign_dict)
     return result.inserted_id
@@ -24,7 +27,7 @@ def get_campaign_by_id(campaign_id: str) -> Optional[Campaign]:
     """Retorna campanha pelo ID"""
     campaign_data = campaigns_collection.find_one({"_id": ObjectId(campaign_id)})
     if campaign_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         return Campaign(**campaign_data)
     return None
 
@@ -34,7 +37,7 @@ def get_campaigns_by_gm(gm_id: str) -> List[Campaign]:
     campaigns_data = list(campaigns_collection.find({"game_master_id": ObjectId(gm_id)}))
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
@@ -46,7 +49,7 @@ def get_campaigns_by_player(user_id: str) -> List[Campaign]:
     }))
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
@@ -56,7 +59,7 @@ def get_public_campaigns() -> List[Campaign]:
     campaigns_data = list(campaigns_collection.find({"is_public": True}))
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
@@ -66,7 +69,7 @@ def get_campaigns_by_status(status: str) -> List[Campaign]:
     campaigns_data = list(campaigns_collection.find({"status": status}))
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
@@ -76,7 +79,7 @@ def get_campaigns_by_tags(tags: List[str]) -> List[Campaign]:
     campaigns_data = list(campaigns_collection.find({"tags": {"$in": tags}}))
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
@@ -88,14 +91,13 @@ def search_campaigns_by_name(name_pattern: str) -> List[Campaign]:
     }))
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
 
 def update_campaign(campaign_id: str, update_data: Dict[str, Any]) -> bool:
     """Atualiza uma campanha existente"""
-    from datetime import datetime
     update_data["updated_date"] = datetime.utcnow()
 
     result = campaigns_collection.update_one(
@@ -117,7 +119,6 @@ def delete_campaign(campaign_id: str) -> bool:
 
 def add_player_to_campaign(campaign_id: str, player_data: Dict[str, Any]) -> bool:
     """Adiciona um jogador à campanha"""
-    from datetime import datetime
     player_data["joined_date"] = datetime.utcnow()
 
     result = campaigns_collection.update_one(
@@ -138,7 +139,6 @@ def remove_player_from_campaign(campaign_id: str, user_id: str) -> bool:
 
 def update_player_in_campaign(campaign_id: str, user_id: str, update_data: Dict[str, Any]) -> bool:
     """Atualiza informações de um jogador na campanha"""
-    # Criar o objeto de atualização usando operador posicional
     set_data = {}
     for key, value in update_data.items():
         set_data[f"players.$.{key}"] = value
@@ -181,11 +181,16 @@ def is_user_in_campaign(campaign_id: str, user_id: str) -> bool:
 
 
 # ================================
-# FUNÇÕES PARA ENCONTROS
+# FUNÇÕES PARA ENCONTROS (ATUALIZADAS)
 # ================================
 
 def add_encounter_to_campaign(campaign_id: str, encounter_data: Dict[str, Any]) -> bool:
-    """Adiciona um encontro à campanha"""
+    """Adiciona um encontro à campanha com ID único"""
+    # Gerar novo ID para o encontro
+    encounter_id = ObjectId()
+    encounter_data["id"] = encounter_id
+    encounter_data["created_date"] = datetime.utcnow()
+
     result = campaigns_collection.update_one(
         {"_id": ObjectId(campaign_id)},
         {"$push": {"encounters": encounter_data}}
@@ -193,9 +198,19 @@ def add_encounter_to_campaign(campaign_id: str, encounter_data: Dict[str, Any]) 
     return result.modified_count > 0
 
 
-def update_encounter_in_campaign(campaign_id: str, encounter_name: str, update_data: Dict[str, Any]) -> bool:
-    """Atualiza um encontro específico na campanha"""
-    # Criar o objeto de atualização usando operador posicional
+def get_encounter_from_campaign(campaign_id: str, encounter_id: str) -> Optional[Encounter]:
+    """Obtém um encontro específico de uma campanha pelo ID"""
+    campaign = get_campaign_by_id(campaign_id)
+    if campaign and campaign.encounters:
+        for encounter in campaign.encounters:
+            if str(encounter.id) == encounter_id:
+                return encounter
+    return None
+
+
+def update_encounter_in_campaign(campaign_id: str, encounter_id: str, update_data: Dict[str, Any]) -> bool:
+    """Atualiza um encontro específico na campanha pelo ID"""
+    # Criar o objeto de atualização
     set_data = {}
     for key, value in update_data.items():
         set_data[f"encounters.$.{key}"] = value
@@ -203,36 +218,37 @@ def update_encounter_in_campaign(campaign_id: str, encounter_name: str, update_d
     result = campaigns_collection.update_one(
         {
             "_id": ObjectId(campaign_id),
-            "encounters.name": encounter_name
+            "encounters.id": ObjectId(encounter_id)
         },
         {"$set": set_data}
     )
     return result.modified_count > 0
 
 
-def remove_encounter_from_campaign(campaign_id: str, encounter_name: str) -> bool:
-    """Remove um encontro da campanha"""
+def remove_encounter_from_campaign(campaign_id: str, encounter_id: str) -> bool:
+    """Remove um encontro da campanha pelo ID"""
     result = campaigns_collection.update_one(
         {"_id": ObjectId(campaign_id)},
-        {"$pull": {"encounters": {"name": encounter_name}}}
+        {"$pull": {"encounters": {"id": ObjectId(encounter_id)}}},
+        {"$set": {"updated_date": datetime.utcnow()}}
     )
     return result.modified_count > 0
 
 
-def get_completed_encounters(campaign_id: str) -> List[Dict[str, Any]]:
+def get_completed_encounters(campaign_id: str) -> List[Encounter]:
     """Retorna todos os encontros completados da campanha"""
     campaign = get_campaign_by_id(campaign_id)
     if not campaign:
         return []
-    return [e.dict() for e in campaign.encounters if e.is_completed]
+    return [e for e in campaign.encounters if e.is_completed]
 
 
-def get_pending_encounters(campaign_id: str) -> List[Dict[str, Any]]:
+def get_pending_encounters(campaign_id: str) -> List[Encounter]:
     """Retorna todos os encontros pendentes da campanha"""
     campaign = get_campaign_by_id(campaign_id)
     if not campaign:
         return []
-    return [e.dict() for e in campaign.encounters if not e.is_completed]
+    return [e for e in campaign.encounters if not e.is_completed]
 
 
 # ================================
@@ -250,7 +266,6 @@ def add_loot_to_campaign(campaign_id: str, loot_data: Dict[str, Any]) -> bool:
 
 def update_loot_in_campaign(campaign_id: str, loot_name: str, update_data: Dict[str, Any]) -> bool:
     """Atualiza um item de loot específico na campanha"""
-    # Criar o objeto de atualização usando operador posicional
     set_data = {}
     for key, value in update_data.items():
         set_data[f"loot.$.{key}"] = value
@@ -303,7 +318,7 @@ def get_player_loot(campaign_id: str, player_id: str) -> List[Dict[str, Any]]:
 
 
 # ================================
-# FUNÇÕES PARA NPCs (REFERÊNCIAS)
+# FUNÇÕES PARA NPCs
 # ================================
 
 def add_npc_to_campaign(campaign_id: str, npc_id: str) -> bool:
@@ -354,7 +369,7 @@ def get_all_campaigns() -> List[Campaign]:
     campaigns_data = list(campaigns_collection.find())
     campaigns = []
     for campaign_data in campaigns_data:
-        campaign_data["id"] = campaign_data["_id"]
+        campaign_data["id"] = str(campaign_data["_id"])
         campaigns.append(Campaign(**campaign_data))
     return campaigns
 
