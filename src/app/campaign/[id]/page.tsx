@@ -11,7 +11,8 @@ import CampaignOverview from '@/components/campaign-manage/CampaignOverview';
 import PartyOverview from '@/components/campaign-manage/PartyOverview';
 import { NPCsList } from '@/components/campaign-manage/NPCsList';
 import SessionsHistory from '@/components/campaign-manage/SessionsHistory';
-import CharactersList from '@/components/campaign-manage/CharactersList'; // Importe o componente CharactersList
+import CharactersList from '@/components/campaign-manage/CharactersList';
+import EncountersList from '@/components/campaign-manage/EncountersList'; // Importe o novo componente
 import { 
   Shield, 
   Sparkles, 
@@ -58,13 +59,8 @@ const CampaignManagerPage = () => {
   const router = useRouter();
   const {
     campaign,
-    dashboard,
-    permissions,
     isLoading,
-    isGM,
-    isPlayer,
-    canPerformAction,
-    loadCampaign
+    isGM
   } = useManageCampaignContext();
 
   const { user } = useAuthContext();
@@ -84,7 +80,7 @@ const CampaignManagerPage = () => {
       id: 'characters',
       label: 'Personagens',
       icon: User,
-      component: CharactersList // Usando o componente CharactersList importado
+      component: CharactersList
     },
     {
       id: 'npcs',
@@ -97,7 +93,7 @@ const CampaignManagerPage = () => {
       id: 'encounters',
       label: 'Encontros',
       icon: Sword,
-      component: () => <div className="text-white">Seção de Encontros em desenvolvimento</div>,
+      component: () => campaign ? <EncountersList campaignId={campaign.id} /> : <div className="text-white">Carregando...</div>,
       gmOnly: true
     },
     {
