@@ -26,7 +26,7 @@ from database.repositories.campaign import (
 )
 from pydantic import ValidationError
 from bson import ObjectId
-
+from datetime import datetime
 
 def create_campaign_service(data: Dict[str, Any]) -> Dict[str, Any]:
     """Valida dados e cria nova campanha"""
@@ -102,10 +102,11 @@ def get_gm_campaigns_service(user_id: str) -> Dict[str, Any]:
             return {"success": False, "error": "ID de usuário inválido"}
 
         # Buscar campanhas
-        campaigns = get_campaigns_by_gm(ObjectId(user_id))
+        campaigns = get_campaigns_by_gm(user_id)
 
         # Converter para response format
         campaigns_response = [campaign_to_response(camp) for camp in campaigns]
+
 
         return {
             "success": True,
@@ -513,8 +514,22 @@ def add_encounter_service(campaign_id: str, data: Dict[str, Any], user_id: str) 
             if field not in data or not data[field]:
                 return {"success": False, "error": f"Campo '{field}' é obrigatório"}
 
+        # ✅ Converter IDs de NPCs para ObjectId
+        if 'npcs' in data and isinstance(data['npcs'], list):
+            try:
+                # Filtra entradas vazias e converte para ObjectId
+                valid_npcs = []
+                for npc_id in data['npcs']:
+                    if npc_id and ObjectId.is_valid(npc_id):
+                        valid_npcs.append(ObjectId(npc_id))
+                    else:
+                        return {"success": False, "error": f"ID de NPC inválido: {npc_id}"}
+
+                data['npcs'] = valid_npcs
+            except Exception as e:
+                return {"success": False, "error": f"Erro ao converter NPCs: {str(e)}"}
+
         # ✅ GARANTIR que created_date seja adicionado
-        from datetime import datetime
         if "created_date" not in data:
             data["created_date"] = datetime.utcnow()
 

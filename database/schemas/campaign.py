@@ -62,7 +62,7 @@ class Campaign(BaseModel):
         use_enum_values=True
     )
 
-    id: Optional[ObjectId] = None
+    id: Optional[ObjectId] = Field(None, alias="_id")
     name: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = Field(None, max_length=1000)
 

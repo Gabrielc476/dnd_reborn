@@ -24,22 +24,64 @@ def create_campaign(campaign: CampaignCreate) -> ObjectId:
 
 
 def get_campaign_by_id(campaign_id: str) -> Optional[Campaign]:
-    """Retorna campanha pelo ID"""
     campaign_data = campaigns_collection.find_one({"_id": ObjectId(campaign_id)})
     if campaign_data:
-        campaign_data["id"] = str(campaign_data["_id"])
         return Campaign(**campaign_data)
     return None
 
 
+from bson import ObjectId
+from typing import List
+
 def get_campaigns_by_gm(gm_id: str) -> List[Campaign]:
-    """Retorna todas as campanhas de um Game Master"""
-    campaigns_data = list(campaigns_collection.find({"game_master_id": ObjectId(gm_id)}))
-    campaigns = []
-    for campaign_data in campaigns_data:
-        campaign_data["id"] = str(campaign_data["_id"])
-        campaigns.append(Campaign(**campaign_data))
+    print(f"[get_campaigns_by_gm] gm_id recebido: {gm_id!r} (tipo: {type(gm_id)})")
+    try:
+        gm_oid = ObjectId(gm_id)
+        print(f"[get_campaigns_by_gm] Convertido para ObjectId: {gm_oid!r} (tipo: {type(gm_oid)})")
+    except Exception as e:
+        print(f"[get_campaigns_by_gm] Erro ao converter gm_id em ObjectId: {e}")
+        raise
+
+    campaigns_data = list(campaigns_collection.find({"game_master_id": gm_oid}))
+    print(f"[get_campaigns_by_gm] Documentos retornados: {len(campaigns_data)}")
+
+    for idx, doc in enumerate(campaigns_data, start=1):
+        print(f"  Documento {idx}:")
+        for key, val in doc.items():
+            print(f"    - {key!r}: {val!r} (tipo: {type(val)})")
+
+        # Normaliza npc IDs em encounters
+        encounters = doc.get("encounters", [])
+        for e_idx, enc in enumerate(encounters, start=1):
+            npcs = enc.get("npcs", [])
+            new_npcs = []
+            for n_idx, npc in enumerate(npcs, start=1):
+                if isinstance(npc, str):
+                    try:
+                        npc_oid = ObjectId(npc)
+                        print(f"      Encounter {e_idx} NPC {n_idx}: string → ObjectId: {npc_oid!r}")
+                        new_npcs.append(npc_oid)
+                    except Exception as conv:
+                        print(f"      Encounter {e_idx} NPC {n_idx}: falha ao converter '{npc}': {conv}")
+                elif isinstance(npc, ObjectId):
+                    new_npcs.append(npc)
+                    print(f"      Encounter {e_idx} NPC {n_idx}: já é ObjectId: {npc!r}")
+                else:
+                    print(f"      Encounter {e_idx} NPC {n_idx}: tipo inesperado {type(npc)} – {npc!r}")
+                    new_npcs.append(npc)
+            # sobrescreve lista de npcs no documento
+            enc['npcs'] = new_npcs
+
+    # Instancia Campaign com IDs já corrigidos
+    try:
+        campaigns = [Campaign(**data) for data in campaigns_data]
+        print(f"[get_campaigns_by_gm] Campanhas instanciadas: {len(campaigns)}")
+    except Exception as e:
+        print(f"[get_campaigns_by_gm] Erro ao instanciar Campaign: {e}")
+        raise
+
     return campaigns
+
 
 
 def get_campaigns_by_player(user_id: str) -> List[Campaign]:
