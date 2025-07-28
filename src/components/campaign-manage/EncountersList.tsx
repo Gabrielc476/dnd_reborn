@@ -8,13 +8,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { useState, useEffect } from 'react';
 
-// Definir um tipo para o encontro
+// Atualizado: npcs agora é um número (quantidade)
 interface EncounterSummary {
   id: string;
   name: string;
   description?: string;
   difficulty: keyof typeof DIFFICULTY_LABELS;
-  npcs?: { id: string }[];
+  npcs?: number; // Alterado para number
   session_number?: number;
   is_completed: boolean;
 }
@@ -25,15 +25,11 @@ interface EncountersListProps {
 
 export default function EncountersList({ campaignId }: EncountersListProps) {
   const { isGM } = useManageCampaignContext();
-  
-  // Estado para os encontros
   const [encounters, setEncounters] = useState<EncounterSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carregar encontros da campanha
   useEffect(() => {
-    console.log(campaignId)
     const loadEncounters = async () => {
       try {
         setIsLoading(true);
@@ -55,7 +51,6 @@ export default function EncountersList({ campaignId }: EncountersListProps) {
     }
   }, [campaignId]);
 
-  // Se estiver carregando
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -76,7 +71,6 @@ export default function EncountersList({ campaignId }: EncountersListProps) {
     );
   }
 
-  // Se houver erro
   if (error) {
     return (
       <div className="bg-red-100 text-red-800 p-4 rounded-lg">
@@ -90,7 +84,6 @@ export default function EncountersList({ campaignId }: EncountersListProps) {
 
   return (
     <div>
-      {/* Botão de criação apenas para o mestre */}
       {isGM && (
         <div className="flex justify-end mb-4">
           <Link href={`/campaign/${campaignId}/encounters/create`}>
@@ -102,7 +95,6 @@ export default function EncountersList({ campaignId }: EncountersListProps) {
         </div>
       )}
 
-      {/* Mensagem quando não há encontros */}
       {encounters.length === 0 ? (
         <div className="bg-blue-50 text-blue-800 p-4 rounded-lg">
           <p>Nenhum encontro criado ainda.</p>
@@ -143,8 +135,9 @@ export default function EncountersList({ campaignId }: EncountersListProps) {
                 
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center space-x-4">
+                    {/* Corrigido: exibição direta do número de NPCs */}
                     <span className="inline-flex items-center text-sm text-gray-500 dark:text-gray-400">
-                      NPCs: {encounter.npcs?.length || 0}
+                      NPCs: {encounter.npcs ?? 0}
                     </span>
                     
                     {encounter.session_number && (

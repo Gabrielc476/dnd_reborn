@@ -3,12 +3,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { DndRace, DndSubrace, DndClass, DndSubclass, DndBackground, AbilityScores } from '@/types/characterCreation';
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, AlertTriangle, Info, Eye, EyeOff, User, Globe, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Info, Eye, EyeOff, User, Globe, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp, Shield, Zap, Target, Wand2, Package, Heart, Download, Save, ArrowLeft } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 // ===========================
 // INTERFACES
@@ -33,25 +34,18 @@ interface ValidationResult {
 }
 
 interface ConsolidatedData {
-  // Basic Info
   name: string;
   selectedRace: DndRace | null;
   selectedSubrace: DndSubrace | null;
   selectedClass: DndClass | null;
   selectedSubclass: DndSubclass | null;
   selectedBackground: DndBackground | null;
-  
-  // Ability Scores
   abilityMethod: string;
   abilityScores: AbilityScores | null;
   finalAbilityScores: AbilityScores | null;
-  
-  // Skills & Equipment
   selectedSkills: string[];
   selectedEquipment: string[];
   selectedSpells: string[];
-  
-  // Personality
   personalityTraits: string[];
   ideals: string[];
   bonds: string[];
@@ -65,30 +59,17 @@ interface ConsolidatedData {
 // ===========================
 
 const STORAGE_KEYS = {
-  // Race step
   SELECTED_RACE: 'character_creation_race',
   SELECTED_SUBRACE: 'character_creation_subrace',
-  
-  // Class step
   SELECTED_CLASS: 'character_creation_class',
   SELECTED_SUBCLASS: 'character_creation_subclass',
   SELECTED_BACKGROUND: 'character_creation_background',
-  
-  // Ability scores step
   ABILITY_METHOD: 'character_creation_ability_method',
   ABILITY_SCORES: 'character_creation_ability_scores',
   FINAL_ABILITY_SCORES: 'character_creation_final_ability_scores',
-  
-  // Skills step
   SELECTED_SKILLS: 'character_creation_selected_skills',
-  
-  // Equipment step
   SELECTED_EQUIPMENT: 'character_creation_selected_equipment',
-  
-  // Spells step
   SELECTED_SPELLS: 'character_creation_selected_spells',
-  
-  // Personality step
   CHARACTER_NAME: 'character_creation_name',
   PERSONALITY_TRAITS: 'character_creation_personality_traits',
   IDEALS: 'character_creation_ideals',
@@ -121,7 +102,6 @@ const formatModifier = (modifier: number): string => {
   return modifier >= 0 ? `+${modifier}` : `${modifier}`;
 };
 
-// Calcular HP base (level 1)
 const calculateBaseHP = (selectedClass: DndClass | null, conModifier: number): number => {
   if (!selectedClass) return 8 + conModifier;
   
@@ -144,7 +124,6 @@ const calculateBaseHP = (selectedClass: DndClass | null, conModifier: number): n
   return hitDie + conModifier;
 };
 
-// Calcular AC base
 const calculateBaseAC = (dexModifier: number): number => {
   return 10 + dexModifier;
 };
@@ -155,19 +134,13 @@ const calculateBaseAC = (dexModifier: number): number => {
 
 const decodeJWT = (token: string): any => {
   try {
-    // JWT tem 3 partes separadas por '.'
     const parts = token.split('.');
     if (parts.length !== 3) {
       throw new Error('Token JWT inválido');
     }
     
-    // A parte do meio (index 1) contém o payload
     const payload = parts[1];
-    
-    // Decodificar base64
     const decodedPayload = atob(payload);
-    
-    // Parsear JSON
     return JSON.parse(decodedPayload);
   } catch (error) {
     console.error('❌ [DEBUG] Erro ao decodificar JWT:', error);
@@ -178,9 +151,7 @@ const decodeJWT = (token: string): any => {
 const getUserIdFromJWT = (token: string): string | null => {
   try {
     const payload = decodeJWT(token);
-    if (!payload) {
-      return null;
-    }
+    if (!payload) return null;
     
     const userId = payload.user_id || payload.userId || payload.id || payload.sub;
     return userId;
@@ -198,7 +169,6 @@ const validateCharacterData = (data: ConsolidatedData): ValidationResult => {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // ✅ VALIDAÇÕES DE SISTEMA: Verificar user_id e token
   const token = getAuthToken();
   if (!token) {
     errors.push('Token de autorização não encontrado - faça login novamente');
@@ -208,13 +178,9 @@ const validateCharacterData = (data: ConsolidatedData): ValidationResult => {
     try {
       if (!token) return null;
       
-      // ✅ EXTRAIR USER_ID DO JWT
       const userIdFromJWT = getUserIdFromJWT(token);
-      if (userIdFromJWT) {
-        return userIdFromJWT;
-      }
+      if (userIdFromJWT) return userIdFromJWT;
       
-      // Fallback: buscar de locais tradicionais
       const authData = localStorage.getItem('auth_data') || sessionStorage.getItem('auth_data');
       if (authData) {
         const parsed = JSON.parse(authData);
@@ -231,7 +197,6 @@ const validateCharacterData = (data: ConsolidatedData): ValidationResult => {
     errors.push('Usuário não identificado - faça login novamente');
   }
 
-  // Validações críticas de dados
   if (!data.name?.trim()) {
     errors.push('Nome é obrigatório');
   }
@@ -248,7 +213,6 @@ const validateCharacterData = (data: ConsolidatedData): ValidationResult => {
     errors.push('Background é obrigatório');
   }
 
-  // Validação de atributos
   if (!data.finalAbilityScores) {
     errors.push('Atributos são obrigatórios');
   } else {
@@ -259,12 +223,10 @@ const validateCharacterData = (data: ConsolidatedData): ValidationResult => {
     });
   }
 
-  // Validação de perícias
   if (data.selectedSkills.length === 0) {
     warnings.push('Nenhuma perícia selecionada');
   }
 
-  // Validação de personalidade
   if (data.personalityTraits.length === 0) {
     warnings.push('Nenhum traço de personalidade definido');
   }
@@ -282,25 +244,18 @@ const validateCharacterData = (data: ConsolidatedData): ValidationResult => {
 
 const getConsolidatedData = (): ConsolidatedData => {
   return {
-    // Basic Info
     name: loadFromStorage(STORAGE_KEYS.CHARACTER_NAME, ''),
     selectedRace: loadFromStorage<DndRace | null>(STORAGE_KEYS.SELECTED_RACE, null),
     selectedSubrace: loadFromStorage<DndSubrace | null>(STORAGE_KEYS.SELECTED_SUBRACE, null),
     selectedClass: loadFromStorage<DndClass | null>(STORAGE_KEYS.SELECTED_CLASS, null),
     selectedSubclass: loadFromStorage<DndSubclass | null>(STORAGE_KEYS.SELECTED_SUBCLASS, null),
     selectedBackground: loadFromStorage<DndBackground | null>(STORAGE_KEYS.SELECTED_BACKGROUND, null),
-    
-    // Ability Scores
     abilityMethod: loadFromStorage(STORAGE_KEYS.ABILITY_METHOD, ''),
     abilityScores: loadFromStorage<AbilityScores | null>(STORAGE_KEYS.ABILITY_SCORES, null),
     finalAbilityScores: loadFromStorage<AbilityScores | null>(STORAGE_KEYS.FINAL_ABILITY_SCORES, null),
-    
-    // Skills & Equipment
     selectedSkills: loadFromStorage<string[]>(STORAGE_KEYS.SELECTED_SKILLS, []),
     selectedEquipment: loadFromStorage<string[]>(STORAGE_KEYS.SELECTED_EQUIPMENT, []),
     selectedSpells: loadFromStorage<string[]>(STORAGE_KEYS.SELECTED_SPELLS, []),
-    
-    // Personality
     personalityTraits: loadFromStorage<string[]>(STORAGE_KEYS.PERSONALITY_TRAITS, []),
     ideals: loadFromStorage<string[]>(STORAGE_KEYS.IDEALS, []),
     bonds: loadFromStorage<string[]>(STORAGE_KEYS.BONDS, []),
@@ -314,27 +269,20 @@ const getConsolidatedData = (): ConsolidatedData => {
 // BACKEND PAYLOAD GENERATION
 // ===========================
 
-// Modificado para receber userId como parâmetro
 const generateBackendPayload = (data: ConsolidatedData, userId: string | null) => {
-  // Calcular stats derivados
   const conModifier = data.finalAbilityScores ? calculateModifier(data.finalAbilityScores.constitution) : 0;
   const dexModifier = data.finalAbilityScores ? calculateModifier(data.finalAbilityScores.dexterity) : 0;
   
-  // Buscar campaign_id da URL ou localStorage
   const getCampaignId = (): string | null => {
     try {
-      // Tentar buscar da URL primeiro
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search);
         const campaignFromUrl = urlParams.get('campaign_id');
         if (campaignFromUrl) return campaignFromUrl;
         
-        // Tentar buscar do pathname (ex: /campaign/[id]/create-character)
         const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
         if (pathMatch) return pathMatch[1];
       }
-      
-      // Fallback: buscar do localStorage
       return localStorage.getItem('current_campaign_id') || sessionStorage.getItem('current_campaign_id');
     } catch (error) {
       console.error('Erro ao buscar campaign_id:', error);
@@ -344,11 +292,9 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
 
   const campaignId = getCampaignId();
 
-  // Mapear bônus de atributos da raça/subraça no formato do backend
   const getAbilityBonuses = (): Record<string, number> => {
     const bonuses: Record<string, number> = {};
     
-    // Adicionar bônus da raça
     if (data.selectedRace?.ability_bonuses) {
       data.selectedRace.ability_bonuses.forEach(bonus => {
         const abilityKey = bonus.ability_score.index;
@@ -356,7 +302,6 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
       });
     }
     
-    // Adicionar bônus da subraça
     if (data.selectedSubrace?.ability_bonuses) {
       data.selectedSubrace.ability_bonuses.forEach(bonus => {
         const abilityKey = bonus.ability_score.index;
@@ -367,7 +312,6 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
     return bonuses;
   };
 
-  // Extrair traços raciais
   const getRacialTraits = (): string[] => {
     const traits: string[] = [];
     
@@ -382,7 +326,6 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
     return traits;
   };
 
-  // Extrair linguagens
   const getLanguages = (): string[] => {
     const languages: string[] = [];
     
@@ -397,7 +340,6 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
     return languages;
   };
 
-  // Extrair proficiências iniciais
   const getProficiencies = (): string[] => {
     const proficiencies: string[] = [];
     
@@ -413,11 +355,8 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
   };
 
   return {
-    // ✅ OBRIGATÓRIOS: user_id e campaign_id
     user_id: userId,
-    campaign_id: campaignId, // Opcional, pode ser null
-    
-    // basic_info (obrigatório no backend)
+    campaign_id: campaignId,
     basic_info: {
       name: data.name,
       race_info: {
@@ -435,10 +374,8 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
       character_class: data.selectedClass?.index || '',
       level: 1,
       background: data.selectedBackground?.index || '',
-      alignment: null, // Será implementado em step futuro
+      alignment: null,
     },
-
-    // attributes (obrigatório)
     attributes: data.finalAbilityScores || {
       strength: 10,
       dexterity: 10,
@@ -447,10 +384,7 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
       wisdom: 10,
       charisma: 10,
     },
-
-    // skills (obrigatório)
     skills: {
-      // Mapear skills selecionadas para formato boolean do backend
       athletics: data.selectedSkills.includes('athletics'),
       acrobatics: data.selectedSkills.includes('acrobatics'),
       sleight_of_hand: data.selectedSkills.includes('sleight-of-hand'),
@@ -470,27 +404,21 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
       performance: data.selectedSkills.includes('performance'),
       persuasion: data.selectedSkills.includes('persuasion'),
     },
-
-    // stats (obrigatório)
     stats: {
       hit_points: calculateBaseHP(data.selectedClass, conModifier),
       armor_class: calculateBaseAC(dexModifier),
       experience_points: 0,
     },
-
-    // combat (obrigatório)
     combat: {
-      attacks: [], // Será preenchido com armas/ataques no futuro
+      attacks: [],
     },
-
-    // magic (obrigatório)
     magic: {
       spellcaster: data.selectedSpells.length > 0,
       spellcasting_ability: getSpellcastingAbility(data.selectedClass),
       known_spells: data.selectedSpells.map(spellIndex => ({
-        name: spellIndex, // Nome será resolvido pelo backend
-        level: 0, // Nível será resolvido pelo backend
-        school: '', // Escola será resolvida pelo backend
+        name: spellIndex,
+        level: 0,
+        school: '',
         description: null,
         is_attack_spell: false,
         attack_bonus: null,
@@ -500,7 +428,6 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
         save_ability: null,
         range: 'Toque',
       })),
-      // Slots de magia (level 1 básico)
       spell_slots_1: data.selectedSpells.length > 0 ? getLevel1SpellSlots(data.selectedClass) : 0,
       spell_slots_2: 0,
       spell_slots_3: 0,
@@ -511,8 +438,6 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null) =
       spell_slots_8: 0,
       spell_slots_9: 0,
     },
-    
-    // ✅ CAMPOS EXTRAS: Campos de personalidade que não estão no schema principal
     personality_traits: data.personalityTraits,
     ideals: data.ideals,
     bonds: data.bonds,
@@ -553,8 +478,8 @@ const getLevel1SpellSlots = (selectedClass: DndClass | null): number => {
     'bard': 2,
     'cleric': 2,
     'druid': 2,
-    'paladin': 0, // Paladinos começam sem slots no level 1
-    'ranger': 0, // Rangers começam sem slots no level 1
+    'paladin': 0,
+    'ranger': 0,
   };
   
   return level1SpellSlots[selectedClass.index] || 0;
@@ -566,7 +491,6 @@ const getLevel1SpellSlots = (selectedClass: DndClass | null): number => {
 
 const getAuthToken = (): string | null => {
   try {
-    // Tentar buscar token de diferentes locais
     const authDataLocal = localStorage.getItem('auth_data');
     const authDataSession = sessionStorage.getItem('auth_data');
     
@@ -581,7 +505,6 @@ const getAuthToken = (): string | null => {
       }
     }
     
-    // Fallback: tentar buscar token diretamente
     const tokenLocal = localStorage.getItem('token');
     const tokenSession = sessionStorage.getItem('token');
     const authTokenLocal = localStorage.getItem('auth_token');
@@ -598,8 +521,6 @@ const createCharacterInBackend = async (payload: any): Promise<BackendCreateChar
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
   
   try {
-    console.log('🚀 Enviando requisição para criar personagem:', payload);
-    
     const token = getAuthToken();
     if (!token) {
       throw new Error('Token de autorização não encontrado. Faça login novamente.');
@@ -616,16 +537,9 @@ const createCharacterInBackend = async (payload: any): Promise<BackendCreateChar
       body: JSON.stringify(payload),
     });
 
-    console.log('📡 Resposta HTTP status:', response.status);
-
-    // ✅ ATUALIZAÇÃO: Tratar respostas bem-sucedidas (status 200-299)
     if (response.ok) {
       const result = await response.json();
       
-      // ✅ ADICIONAR: Verificar estrutura da resposta
-      console.log('✅ Resposta da API:', result);
-      
-      // ✅ CORREÇÃO: Retornar como sucesso mesmo sem campo 'success'
       if (result.character_id) {
         return {
           success: true,
@@ -634,7 +548,6 @@ const createCharacterInBackend = async (payload: any): Promise<BackendCreateChar
         };
       }
       
-      // ✅ TRATAR: Respostas que não seguem o padrão esperado
       console.warn('⚠️ Resposta sem character_id:', result);
       return {
         success: true,
@@ -643,7 +556,6 @@ const createCharacterInBackend = async (payload: any): Promise<BackendCreateChar
       };
     }
 
-    // Tratar erros
     let errorMessage = `HTTP ${response.status}`;
     let errorDetails = '';
     
@@ -678,7 +590,6 @@ const createCharacterInBackend = async (payload: any): Promise<BackendCreateChar
   }
 };
 
-
 // ===========================
 // UTILITY FUNCTIONS
 // ===========================
@@ -687,20 +598,15 @@ const clearAllCharacterCreationData = () => {
   if (typeof window === 'undefined') return;
   
   const keysToRemove = [
-    // Race step
     'character_creation_race',
     'character_creation_subrace',
     'character_creation_races_cache',
-    
-    // Class step  
     'character_creation_class',
     'character_creation_subclass',
     'character_creation_background',
     'character_creation_classes_cache',
     'character_creation_subclasses_cache',
     'character_creation_backgrounds_cache',
-    
-    // Ability scores step
     'character_creation_ability_method',
     'character_creation_ability_scores',
     'character_creation_final_ability_scores',
@@ -709,24 +615,16 @@ const clearAllCharacterCreationData = () => {
     'character_creation_rolled_arrays',
     'character_creation_selected_rolled',
     'standard_array_values',
-    
-    // Skills step
     'character_creation_selected_skills',
     'character_creation_available_skill_choices',
     'character_creation_class_skill_options',
     'character_creation_background_skills',
-
-    // Equipment step
     'character_creation_selected_equipment',
     'character_creation_equipment_cache',
     'character_creation_equipment_search',
-
-    // Spells step
     'character_creation_selected_spells',
     'character_creation_spells_cache',
     'character_creation_spells_validation',
-    
-    // Personality step
     'character_creation_name',
     'character_creation_personality_traits',
     'character_creation_ideals',
@@ -734,8 +632,6 @@ const clearAllCharacterCreationData = () => {
     'character_creation_flaws',
     'character_creation_backstory',
     'character_creation_notes',
-    
-    // Wizard state
     'character_wizard_current_step',
     'character_wizard_completed_steps',
     'character_wizard_validations'
@@ -748,6 +644,56 @@ const clearAllCharacterCreationData = () => {
 };
 
 // ===========================
+// REVIEW SECTION COMPONENT
+// ===========================
+
+const ReviewSection = ({
+  title,
+  icon,
+  isValid,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  isValid: boolean;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <Card className="bg-slate-800/80 border-slate-700">
+      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer hover:bg-slate-700/50 transition-colors">
+            <CardTitle className="flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                {icon}
+                {title}
+                {isValid ? (
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                )}
+              </div>
+              {isOpen ? (
+                <ChevronUp className="w-5 h-5 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-slate-400" />
+              )}
+            </CardTitle>
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent>{children}</CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
+  );
+};
+
+// ===========================
 // MAIN COMPONENT
 // ===========================
 
@@ -755,8 +701,6 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
   const [data, setData] = useState<ConsolidatedData>(getConsolidatedData());
   const [showBackendPayload, setShowBackendPayload] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  
-  // ✅ NOVOS ESTADOS PARA CRIAÇÃO
   const [isCreating, setIsCreating] = useState(false);
   const [createResult, setCreateResult] = useState<{
     success: boolean;
@@ -765,21 +709,17 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
     characterId?: string;
   } | null>(null);
 
-  // Hidratar dados do localStorage
   useEffect(() => {
     setData(getConsolidatedData());
     setIsHydrated(true);
   }, []);
 
-  // Calcular validação
   const validation = validateCharacterData(data);
 
-  // Notificar componente pai sobre validação
   useEffect(() => {
     onValidationChange?.(validation.isValid);
   }, [validation.isValid, onValidationChange]);
 
-  // ✅ FUNÇÃO PARA CRIAR PERSONAGEM (CORRIGIDA)
   const handleCreateCharacter = async () => {
     if (!validation.isValid) {
       setCreateResult({
@@ -789,7 +729,6 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
       return;
     }
 
-    // ✅ BUSCAR TOKEN E USER_ID
     const token = getAuthToken();
     if (!token) {
       setCreateResult({
@@ -808,19 +747,8 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
       return;
     }
 
-    console.log('✅ Validações passaram - Token e User ID OK');
-    console.log('👤 User ID que será usado:', userId);
-
-    // ✅ GERAR PAYLOAD PASSANDO O USER_ID
     const backendPayload = generateBackendPayload(data, userId);
     
-    // ✅ DEBUG: Verificar payload antes de enviar
-    console.log('📋 Payload final antes do envio:', {
-      ...backendPayload,
-      user_id: backendPayload.user_id ? '***REDACTED***' : 'NULL/MISSING'
-    });
-    
-    // ✅ VERIFICAÇÃO FINAL DO PAYLOAD
     if (!backendPayload.user_id) {
       console.error('💥 ERRO CRÍTICO: payload.user_id está null/undefined');
       setCreateResult({
@@ -843,14 +771,11 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
           characterId: result.character_id,
         });
         
-        // Chamar callback opcional do componente pai
         onCreateCharacter?.();
         
-        // ✅ LIMPAR DADOS E REDIRECIONAR APÓS SUCESSO
         setTimeout(() => {
           clearAllCharacterCreationData();
           
-          // ✅ REDIRECIONAR PARA PÁGINA DA CAMPANHA
           const campaignId = backendPayload.campaign_id;
           if (campaignId && campaignId !== 'Não definido (personagem independente)') {
             window.location.href = `/campaign/${campaignId}`;
@@ -876,7 +801,6 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
     }
   };
 
-  // Calcular stats derivados
   const stats = data.finalAbilityScores ? {
     hitPoints: calculateBaseHP(data.selectedClass, calculateModifier(data.finalAbilityScores.constitution)),
     armorClass: calculateBaseAC(calculateModifier(data.finalAbilityScores.dexterity)),
@@ -893,464 +817,535 @@ const Review: React.FC<ReviewProps> = ({ onValidationChange, onCreateCharacter }
     );
   }
 
+  // Validações por seção
+  const sectionValidations = {
+    basic: !!data.name?.trim() && !!data.selectedRace && !!data.selectedClass && !!data.selectedBackground,
+    attributes: !!data.finalAbilityScores,
+    skills: data.selectedSkills.length > 0,
+    personality: data.personalityTraits.length > 0,
+  };
+
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Revisão do Personagem
-        </h1>
-        <p className="text-gray-600">
-          Revise todas as informações antes de criar seu personagem
-        </p>
-      </div>
-
-      {/* ✅ Resultado da Criação */}
-      {createResult && (
-        <Card className={`p-6 border-2 ${
-          createResult.success 
-            ? 'border-green-200 bg-green-50' 
-            : 'border-red-200 bg-red-50'
-        }`}>
-          <div className="flex items-center mb-4">
-            {createResult.success ? (
-              <CheckCircle2 className="w-6 h-6 text-green-600 mr-2" />
-            ) : (
-              <XCircle className="w-6 h-6 text-red-600 mr-2" />
-            )}
-            <h3 className="text-lg font-semibold">
-              {createResult.success ? 'Personagem Criado!' : 'Erro na Criação'}
-            </h3>
-          </div>
-          
-          <div className="mb-4">
-            <p className={createResult.success ? 'text-green-800' : 'text-red-800'}>
-              {createResult.message || createResult.error}
-            </p>
-            
-            {createResult.characterId && (
-              <p className="text-sm text-green-700 mt-2">
-                ID do Personagem: <code className="bg-white px-2 py-1 rounded border">{createResult.characterId}</code>
-              </p>
-            )}
-
-            {createResult.success && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  🎉 <strong>Personagem criado com sucesso!</strong>
-                </p>
-                <p className="text-sm text-blue-700 mt-1">
-                  Você será redirecionado em alguns segundos...
+    <div className="min-h-screen bg-slate-900 p-6">
+      <div className="space-y-6 max-w-4xl mx-auto">
+        {/* Header */}
+        <Card className="bg-slate-800/80 border-slate-700">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <CheckCircle className="w-5 h-5" />
+              Revisão do Personagem
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-slate-300">
+                  Revise todas as informações do seu personagem antes de finalizar a criação.
                 </p>
               </div>
-            )}
-          </div>
-
-          {createResult.success && (
-            <div className="flex gap-2">
-              <Button 
-                size="sm"
-                onClick={() => {
-                  const campaignId = (() => {
-                    try {
-                      if (typeof window !== 'undefined') {
-                        const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
-                        if (pathMatch) return pathMatch[1];
-                      }
-                      return null;
-                    } catch (error) {
-                      return null;
-                    }
-                  })();
-                  
-                  if (campaignId) {
-                    window.location.href = `/campaign/${campaignId}`;
-                  } else {
-                    window.location.href = '/characters';
-                  }
-                }}
-              >
-                {(() => {
-                  const campaignId = (() => {
-                    try {
-                      if (typeof window !== 'undefined') {
-                        const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
-                        if (pathMatch) return pathMatch[1];
-                      }
-                      return null;
-                    } catch (error) {
-                      return null;
-                    }
-                  })();
-                  
-                  return campaignId 
-                    ? 'Ir para Campanha' 
-                    : 'Ver Meus Personagens';
-                })()}
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  clearAllCharacterCreationData();
-                  window.location.reload();
-                }}
-              >
-                Criar Outro Personagem
-              </Button>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={validation.isValid ? "default" : "destructive"}
+                  className={validation.isValid ? "bg-green-600 text-green-100" : "bg-red-600 text-red-100"}
+                >
+                  {validation.isValid ? "Válido" : "Incompleto"}
+                </Badge>
+              </div>
             </div>
-          )}
-          
-          {!createResult.success && (
-            <div className="flex gap-2">
-              <Button 
-                size="sm"
-                onClick={() => setCreateResult(null)}
-              >
-                Tentar Novamente
-              </Button>
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => {
+          </CardContent>
+        </Card>
+
+        {/* Status geral */}
+        {!validation.isValid && (
+          <Alert className="bg-red-500/10 border-red-500/30">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="text-red-200">
+              Alguns passos ainda precisam ser completados antes de finalizar o personagem.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Informações de Sistema */}
+        <Card className="p-6 bg-slate-800 border-slate-700">
+          <div className="flex items-center mb-4">
+            <Globe className="w-5 h-5 text-blue-600 mr-2" />
+            <h3 className="text-xl font-bold text-blue-200">Informações do Sistema</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center">
+              <User className="w-4 h-4 text-blue-400 mr-2" />
+              <span className="font-medium text-slate-300">User ID:</span>
+              <span className="ml-2 font-mono text-sm bg-slate-700 px-2 py-1 rounded border border-slate-600">
+                {(() => {
+                  try {
+                    const token = getAuthToken();
+                    if (token) {
+                      return getUserIdFromJWT(token) || 'Não encontrado no token';
+                    }
+                    return 'Token não encontrado';
+                  } catch (error) {
+                    return 'Erro ao carregar';
+                  }
+                })()}
+              </span>
+            </div>
+            <div className="flex items-center">
+              <Globe className="w-4 h-4 text-blue-400 mr-2" />
+              <span className="font-medium text-slate-300">Campaign ID:</span>
+              <span className="ml-2 font-mono text-sm bg-slate-700 px-2 py-1 rounded border border-slate-600">
+                {(() => {
+                  try {
+                    if (typeof window !== 'undefined') {
+                      const urlParams = new URLSearchParams(window.location.search);
+                      const campaignFromUrl = urlParams.get('campaign_id');
+                      if (campaignFromUrl) return campaignFromUrl;
+                      
+                      const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
+                      if (pathMatch) return pathMatch[1];
+                    }
+                    
+                    return localStorage.getItem('current_campaign_id') || 
+                          sessionStorage.getItem('current_campaign_id') || 
+                          'Não definido';
+                  } catch (error) {
+                    return 'Erro ao carregar';
+                  }
+                })()}
+              </span>
+            </div>
+            <div className="flex items-center">
+              <CheckCircle className="w-4 h-4 text-blue-400 mr-2" />
+              <span className="font-medium text-slate-300">Autenticação:</span>
+              <span className={`ml-2 text-sm px-2 py-1 rounded border ${(() => {
+                const token = getAuthToken();
+                const userId = token ? getUserIdFromJWT(token) : null;
+                return (token && userId)
+                  ? 'bg-green-800/20 text-green-400 border-green-600/30' 
+                  : 'bg-red-800/20 text-red-400 border-red-600/30';
+              })()}`}>
+                {(() => {
                   const token = getAuthToken();
                   const userId = token ? getUserIdFromJWT(token) : null;
-                  const debugPayload = generateBackendPayload(data, userId);
-                  console.log('🔍 Payload enviado:', debugPayload);
-                  alert('Dados enviados foram logados no console para debug.');
-                }}
-              >
-                Ver Dados Enviados
-              </Button>
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* Validation Status */}
-      <Card className={`p-6 border-2 ${
-        validation.isValid 
-          ? 'border-green-200 bg-green-50' 
-          : 'border-red-200 bg-red-50'
-      }`}>
-        <div className="flex items-center mb-4">
-          {validation.isValid ? (
-            <CheckCircle className="w-6 h-6 text-green-600 mr-2" />
-          ) : (
-            <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
-          )}
-          <h3 className="text-lg font-semibold">
-            {validation.isValid ? 'Personagem Válido' : 'Personagem Incompleto'}
-          </h3>
-        </div>
-        
-        {validation.errors.length > 0 && (
-          <div className="mb-4">
-            <h4 className="font-medium text-red-800 mb-2">Erros que impedem a criação:</h4>
-            <ul className="list-disc list-inside text-red-700 space-y-1">
-              {validation.errors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {validation.warnings.length > 0 && (
-          <div>
-            <h4 className="font-medium text-amber-800 mb-2">Avisos:</h4>
-            <ul className="list-disc list-inside text-amber-700 space-y-1">
-              {validation.warnings.map((warning, index) => (
-                <li key={index}>{warning}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </Card>
-
-      {/* Informações de Sistema */}
-      <Card className="p-6 bg-blue-50 border-blue-200">
-        <div className="flex items-center mb-4">
-          <Globe className="w-5 h-5 text-blue-600 mr-2" />
-          <h3 className="text-xl font-bold text-blue-900">Informações do Sistema</h3>
-        </div>
-        <div className="space-y-3">
-          <div className="flex items-center">
-            <User className="w-4 h-4 text-blue-600 mr-2" />
-            <span className="font-medium text-gray-700">User ID:</span>
-            <span className="ml-2 font-mono text-sm bg-white px-2 py-1 rounded border">
-              {(() => {
-                try {
-                  const token = getAuthToken();
-                  if (token) {
-                    return getUserIdFromJWT(token) || 'Não encontrado no token';
-                  }
-                  return 'Token não encontrado';
-                } catch (error) {
-                  return 'Erro ao carregar';
-                }
-              })()}
-            </span>
-          </div>
-          <div className="flex items-center">
-            <Globe className="w-4 h-4 text-blue-600 mr-2" />
-            <span className="font-medium text-gray-700">Campaign ID:</span>
-            <span className="ml-2 font-mono text-sm bg-white px-2 py-1 rounded border">
-              {(() => {
-                try {
-                  if (typeof window !== 'undefined') {
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const campaignFromUrl = urlParams.get('campaign_id');
-                    if (campaignFromUrl) return campaignFromUrl;
-                    
-                    const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
-                    if (pathMatch) return pathMatch[1];
-                  }
                   
-                  return localStorage.getItem('current_campaign_id') || 
-                         sessionStorage.getItem('current_campaign_id') || 
-                         'Não definido';
-                } catch (error) {
-                  return 'Erro ao carregar';
-                }
-              })()}
-            </span>
-          </div>
-          <div className="flex items-center">
-            <CheckCircle className="w-4 h-4 text-blue-600 mr-2" />
-            <span className="font-medium text-gray-700">Autenticação:</span>
-            <span className={`ml-2 text-sm px-2 py-1 rounded border ${(() => {
-              const token = getAuthToken();
-              const userId = token ? getUserIdFromJWT(token) : null;
-              return (token && userId)
-                ? 'bg-green-100 text-green-800 border-green-200' 
-                : 'bg-red-100 text-red-800 border-red-200';
-            })()}`}>
-              {(() => {
-                const token = getAuthToken();
-                const userId = token ? getUserIdFromJWT(token) : null;
-                
-                if (token && userId) {
-                  return '✅ Token e User ID válidos';
-                } else if (token && !userId) {
-                  return '⚠️ Token válido, mas User ID não encontrado';
-                } else {
-                  return '❌ Token não encontrado';
-                }
-              })()}
-            </span>
-          </div>
-        </div>
-        <div className="mt-4 text-sm text-blue-700">
-          <Info className="w-4 h-4 inline mr-1" />
-          Estas informações serão enviadas automaticamente com o personagem.
-        </div>
-      </Card>
-
-      {/* Character Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Informações Básicas */}
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Informações Básicas</h3>
-          <div className="space-y-3">
-            <div>
-              <span className="font-medium text-gray-600">Nome:</span>
-              <span className="ml-2 text-lg">{data.name || 'Não definido'}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-600">Raça:</span>
-              <span className="ml-2">
-                {data.selectedRace?.name || 'Não selecionada'}
-                {data.selectedSubrace && ` (${data.selectedSubrace.name})`}
+                  if (token && userId) {
+                    return '✅ Token e User ID válidos';
+                  } else if (token && !userId) {
+                    return '⚠️ Token válido, mas User ID não encontrado';
+                  } else {
+                    return '❌ Token não encontrado';
+                  }
+                })()}
               </span>
             </div>
-            <div>
-              <span className="font-medium text-gray-600">Classe:</span>
-              <span className="ml-2">
-                {data.selectedClass?.name || 'Não selecionada'}
-                {data.selectedSubclass && ` (${data.selectedSubclass.name})`}
-              </span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-600">Background:</span>
-              <span className="ml-2">{data.selectedBackground?.name || 'Não selecionado'}</span>
-            </div>
-            <div>
-              <span className="font-medium text-gray-600">Nível:</span>
-              <span className="ml-2">1</span>
-            </div>
+          </div>
+          <div className="mt-4 text-sm text-blue-400">
+            <Info className="w-4 h-4 inline mr-1" />
+            Estas informações serão enviadas automaticamente com o personagem.
           </div>
         </Card>
 
-        {/* Stats de Combate */}
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Stats de Combate</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">{stats.hitPoints}</div>
-              <div className="text-sm text-gray-600">Pontos de Vida</div>
+        {/* Resultado da Criação */}
+        {createResult && (
+          <Card className={`p-6 border-2 ${
+            createResult.success 
+              ? 'border-green-500/30 bg-green-900/20' 
+              : 'border-red-500/30 bg-red-900/20'
+          }`}>
+            <div className="flex items-center mb-4">
+              {createResult.success ? (
+                <CheckCircle2 className="w-6 h-6 text-green-400 mr-2" />
+              ) : (
+                <XCircle className="w-6 h-6 text-red-400 mr-2" />
+              )}
+              <h3 className="text-lg font-semibold text-white">
+                {createResult.success ? 'Personagem Criado!' : 'Erro na Criação'}
+              </h3>
             </div>
-            <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{stats.armorClass}</div>
-              <div className="text-sm text-gray-600">Classe de Armadura</div>
-            </div>
-          </div>
-        </Card>
-      </div>
+            
+            <div className="mb-4">
+              <p className={createResult.success ? 'text-green-300' : 'text-red-300'}>
+                {createResult.message || createResult.error}
+              </p>
+              
+              {createResult.characterId && (
+                <p className="text-sm text-green-400 mt-2">
+                  ID do Personagem: <code className="bg-slate-800 px-2 py-1 rounded border border-slate-700">{createResult.characterId}</code>
+                </p>
+              )}
 
-      {/* Ability Scores */}
-      {data.finalAbilityScores && (
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Atributos</h3>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-            {Object.entries(data.finalAbilityScores).map(([ability, score]) => (
-              <div key={ability} className="text-center p-3 bg-gray-50 rounded-lg">
-                <div className="text-lg font-bold">{score}</div>
-                <div className="text-sm text-gray-600 capitalize">{ability.substring(0, 3)}</div>
-                <div className="text-xs text-gray-500">
-                  {formatModifier(calculateModifier(score))}
+              {createResult.success && (
+                <div className="mt-3 p-3 bg-blue-900/20 border border-blue-700 rounded-lg">
+                  <p className="text-sm text-blue-300">
+                    🎉 <strong>Personagem criado com sucesso!</strong>
+                  </p>
+                  <p className="text-sm text-blue-300 mt-1">
+                    Você será redirecionado em alguns segundos...
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {createResult.success && (
+              <div className="flex gap-2">
+                <Button 
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => {
+                    const campaignId = (() => {
+                      try {
+                        if (typeof window !== 'undefined') {
+                          const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
+                          if (pathMatch) return pathMatch[1];
+                        }
+                        return null;
+                      } catch (error) {
+                        return null;
+                      }
+                    })();
+                    
+                    if (campaignId) {
+                      window.location.href = `/campaign/${campaignId}`;
+                    } else {
+                      window.location.href = '/characters';
+                    }
+                  }}
+                >
+                  {(() => {
+                    const campaignId = (() => {
+                      try {
+                        if (typeof window !== 'undefined') {
+                          const pathMatch = window.location.pathname.match(/\/campaign\/([^\/]+)/);
+                          if (pathMatch) return pathMatch[1];
+                        }
+                        return null;
+                      } catch (error) {
+                        return null;
+                      }
+                    })();
+                    
+                    return campaignId 
+                      ? 'Ir para Campanha' 
+                      : 'Ver Meus Personagens';
+                  })()}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  onClick={() => {
+                    clearAllCharacterCreationData();
+                    window.location.reload();
+                  }}
+                >
+                  Criar Outro Personagem
+                </Button>
+              </div>
+            )}
+            
+            {!createResult.success && (
+              <div className="flex gap-2">
+                <Button 
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setCreateResult(null)}
+                >
+                  Tentar Novamente
+                </Button>
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                  onClick={() => {
+                    const token = getAuthToken();
+                    const userId = token ? getUserIdFromJWT(token) : null;
+                    const debugPayload = generateBackendPayload(data, userId);
+                    console.log('🔍 Payload enviado:', debugPayload);
+                    alert('Dados enviados foram logados no console para debug.');
+                  }}
+                >
+                  Ver Dados Enviados
+                </Button>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Seções de revisão */}
+        <div className="space-y-4">
+          {/* Informações Básicas */}
+          <ReviewSection
+            title="Informações Básicas"
+            icon={<User className="w-5 h-5 text-blue-400" />}
+            isValid={sectionValidations.basic}
+            defaultOpen={!sectionValidations.basic}
+          >
+            {data.name || data.selectedRace || data.selectedClass || data.selectedBackground ? (
+              <div className="space-y-4">
+                <div>
+                  <span className="font-medium text-slate-300">Nome:</span>
+                  <span className="ml-2 text-white">{data.name || 'Não definido'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-300">Raça:</span>
+                  <span className="ml-2 text-white">
+                    {data.selectedRace?.name || 'Não selecionada'}
+                    {data.selectedSubrace && ` (${data.selectedSubrace.name})`}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-300">Classe:</span>
+                  <span className="ml-2 text-white">
+                    {data.selectedClass?.name || 'Não selecionada'}
+                    {data.selectedSubclass && ` (${data.selectedSubclass.name})`}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-300">Background:</span>
+                  <span className="ml-2 text-white">{data.selectedBackground?.name || 'Não selecionado'}</span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-300">Nível:</span>
+                  <span className="ml-2 text-white">1</span>
                 </div>
               </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Skills */}
-      {data.selectedSkills.length > 0 && (
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Perícias Selecionadas</h3>
-          <div className="flex flex-wrap gap-2">
-            {data.selectedSkills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="capitalize">
-                {skill.replace('-', ' ')}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Spells */}
-      {data.selectedSpells.length > 0 && (
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Magias Selecionadas</h3>
-          <div className="flex flex-wrap gap-2">
-            {data.selectedSpells.map((spell) => (
-              <Badge key={spell} variant="outline">
-                {spell}
-              </Badge>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Personality */}
-      {(data.personalityTraits.length > 0 || data.ideals.length > 0 || data.bonds.length > 0 || data.flaws.length > 0) && (
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Personalidade</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.personalityTraits.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">Traços de Personalidade:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {data.personalityTraits.map((trait, index) => (
-                    <li key={index}>{trait}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.ideals.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">Ideais:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {data.ideals.map((ideal, index) => (
-                    <li key={index}>{ideal}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.bonds.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">Vínculos:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {data.bonds.map((bond, index) => (
-                    <li key={index}>{bond}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {data.flaws.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-2">Defeitos:</h4>
-                <ul className="list-disc list-inside text-sm text-gray-700">
-                  {data.flaws.map((flaw, index) => (
-                    <li key={index}>{flaw}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      {/* Backend Payload Preview */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold">Dados para o Backend</h3>
-          <Button
-            variant="outline"
-            onClick={() => setShowBackendPayload(!showBackendPayload)}
-            className="flex items-center gap-2"
-          >
-            {showBackendPayload ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {showBackendPayload ? 'Ocultar' : 'Mostrar'} Payload
-          </Button>
-        </div>
-        
-        {showBackendPayload && (
-          <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-            <pre className="text-sm">
-              {(() => {
-                const token = getAuthToken();
-                const userId = token ? getUserIdFromJWT(token) : null;
-                const payload = generateBackendPayload(data, userId);
-                return JSON.stringify(payload, null, 2);
-              })()}
-            </pre>
-          </div>
-        )}
-        
-        <div className="mt-4 text-sm text-gray-600">
-          <Info className="w-4 h-4 inline mr-1" />
-          Este é o formato de dados que será enviado para o backend ao criar o personagem.
-        </div>
-      </Card>
-
-      {/* Action Button */}
-      {validation.isValid && !createResult?.success && (
-        <div className="text-center pt-4">
-          <Button 
-            size="lg" 
-            onClick={handleCreateCharacter}
-            disabled={isCreating}
-            className="min-w-[200px]"
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Criando Personagem...
-              </>
             ) : (
-              'Criar Personagem'
+              <p className="text-red-300 text-sm">
+                Informações básicas incompletas. Volte aos passos iniciais.
+              </p>
             )}
-          </Button>
-          
-          {isCreating && (
-            <p className="text-sm text-gray-600 mt-2">
-              Enviando dados para o servidor...
-            </p>
-          )}
+          </ReviewSection>
+
+          {/* Atributos */}
+          <ReviewSection
+            title="Atributos"
+            icon={<Zap className="w-5 h-5 text-yellow-400" />}
+            isValid={sectionValidations.attributes}
+            defaultOpen={!sectionValidations.attributes}
+          >
+            {data.finalAbilityScores ? (
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                {Object.entries(data.finalAbilityScores).map(([ability, score]) => (
+                  <div key={ability} className="text-center p-3 bg-slate-700/50 rounded-lg">
+                    <div className="text-lg font-bold text-white">{score}</div>
+                    <div className="text-sm text-slate-300 capitalize">{ability.substring(0, 3)}</div>
+                    <div className="text-xs text-slate-400">
+                      {formatModifier(calculateModifier(score))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-red-300 text-sm">
+                Atributos não definidos. Complete a distribuição de pontos de atributo.
+              </p>
+            )}
+          </ReviewSection>
+
+          {/* Perícias */}
+          <ReviewSection
+            title="Perícias"
+            icon={<Target className="w-5 h-5 text-green-400" />}
+            isValid={sectionValidations.skills}
+            defaultOpen={!sectionValidations.skills}
+          >
+            {data.selectedSkills.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {data.selectedSkills.map((skill) => (
+                  <Badge 
+                    key={skill} 
+                    variant="secondary" 
+                    className="bg-green-800/30 text-green-300 border-green-600 capitalize"
+                  >
+                    {skill.replace('-', ' ')}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-red-300 text-sm">
+                Nenhuma perícia selecionada. Volte ao passo de seleção de perícias.
+              </p>
+            )}
+          </ReviewSection>
+
+          {/* Magias */}
+          <ReviewSection 
+            title="Magias" 
+            icon={<Wand2 className="w-5 h-5 text-purple-400" />} 
+            isValid={true}
+          >
+            {data.selectedSpells.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {data.selectedSpells.map((spell) => (
+                  <Badge 
+                    key={spell} 
+                    variant="outline" 
+                    className="border-purple-600 text-purple-300 bg-purple-900/20"
+                  >
+                    {spell}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-slate-400 text-sm">
+                Esta classe não requer magias ou nenhuma magia foi selecionada.
+              </p>
+            )}
+          </ReviewSection>
+
+          {/* Personalidade */}
+          <ReviewSection
+            title="Personalidade"
+            icon={<Heart className="w-5 h-5 text-pink-400" />}
+            isValid={sectionValidations.personality}
+            defaultOpen={!sectionValidations.personality}
+          >
+            {(data.personalityTraits.length > 0 || data.ideals.length > 0 || data.bonds.length > 0 || data.flaws.length > 0) ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {data.personalityTraits.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-slate-300 mb-2">Traços de Personalidade:</h4>
+                    <ul className="list-disc list-inside text-sm text-slate-300">
+                      {data.personalityTraits.map((trait, index) => (
+                        <li key={index}>{trait}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {data.ideals.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-slate-300 mb-2">Ideais:</h4>
+                    <ul className="list-disc list-inside text-sm text-slate-300">
+                      {data.ideals.map((ideal, index) => (
+                        <li key={index}>{ideal}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {data.bonds.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-slate-300 mb-2">Vínculos:</h4>
+                    <ul className="list-disc list-inside text-sm text-slate-300">
+                      {data.bonds.map((bond, index) => (
+                        <li key={index}>{bond}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {data.flaws.length > 0 && (
+                  <div>
+                    <h4 className="font-medium text-slate-300 mb-2">Defeitos:</h4>
+                    <ul className="list-disc list-inside text-sm text-slate-300">
+                      {data.flaws.map((flaw, index) => (
+                        <li key={index}>{flaw}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {data.backstory && (
+                  <div className="md:col-span-2">
+                    <h4 className="font-medium text-slate-300 mb-2">História:</h4>
+                    <p className="text-sm text-slate-300 whitespace-pre-line">{data.backstory}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-red-300 text-sm">
+                Personalidade não definida. Complete as informações de personalidade.
+              </p>
+            )}
+          </ReviewSection>
+
+          {/* Dados para Backend */}
+          <ReviewSection
+            title="Dados para o Backend"
+            icon={<Globe className="w-5 h-5 text-blue-400" />}
+            isValid={true}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowBackendPayload(!showBackendPayload)}
+                className="flex items-center gap-2 border-slate-600 text-slate-300 hover:bg-slate-700"
+              >
+                {showBackendPayload ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showBackendPayload ? 'Ocultar' : 'Mostrar'} Payload
+              </Button>
+            </div>
+            
+            {showBackendPayload && (
+              <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
+                <pre className="text-sm">
+                  {(() => {
+                    const token = getAuthToken();
+                    const userId = token ? getUserIdFromJWT(token) : null;
+                    const payload = generateBackendPayload(data, userId);
+                    return JSON.stringify(payload, null, 2);
+                  })()}
+                </pre>
+              </div>
+            )}
+            
+            <div className="mt-4 text-sm text-slate-400">
+              <Info className="w-4 h-4 inline mr-1" />
+              Este é o formato de dados que será enviado para o backend ao criar o personagem.
+            </div>
+          </ReviewSection>
         </div>
-      )}
+
+        {/* Ações finais */}
+        {validation.isValid && !createResult?.success && (
+          <Card className="bg-slate-800/80 border-slate-700">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Button
+                  onClick={() => {
+                    const token = getAuthToken();
+                    const userId = token ? getUserIdFromJWT(token) : null;
+                    const backendPayload = generateBackendPayload(data, userId);
+                    const dataStr = JSON.stringify(backendPayload, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "character_payload.json";
+                    link.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  variant="outline"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Exportar JSON
+                </Button>
+                <Button 
+                  size="lg" 
+                  onClick={handleCreateCharacter}
+                  disabled={isCreating}
+                  className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Criando Personagem...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Finalizar Personagem
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {isCreating && (
+                <p className="text-sm text-slate-400 mt-4 text-center">
+                  Enviando dados para o servidor...
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };

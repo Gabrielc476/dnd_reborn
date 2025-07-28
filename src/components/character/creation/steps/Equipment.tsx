@@ -268,7 +268,7 @@ const SortIcon = ({ field, currentField, direction }: {
     currentField: SortField; 
     direction: SortDirection 
 }) => {
-    if (field !== currentField) return <ArrowUpDown className="h-3 w-3 text-gray-400" />;
+    if (field !== currentField) return <ArrowUpDown className="h-3 w-3 text-slate-500" />;
     return direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
 };
 
@@ -579,644 +579,623 @@ const EquipmentComponent = ({ onValidationChange }: EquipmentProps) => {
 
     // Renderização
     return (
-        <div className="space-y-8">
-            {/* Estatísticas do Personagem */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
-                                <Shield className="h-8 w-8 text-white" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-blue-700">{TEXT.ARMOR_CLASS}</p>
-                                <p className="text-3xl font-bold text-blue-900">{totalArmorClass}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-                
-                <Card className="border-red-200 bg-gradient-to-br from-red-50 to-red-100">
-                    <CardContent className="p-6">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-red-500 rounded-xl shadow-lg">
-                                <Heart className="h-8 w-8 text-white" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-red-700">{TEXT.HIT_POINTS}</p>
-                                <p className="text-3xl font-bold text-red-900">{hitPoints}</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-            
-            {/* Seleção de Modo */}
-            <Card className="border-purple-200">
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-purple-800">
-                        <Package className="h-5 w-5" />
-                        {TEXT.EQUIPMENT_METHOD}
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Card 
-                            className={`cursor-pointer transition-all ${
-                                equipmentMode === 'starting' 
-                                    ? 'border-green-500 bg-green-50 shadow-md' 
-                                    : 'border-gray-200 hover:border-green-300'
-                            }`}
-                            onClick={() => handleModeChange('starting')}
-                        >
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-xl shadow-lg ${equipmentMode === 'starting' ? 'bg-green-500' : 'bg-gray-400'}`}>
-                                        <Gift className="h-8 w-8 text-white" />
-                                    </div>
-                                    <div>
-                                        <h3 className={`text-lg font-bold ${equipmentMode === 'starting' ? 'text-green-900' : 'text-gray-700'}`}>
-                                            {TEXT.INITIAL_EQUIPMENT}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">{TEXT.INITIAL_DESC}</p>
-                                    </div>
+        <div className="min-h-screen bg-slate-900 p-6">
+            <div className="space-y-8">
+                {/* Estatísticas do Personagem */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="border-blue-500/30 bg-gradient-to-br from-blue-500/10 to-blue-600/20">
+                        <CardContent className="p-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-blue-500 rounded-xl shadow-lg">
+                                    <Shield className="h-8 w-8 text-white" />
                                 </div>
-                            </CardContent>
-                        </Card>
-                        
-                        <Card 
-                            className={`cursor-pointer transition-all ${
-                                equipmentMode === 'purchase' 
-                                    ? 'border-yellow-500 bg-yellow-50 shadow-md' 
-                                    : 'border-gray-200 hover:border-yellow-300'
-                            }`}
-                            onClick={() => handleModeChange('purchase')}
-                        >
-                            <CardContent className="p-6">
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-3 rounded-xl shadow-lg ${equipmentMode === 'purchase' ? 'bg-yellow-500' : 'bg-gray-400'}`}>
-                                        <ShoppingCart className="h-8 w-8 text-white" />
-                                    </div>
-                                    <div>
-                                        <h3 className={`text-lg font-bold ${equipmentMode === 'purchase' ? 'text-yellow-900' : 'text-gray-700'}`}>
-                                            {TEXT.PURCHASE_EQUIPMENT}
-                                        </h3>
-                                        <p className="text-sm text-gray-600">{TEXT.PURCHASE_DESC}</p>
-                                        {equipmentMode === 'purchase' && selectedClass && (
-                                            <div className="flex items-center gap-2 mt-2">
-                                                <Coins className="h-4 w-4 text-yellow-600" />
-                                                <span className="text-lg font-bold text-yellow-800">
-                                                    {currentGold} GO
-                                                </span>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handleRerollGold();
-                                                    }}
-                                                    className="ml-2"
-                                                >
-                                                    <RefreshCw className="h-3 w-3 mr-1" />
-                                                    {TEXT.GOLD_ROLL}
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
+                                <div>
+                                    <p className="text-sm font-medium text-blue-300">{TEXT.ARMOR_CLASS}</p>
+                                    <p className="text-3xl font-bold text-blue-100">{totalArmorClass}</p>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                     
-                    {equipmentMode === 'purchase' && selectedClass && (
-                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="flex items-center gap-2 mb-2">
-                                <DiceIcon value={4} />
-                                <span className="font-semibold text-yellow-800">
-                                    {TEXT.GOLD_FORMULA} {getStartingWealth(selectedClass.index).formula} GO
-                                </span>
-                            </div>
-                            <p className="text-sm text-yellow-700">
-                                {TEXT.AVERAGE} {getStartingWealth(selectedClass.index).average} GO | 
-                                {TEXT.CURRENT} <strong>{currentGold} GO</strong>
-                            </p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-            
-            {/* Equipamento Inicial */}
-            {equipmentMode === 'starting' && selectedClass && (
-                <Card className="border-green-200">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-green-800">
-                            <Gift className="h-5 w-5" />
-                            {TEXT.INITIAL_EQUIPMENT} {selectedClass?.name}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {loadingStartingEquipment ? (
-                            <div className="text-center py-8">
-                                <Loader2 className="h-8 w-8 animate-spin text-green-600 mx-auto mb-4" />
-                                <p className="text-green-700">{TEXT.LOADING_STARTING}</p>
-                            </div>
-                        ) : startingEquipment ? (
-                            <div className="space-y-6">
-                                {startingEquipment.equipment.length > 0 && (
-                                    <div>
-                                        <h4 className="font-semibold text-green-800 mb-3">{TEXT.FIXED_EQUIPMENT}</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            {startingEquipment.equipment.map((item, index) => (
-                                                <div key={index} className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                                    <div className="flex items-center justify-between">
-                                                        <div>
-                                                            <p className="font-medium text-green-900">
-                                                                {item.equipment?.name || 'Item desconhecido'}
-                                                            </p>
-                                                            <p className="text-sm text-green-600">
-                                                                {TEXT.QUANTITY} {item.quantity || 1}
-                                                            </p>
-                                                        </div>
-                                                        <Button
-                                                            size="sm"
-                                                            onClick={async () => {
-                                                                if (!item.equipment?.url) return;
-                                                                try {
-                                                                    const response = await fetch(`${BASE_API_URL}${item.equipment.url}`);
-                                                                    if (response.ok) {
-                                                                        const equipmentData = await response.json();
-                                                                        for (let i = 0; i < (item.quantity || 1); i++) {
-                                                                            handleEquipmentAdd(equipmentData, 'starting');
-                                                                        }
-                                                                    }
-                                                                } catch (error) {
-                                                                    console.error('Erro ao buscar equipamento:', error);
-                                                                }
-                                                            }}
-                                                            className="bg-green-600 hover:bg-green-700 text-white"
-                                                        >
-                                                            <Plus className="h-4 w-4 mr-1" />
-                                                            {TEXT.ADD}
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {startingEquipment.starting_equipment_options.length > 0 && (
-                                    startingEquipment.starting_equipment_options.map((choice, choiceIndex) => (
-                                        <div key={choiceIndex} className="border border-green-200 rounded-lg p-4">
-                                            <h4 className="font-semibold text-green-800 mb-3">
-                                                {choice.desc || `${TEXT.CHOOSE_EQUIPMENT} ${choice.choose}`}
-                                            </h4>
-                                            {choice.from?.options && (
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                    {choice.from.options.map((option, optionIndex) => (
-                                                        <Card 
-                                                            key={optionIndex}
-                                                            className={`cursor-pointer transition-all ${
-                                                                startingChoices[choiceIndex] === optionIndex
-                                                                    ? 'border-green-500 bg-green-50' 
-                                                                    : 'border-gray-200 hover:border-green-300'
-                                                            }`}
-                                                            onClick={() => handleStartingEquipmentChoice(choiceIndex, optionIndex)}
-                                                        >
-                                                            <CardContent className="p-3">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div>
-                                                                        <p className="font-medium">
-                                                                            {option.of?.name || option.choice?.desc || 'Opção especial'}
-                                                                        </p>
-                                                                        {option.count > 1 && (
-                                                                            <p className="text-sm text-green-600">
-                                                                                {TEXT.QUANTITY} {option.count}
-                                                                            </p>
-                                                                        )}
-                                                                        {option.option_type === 'choice' && (
-                                                                            <p className="text-xs text-gray-600">
-                                                                                Escolha de categoria
-                                                                            </p>
-                                                                        )}
-                                                                    </div>
-                                                                    {startingChoices[choiceIndex] === optionIndex && (
-                                                                        <Badge className="bg-green-500 text-white">
-                                                                            {TEXT.SELECTED}
-                                                                        </Badge>
-                                                                    )}
-                                                                </div>
-                                                            </CardContent>
-                                                        </Card>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        ) : (
-                            <div className="text-center py-8">
-                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-                                    <p className="text-yellow-800 mb-2">
-                                        Nenhum equipamento inicial encontrado para esta classe.
-                                    </p>
-                                    <p className="text-sm text-yellow-600">
-                                        Você pode usar o modo de compra com gold inicial.
-                                    </p>
+                    <Card className="border-red-500/30 bg-gradient-to-br from-red-500/10 to-red-600/20">
+                        <CardContent className="p-6">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-red-500 rounded-xl shadow-lg">
+                                    <Heart className="h-8 w-8 text-white" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-medium text-red-300">{TEXT.HIT_POINTS}</p>
+                                    <p className="text-3xl font-bold text-red-100">{hitPoints}</p>
                                 </div>
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
-            )}
-            
-            {/* Dados do Personagem */}
-            {characterData && (
-                <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center gap-2 text-indigo-800">
-                            <Info className="h-5 w-5" />
-                            {TEXT.CHARACTER_DATA}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                                <p className="font-medium text-indigo-700">{TEXT.RACE}</p>
-                                <p className="text-indigo-600">{selectedRace?.name || 'N/A'}</p>
-                            </div>
-                            <div>
-                                <p className="font-medium text-indigo-700">{TEXT.CLASS}</p>
-                                <p className="text-indigo-600">{selectedClass?.name || 'N/A'}</p>
-                            </div>
-                            <div>
-                                <p className="font-medium text-indigo-700">{TEXT.BACKGROUND}</p>
-                                <p className="text-indigo-600">{selectedBackground?.name || 'N/A'}</p>
-                            </div>
-                            <div>
-                                <p className="font-medium text-indigo-700">{TEXT.PROFICIENCIES}</p>
-                                <p className="text-indigo-600">{proficiencies.length} itens</p>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-            
-            {/* Equipamentos Selecionados */}
-            {selectedEquipment.length > 0 && (
-                <Card className="border-purple-200">
+                        </CardContent>
+                    </Card>
+                </div>
+                
+                {/* Seleção de Modo */}
+                <Card className="border-purple-500/30 bg-slate-800/80">
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-purple-800">
+                        <CardTitle className="flex items-center gap-2 text-purple-300">
                             <Package className="h-5 w-5" />
-                            {TEXT.SELECTED_EQUIPMENT} ({selectedEquipment.length})
+                            {TEXT.EQUIPMENT_METHOD}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {selectedEquipment.map((item) => (
-                                <div key={item.equipment.index} className="group relative bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-100 hover:shadow-md transition-all">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex items-start gap-3 flex-1">
-                                            <div className="p-2 bg-purple-100 rounded-lg">
-                                                {getCategoryIcon(item.equipment.equipment_category?.index)}
-                                            </div>
-                                            <div className="flex-1">
-                                                <h4 className="font-semibold text-purple-900">{item.equipment.name}</h4>
-                                                <p className="text-sm text-purple-600 mb-2">
-                                                    {item.equipment.equipment_category?.name}
-                                                </p>
-                                                <div className="flex flex-wrap gap-2 text-xs">
-                                                    <span className="bg-purple-200 text-purple-800 px-2 py-1 rounded">
-                                                        {TEXT.QUANTITY} {item.quantity}
-                                                    </span>
-                                                    <span className={`px-2 py-1 rounded ${
-                                                        item.source === 'starting' 
-                                                            ? 'bg-green-200 text-green-800' 
-                                                            : 'bg-yellow-200 text-yellow-800'
-                                                    }`}>
-                                                        {item.source === 'starting' ? TEXT.INITIAL : TEXT.PURCHASED}
-                                                    </span>
-                                                    {item.equipment.armor_class && (
-                                                        <span className="bg-blue-200 text-blue-800 px-2 py-1 rounded">
-                                                            CA: {item.equipment.armor_class.base}
-                                                        </span>
-                                                    )}
-                                                    {item.equipment.damage && (
-                                                        <span className="bg-red-200 text-red-800 px-2 py-1 rounded">
-                                                            {item.equipment.damage.damage_dice} {item.equipment.damage.damage_type.name}
-                                                        </span>
-                                                    )}
-                                                    {isProficientWith(item.equipment, proficiencies) && (
-                                                        <span className="bg-green-200 text-green-800 px-2 py-1 rounded flex items-center gap-1">
-                                                            <Star className="h-3 w-3" />
-                                                            {TEXT.PROFICIENT}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
+                            <Card 
+                                className={`cursor-pointer transition-all ${
+                                    equipmentMode === 'starting' 
+                                        ? 'border-green-400 bg-green-500/20 shadow-md' 
+                                        : 'border-slate-600 hover:border-green-400/50 bg-slate-700/50'
+                                }`}
+                                onClick={() => handleModeChange('starting')}
+                            >
+                                <CardContent className="p-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-xl shadow-lg ${equipmentMode === 'starting' ? 'bg-green-500' : 'bg-slate-600'}`}>
+                                            <Gift className="h-8 w-8 text-white" />
                                         </div>
-                                        <Button 
-                                            size="sm" 
-                                            variant="outline" 
-                                            onClick={() => handleEquipmentRemove(item.equipment.index)}
-                                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                                        >
-                                            <Minus className="h-4 w-4" />
-                                        </Button>
+                                        <div>
+                                            <h3 className={`text-lg font-bold ${equipmentMode === 'starting' ? 'text-green-300' : 'text-slate-300'}`}>
+                                                {TEXT.INITIAL_EQUIPMENT}
+                                            </h3>
+                                            <p className="text-sm text-slate-400">{TEXT.INITIAL_DESC}</p>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-            
-            {/* Loja de Equipamentos */}
-            {equipmentMode === 'purchase' && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Search className="h-5 w-5" />
-                                {TEXT.SHOP_TITLE}
-                            </div>
-                            <div className="flex items-center gap-2 text-yellow-600">
-                                <Coins className="h-5 w-5" />
-                                <span className="text-xl font-bold">{currentGold} GO</span>
-                            </div>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col lg:flex-row gap-4 mb-6">
-                            <div className="flex-1 relative">
-                                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                                <Input
-                                    placeholder={TEXT.SEARCH_PLACEHOLDER}
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
-                                />
-                            </div>
-                            <div className="flex flex-wrap gap-3">
-                                <select 
-                                    value={selectedCategory} 
-                                    onChange={(e) => setSelectedCategory(e.target.value)}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                                >
-                                    {categories.map(cat => (
-                                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                                    ))}
-                                </select>
-                                <Button
-                                    variant={showOnlyProficient ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => setShowOnlyProficient(!showOnlyProficient)}
-                                    className="whitespace-nowrap"
-                                >
-                                    <Filter className="h-4 w-4 mr-2" />
-                                    {TEXT.PROFICIENCY_FILTER}
-                                </Button>
-                            </div>
+                                </CardContent>
+                            </Card>
+                            
+                            <Card 
+                                className={`cursor-pointer transition-all ${
+                                    equipmentMode === 'purchase' 
+                                        ? 'border-yellow-400 bg-yellow-500/20 shadow-md' 
+                                        : 'border-slate-600 hover:border-yellow-400/50 bg-slate-700/50'
+                                }`}
+                                onClick={() => handleModeChange('purchase')}
+                            >
+                                <CardContent className="p-6">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-3 rounded-xl shadow-lg ${equipmentMode === 'purchase' ? 'bg-yellow-500' : 'bg-slate-600'}`}>
+                                            <ShoppingCart className="h-8 w-8 text-white" />
+                                        </div>
+                                        <div>
+                                            <h3 className={`text-lg font-bold ${equipmentMode === 'purchase' ? 'text-yellow-300' : 'text-slate-300'}`}>
+                                                {TEXT.PURCHASE_EQUIPMENT}
+                                            </h3>
+                                            <p className="text-sm text-slate-400">{TEXT.PURCHASE_DESC}</p>
+                                            {equipmentMode === 'purchase' && selectedClass && (
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Coins className="h-4 w-4 text-yellow-400" />
+                                                    <span className="text-lg font-bold text-yellow-300">
+                                                        {currentGold} GO
+                                                    </span>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRerollGold();
+                                                        }}
+                                                        className="ml-2 border-slate-600 text-slate-300 hover:bg-slate-700"
+                                                    >
+                                                        <RefreshCw className="h-3 w-3 mr-1" />
+                                                        {TEXT.GOLD_ROLL}
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </div>
                         
-                        {isLoading ? (
-                            <div className="text-center py-12">
-                                <div className="flex flex-col items-center gap-4">
-                                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                                    <div>
-                                        <h3 className="text-lg font-semibold mb-2">{TEXT.LOADING_EQUIPMENT}</h3>
-                                        <div className="w-80 bg-gray-200 rounded-full h-3 mb-2">
-                                            <div 
-                                                className="bg-blue-600 h-3 rounded-full transition-all duration-300"
-                                                style={{ width: `${loadingProgress}%` }}
-                                            ></div>
-                                        </div>
-                                        <p className="text-sm text-gray-600">{loadingProgress}% completo</p>
-                                    </div>
+                        {equipmentMode === 'purchase' && selectedClass && (
+                            <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <DiceIcon value={4} />
+                                    <span className="font-semibold text-yellow-300">
+                                        {TEXT.GOLD_FORMULA} {getStartingWealth(selectedClass.index).formula} GO
+                                    </span>
                                 </div>
-                            </div>
-                        ) : error ? (
-                            <div className="text-center py-12">
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
-                                    <p className="text-red-800 mb-4">{error}</p>
-                                    <Button 
-                                        onClick={() => {
-                                            setEquipmentList([]);
-                                            localStorage.removeItem(STORAGE_KEYS.EQUIPMENT_CACHE);
-                                        }}
-                                        variant="outline"
-                                    >
-                                        {TEXT.RETRY}
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="border rounded-lg overflow-hidden">
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-gray-50">
-                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold" onClick={() => handleSort('name')}>
-                                                <div className="flex items-center gap-2">
-                                                    Nome
-                                                    <SortIcon field="name" currentField={sortField} direction={sortDirection} />
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold" onClick={() => handleSort('category')}>
-                                                <div className="flex items-center gap-2">
-                                                    Categoria
-                                                    <SortIcon field="category" currentField={sortField} direction={sortDirection} />
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('ac')}>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Shield className="h-4 w-4" />
-                                                    CA
-                                                    <SortIcon field="ac" currentField={sortField} direction={sortDirection} />
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('damage')}>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Sword className="h-4 w-4" />
-                                                    Dano
-                                                    <SortIcon field="damage" currentField={sortField} direction={sortDirection} />
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('cost')}>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Coins className="h-4 w-4" />
-                                                    Custo (GO)
-                                                    <SortIcon field="cost" currentField={sortField} direction={sortDirection} />
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="cursor-pointer hover:bg-gray-100 font-semibold text-center" onClick={() => handleSort('weight')}>
-                                                <div className="flex items-center justify-center gap-2">
-                                                    <Weight className="h-4 w-4" />
-                                                    Peso
-                                                    <SortIcon field="weight" currentField={sortField} direction={sortDirection} />
-                                                </div>
-                                            </TableHead>
-                                            <TableHead className="text-center font-semibold">Prof.</TableHead>
-                                            <TableHead className="text-center font-semibold">Ações</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredAndSortedEquipment.map((equipment) => {
-                                            const cost = equipment.cost ? convertCostToGold(equipment.cost) : 0;
-                                            const canAfford = cost <= currentGold;
-                                            const isExpanded = expandedDescriptions.has(equipment.index);
-                                            
-                                            return (
-                                                <Fragment key={equipment.index}>
-                                                    <TableRow className={`transition-colors ${
-                                                        !canAfford 
-                                                            ? 'bg-red-50 opacity-60' 
-                                                            : isProficientWith(equipment, proficiencies) 
-                                                                ? 'bg-green-50 hover:bg-green-100' 
-                                                                : 'hover:bg-gray-50'
-                                                    }`}>
-                                                        <TableCell className="font-medium">
-                                                            <div className="flex items-center gap-3">
-                                                                {equipment.desc?.length > 0 && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        onClick={() => toggleDescription(equipment.index)}
-                                                                        className="p-1 h-6 w-6"
-                                                                    >
-                                                                        {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                                                                    </Button>
-                                                                )}
-                                                                <div className="flex items-center gap-2">
-                                                                    {getCategoryIcon(equipment.equipment_category?.index)}
-                                                                    <span>{equipment.name}</span>
-                                                                </div>
-                                                            </div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Badge variant="outline" className="text-xs">
-                                                                {equipment.equipment_category?.name}
-                                                            </Badge>
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            {equipment.armor_class ? (
-                                                                <span className="text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
-                                                                    {equipment.armor_class.base}
-                                                                    {equipment.armor_class.dex_bonus && ' + Des'}
-                                                                </span>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            {equipment.damage ? (
-                                                                <span className="text-red-600 font-medium bg-red-50 px-2 py-1 rounded text-xs">
-                                                                    {equipment.damage.damage_dice}
-                                                                </span>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            {equipment.cost ? (
-                                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                                    canAfford ? 'text-yellow-600 bg-yellow-50' : 'text-red-600 bg-red-50'
-                                                                }`}>
-                                                                    {cost.toFixed(2)} GO
-                                                                </span>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            {equipment.weight ? (
-                                                                <span className="text-gray-600">{equipment.weight} lb</span>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            {isProficientWith(equipment, proficiencies) ? (
-                                                                <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                                                    <Star className="h-3 w-3 mr-1" />
-                                                                    Sim
-                                                                </Badge>
-                                                            ) : <span className="text-gray-400">—</span>}
-                                                        </TableCell>
-                                                        <TableCell className="text-center">
-                                                            <Button 
-                                                                size="sm" 
-                                                                onClick={() => handleEquipmentAdd(equipment, 'purchased')}
-                                                                disabled={!canAfford}
-                                                                className={`${canAfford 
-                                                                    ? 'bg-green-600 hover:bg-green-700 text-white' 
-                                                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-                                                            >
-                                                                <Plus className="h-4 w-4 mr-1" />
-                                                                {canAfford ? TEXT.BUY : TEXT.NO_GOLD}
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                    
-                                                    {isExpanded && equipment.desc?.length > 0 && (
-                                                        <TableRow>
-                                                            <TableCell colSpan={8} className="bg-gray-50 border-t-0">
-                                                                <Collapsible open={isExpanded}>
-                                                                    <CollapsibleContent>
-                                                                        <div className="p-4 bg-white rounded-lg shadow-sm border border-gray-200 m-2">
-                                                                            <h4 className="font-semibold text-lg mb-3 text-gray-800 flex items-center gap-2">
-                                                                                <Info className="h-5 w-5" />
-                                                                                {equipment.name} - {TEXT.ITEM_DETAILS}
-                                                                            </h4>
-                                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                                                                                <div className="space-y-2">
-                                                                                    <p className="text-sm"><strong className="text-gray-700">Categoria:</strong> {equipment.equipment_category?.name}</p>
-                                                                                    {equipment.armor_category && <p className="text-sm"><strong className="text-gray-700">Tipo de Armadura:</strong> {equipment.armor_category}</p>}
-                                                                                    {equipment.weapon_category && <p className="text-sm"><strong className="text-gray-700">Tipo de Arma:</strong> {equipment.weapon_category}</p>}
-                                                                                    {equipment.weapon_range && <p className="text-sm"><strong className="text-gray-700">Alcance:</strong> {equipment.weapon_range}</p>}
-                                                                                </div>
-                                                                                <div className="space-y-2">
-                                                                                    {equipment.cost && <p className="text-sm"><strong className="text-gray-700">Custo:</strong> {cost.toFixed(2)} GO</p>}
-                                                                                    {equipment.weight && <p className="text-sm"><strong className="text-gray-700">Peso:</strong> {equipment.weight} lb</p>}
-                                                                                    {equipment.armor_class && <p className="text-sm"><strong className="text-gray-700">CA:</strong> {equipment.armor_class.base}{equipment.armor_class.dex_bonus && ' + Mod Des'}{equipment.armor_class.max_bonus !== undefined && ` (máx ${equipment.armor_class.max_bonus})`}</p>}
-                                                                                </div>
-                                                                            </div>
-                                                                            {equipment.properties?.length > 0 && (
-                                                                                <div className="mb-4">
-                                                                                    <p className="font-semibold text-gray-700 mb-2">{TEXT.PROPERTIES}</p>
-                                                                                    <div className="flex flex-wrap gap-2">
-                                                                                        {equipment.properties.map(prop => (
-                                                                                            <Badge key={prop.index} variant="outline" className="text-xs">
-                                                                                                {prop.name}
-                                                                                            </Badge>
-                                                                                        ))}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                            <div>
-                                                                                <p className="font-semibold text-gray-700 mb-2">{TEXT.DESCRIPTION}</p>
-                                                                                <div className="text-sm text-gray-700 space-y-2 bg-gray-50 p-3 rounded-lg">
-                                                                                    {equipment.desc.map((desc, index) => <p key={index} className="leading-relaxed">{desc}</p>)}
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                    </CollapsibleContent>
-                                                                </Collapsible>
-                                                            </TableCell>
-                                                        </TableRow>
-                                                    )}
-                                                </Fragment>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
-                                
-                                {filteredAndSortedEquipment.length === 0 && (
-                                    <div className="text-center py-12">
-                                        <div className="text-gray-500">
-                                            <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                            <p className="text-lg font-medium mb-2">{TEXT.NO_EQUIPMENT}</p>
-                                            <p className="text-sm">{TEXT.NO_EQUIPMENT_DESC}</p>
-                                        </div>
-                                    </div>
-                                )}
+                                <p className="text-sm text-yellow-400">
+                                    {TEXT.AVERAGE} {getStartingWealth(selectedClass.index).average} GO | 
+                                    {TEXT.CURRENT} <strong>{currentGold} GO</strong>
+                                </p>
                             </div>
                         )}
                     </CardContent>
                 </Card>
-            )}
+                
+                {/* Equipamento Inicial */}
+                {equipmentMode === 'starting' && selectedClass && (
+                    <Card className="border-green-500/30 bg-slate-800/80">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-green-300">
+                                <Gift className="h-5 w-5" />
+                                {TEXT.INITIAL_EQUIPMENT} {selectedClass?.name}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {loadingStartingEquipment ? (
+                                <div className="text-center py-8">
+                                    <Loader2 className="h-8 w-8 animate-spin text-green-400 mx-auto mb-4" />
+                                    <p className="text-green-300">{TEXT.LOADING_STARTING}</p>
+                                </div>
+                            ) : startingEquipment ? (
+                                <div className="space-y-6">
+                                    {startingEquipment.equipment.length > 0 && (
+                                        <div>
+                                            <h4 className="font-semibold text-green-300 mb-3">{TEXT.FIXED_EQUIPMENT}</h4>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {startingEquipment.equipment.map((item, index) => (
+                                                    <div key={index} className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="font-medium text-green-300">
+                                                                    {item.equipment?.name || 'Item desconhecido'}
+                                                                </p>
+                                                                <p className="text-sm text-green-400">
+                                                                    {TEXT.QUANTITY} {item.quantity || 1}
+                                                                </p>
+                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={async () => {
+                                                                    if (!item.equipment?.url) return;
+                                                                    try {
+                                                                        const response = await fetch(`${BASE_API_URL}${item.equipment.url}`);
+                                                                        if (response.ok) {
+                                                                            const equipmentData = await response.json();
+                                                                            for (let i = 0; i < (item.quantity || 1); i++) {
+                                                                                handleEquipmentAdd(equipmentData, 'starting');
+                                                                            }
+                                                                        }
+                                                                    } catch (error) {
+                                                                        console.error('Erro ao buscar equipamento:', error);
+                                                                    }
+                                                                }}
+                                                                className="bg-green-600 hover:bg-green-700 text-white"
+                                                            >
+                                                                <Plus className="h-4 w-4 mr-1" />
+                                                                {TEXT.ADD}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {startingEquipment.starting_equipment_options.length > 0 && (
+                                        startingEquipment.starting_equipment_options.map((choice, choiceIndex) => (
+                                            <div key={choiceIndex} className="border border-green-500/30 rounded-lg p-4">
+                                                <h4 className="font-semibold text-green-300 mb-3">
+                                                    {choice.desc || `${TEXT.CHOOSE_EQUIPMENT} ${choice.choose}`}
+                                                </h4>
+                                                {choice.from?.options && (
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                        {choice.from.options.map((option, optionIndex) => (
+                                                            <Card 
+                                                                key={optionIndex}
+                                                                className={`cursor-pointer transition-all ${
+                                                                    startingChoices[choiceIndex] === optionIndex
+                                                                        ? 'border-green-400 bg-green-500/20' 
+                                                                        : 'border-slate-600 hover:border-green-400/50 bg-slate-700/50'
+                                                                }`}
+                                                                onClick={() => handleStartingEquipmentChoice(choiceIndex, optionIndex)}
+                                                            >
+                                                                <CardContent className="p-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div>
+                                                                            <p className="font-medium text-slate-200">
+                                                                                {option.of?.name || option.choice?.desc || 'Opção especial'}
+                                                                            </p>
+                                                                            {option.count > 1 && (
+                                                                                <p className="text-sm text-green-400">
+                                                                                    {TEXT.QUANTITY} {option.count}
+                                                                                </p>
+                                                                            )}
+                                                                            {option.option_type === 'choice' && (
+                                                                                <p className="text-xs text-slate-400">
+                                                                                    Escolha de categoria
+                                                                                </p>
+                                                                            )}
+                                                                        </div>
+                                                                        {startingChoices[choiceIndex] === optionIndex && (
+                                                                            <Badge className="bg-green-500 text-white">
+                                                                                {TEXT.SELECTED}
+                                                                            </Badge>
+                                                                        )}
+                                                                    </div>
+                                                                </CardContent>
+                                                            </Card>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-6">
+                                        <p className="text-yellow-300 mb-2">
+                                            Nenhum equipamento inicial encontrado para esta classe.
+                                        </p>
+                                        <p className="text-sm text-yellow-400">
+                                            Você pode usar o modo de compra com gold inicial.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+                
+                {/* Dados do Personagem */}
+                {characterData && (
+                    <Card className="border-indigo-500/30 bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center gap-2 text-indigo-300">
+                                <Info className="h-5 w-5" />
+                                {TEXT.CHARACTER_DATA}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                <div>
+                                    <p className="font-medium text-indigo-300">{TEXT.RACE}</p>
+                                    <p className="text-indigo-200">{selectedRace?.name || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="font-medium text-indigo-300">{TEXT.CLASS}</p>
+                                    <p className="text-indigo-200">{selectedClass?.name || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="font-medium text-indigo-300">{TEXT.BACKGROUND}</p>
+                                    <p className="text-indigo-200">{selectedBackground?.name || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <p className="font-medium text-indigo-300">{TEXT.PROFICIENCIES}</p>
+                                    <p className="text-indigo-200">{proficiencies.length} itens</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                
+                {/* Equipamentos Selecionados */}
+                {selectedEquipment.length > 0 && (
+                    <Card className="border-purple-500/30 bg-slate-800/80">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-purple-300">
+                                <Package className="h-5 w-5" />
+                                {TEXT.SELECTED_EQUIPMENT} ({selectedEquipment.length})
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {selectedEquipment.map((item) => (
+                                    <div key={item.equipment.index} className="group relative bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg p-4 border border-purple-500/30 hover:shadow-md transition-all">
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex items-start gap-3 flex-1">
+                                                <div className="p-2 bg-purple-500/20 rounded-lg">
+                                                    {getCategoryIcon(item.equipment.equipment_category?.index)}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <h4 className="font-semibold text-purple-200">{item.equipment.name}</h4>
+                                                    <p className="text-sm text-purple-300 mb-2">
+                                                        {item.equipment.equipment_category?.name}
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-2 text-xs">
+                                                        <span className="bg-purple-500/20 text-purple-300 px-2 py-1 rounded border border-purple-500/30">
+                                                            {TEXT.QUANTITY} {item.quantity}
+                                                        </span>
+                                                        <span className={`px-2 py-1 rounded border ${
+                                                            item.source === 'starting' 
+                                                                ? 'bg-green-500/20 text-green-300 border-green-500/30' 
+                                                                : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
+                                                        }`}>
+                                                            {item.source === 'starting' ? TEXT.INITIAL : TEXT.PURCHASED}
+                                                        </span>
+                                                        {item.equipment.armor_class && (
+                                                            <span className="bg-blue-500/20 text-blue-300 px-2 py-1 rounded border border-blue-500/30">
+                                                                CA: {item.equipment.armor_class.base}
+                                                            </span>
+                                                        )}
+                                                        {item.equipment.damage && (
+                                                            <span className="bg-red-500/20 text-red-300 px-2 py-1 rounded border border-red-500/30">
+                                                                {item.equipment.damage.damage_dice} {item.equipment.damage.damage_type.name}
+                                                            </span>
+                                                        )}
+                                                        {isProficientWith(item.equipment, proficiencies) && (
+                                                            <span className="bg-green-500/20 text-green-300 px-2 py-1 rounded flex items-center gap-1 border border-green-500/30">
+                                                                <Star className="h-3 w-3" />
+                                                                {TEXT.PROFICIENT}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <Button 
+                                                size="sm" 
+                                                variant="outline" 
+                                                onClick={() => handleEquipmentRemove(item.equipment.index)}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity border-slate-600 text-slate-300 hover:bg-slate-700"
+                                            >
+                                                <Minus className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+                
+                {/* Loja de Equipamentos */}
+                {equipmentMode === 'purchase' && (
+                    <Card className="bg-slate-800/80 border-slate-700">
+                        <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-white">
+                                    <Search className="h-5 w-5" />
+                                    {TEXT.SHOP_TITLE}
+                                </div>
+                                <div className="flex items-center gap-2 text-yellow-400">
+                                    <Coins className="h-5 w-5" />
+                                    <span className="text-xl font-bold">{currentGold} GO</span>
+                                </div>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-col lg:flex-row gap-4 mb-6">
+                                <div className="flex-1 relative">
+                                    <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                                    <Input
+                                        placeholder={TEXT.SEARCH_PLACEHOLDER}
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="pl-10 bg-slate-700/50 border-slate-600 text-slate-200 placeholder-slate-400"
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-3">
+                                    <select 
+                                        value={selectedCategory} 
+                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                        className="px-4 py-2 border border-slate-600 bg-slate-700 text-slate-200 rounded-lg hover:border-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                                    >
+                                        {categories.map(cat => (
+                                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        variant={showOnlyProficient ? "default" : "outline"}
+                                        size="sm"
+                                        onClick={() => setShowOnlyProficient(!showOnlyProficient)}
+                                        className="whitespace-nowrap border-slate-600 text-slate-300 hover:bg-slate-700"
+                                    >
+                                        <Filter className="h-4 w-4 mr-2" />
+                                        {TEXT.PROFICIENCY_FILTER}
+                                    </Button>
+                                </div>
+                            </div>
+                            
+                            {isLoading ? (
+                                <div className="text-center py-12">
+                                    <div className="flex flex-col items-center gap-4">
+                                        <Loader2 className="h-12 w-12 animate-spin text-blue-400" />
+                                        <div>
+                                            <h3 className="text-lg font-semibold mb-2 text-white">{TEXT.LOADING_EQUIPMENT}</h3>
+                                            <div className="w-80 bg-slate-700 rounded-full h-3 mb-2">
+                                                <div 
+                                                    className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+                                                    style={{ width: `${loadingProgress}%` }}
+                                                ></div>
+                                            </div>
+                                            <p className="text-sm text-slate-400">{loadingProgress}% completo</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : error ? (
+                                <div className="text-center py-12">
+                                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-6 max-w-md mx-auto">
+                                        <p className="text-red-300 mb-4">{error}</p>
+                                        <Button 
+                                            onClick={() => {
+                                                setEquipmentList([]);
+                                                localStorage.removeItem(STORAGE_KEYS.EQUIPMENT_CACHE);
+                                            }}
+                                            variant="outline"
+                                            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                                        >
+                                            {TEXT.RETRY}
+                                        </Button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="border border-slate-700 rounded-lg overflow-hidden">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow className="bg-slate-800/50 border-slate-700">
+                                                <TableHead className="cursor-pointer hover:bg-slate-700/50 font-semibold text-slate-200" onClick={() => handleSort('name')}>
+                                                    <div className="flex items-center gap-2">
+                                                        Nome
+                                                        <SortIcon field="name" currentField={sortField} direction={sortDirection} />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer hover:bg-slate-700/50 font-semibold text-slate-200" onClick={() => handleSort('category')}>
+                                                    <div className="flex items-center gap-2">
+                                                        Categoria
+                                                        <SortIcon field="category" currentField={sortField} direction={sortDirection} />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer hover:bg-slate-700/50 font-semibold text-center text-slate-200" onClick={() => handleSort('ac')}>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Shield className="h-4 w-4" />
+                                                        CA
+                                                        <SortIcon field="ac" currentField={sortField} direction={sortDirection} />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer hover:bg-slate-700/50 font-semibold text-center text-slate-200" onClick={() => handleSort('damage')}>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Sword className="h-4 w-4" />
+                                                        Dano
+                                                        <SortIcon field="damage" currentField={sortField} direction={sortDirection} />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer hover:bg-slate-700/50 font-semibold text-center text-slate-200" onClick={() => handleSort('cost')}>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Coins className="h-4 w-4" />
+                                                        Custo (GO)
+                                                        <SortIcon field="cost" currentField={sortField} direction={sortDirection} />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="cursor-pointer hover:bg-slate-700/50 font-semibold text-center text-slate-200" onClick={() => handleSort('weight')}>
+                                                    <div className="flex items-center justify-center gap-2">
+                                                        <Weight className="h-4 w-4" />
+                                                        Peso
+                                                        <SortIcon field="weight" currentField={sortField} direction={sortDirection} />
+                                                    </div>
+                                                </TableHead>
+                                                <TableHead className="text-center font-semibold text-slate-200">Prof.</TableHead>
+                                                <TableHead className="text-center font-semibold text-slate-200">Ações</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {filteredAndSortedEquipment.map((equipment) => {
+                                                const cost = equipment.cost ? convertCostToGold(equipment.cost) : 0;
+                                                const canAfford = cost <= currentGold;
+                                                const isExpanded = expandedDescriptions.has(equipment.index);
+                                                
+                                                return (
+                                                    <Fragment key={equipment.index}>
+                                                        <TableRow className={`transition-colors border-slate-700 ${
+                                                            !canAfford 
+                                                                ? 'bg-red-500/10 opacity-60' 
+                                                                : isProficientWith(equipment, proficiencies) 
+                                                                    ? 'bg-green-500/10 hover:bg-green-500/20' 
+                                                                    : 'hover:bg-slate-800/50'
+                                                        }`}>
+                                                            <TableCell className="font-medium text-slate-200">
+                                                                <div className="flex items-center gap-2">
+                                                                    {getCategoryIcon(equipment.equipment_category?.index)}
+                                                                    <div>
+                                                                        <div className="font-semibold">{equipment.name}</div>
+                                                                        {equipment.desc && equipment.desc.length > 0 && (
+                                                                            <Button
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                onClick={() => toggleDescription(equipment.index)}
+                                                                                className="text-xs text-slate-400 hover:text-slate-200 p-0 h-auto"
+                                                                            >
+                                                                                {isExpanded ? 'Ocultar' : TEXT.ITEM_DETAILS}
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="text-slate-300">{equipment.equipment_category?.name}</TableCell>
+                                                            <TableCell className="text-center text-slate-300">
+                                                                {equipment.armor_class ? (
+                                                                    <Badge variant="outline" className="border-blue-500/30 text-blue-300">
+                                                                        {equipment.armor_class.base}
+                                                                        {equipment.armor_class.dex_bonus && '+Dex'}
+                                                                    </Badge>
+                                                                ) : '-'}
+                                                            </TableCell>
+                                                            <TableCell className="text-center text-slate-300">
+                                                                {equipment.damage ? (
+                                                                    <Badge variant="outline" className="border-red-500/30 text-red-300">
+                                                                        {equipment.damage.damage_dice}
+                                                                    </Badge>
+                                                                ) : '-'}
+                                                            </TableCell>
+                                                            <TableCell className="text-center text-slate-300">
+                                                                {equipment.cost ? (
+                                                                    <span className={canAfford ? 'text-green-300' : 'text-red-300'}>
+                                                                        {cost.toFixed(2)}
+                                                                    </span>
+                                                                ) : <span className="text-slate-500">-</span>}
+                                                            </TableCell>
+                                                            <TableCell className="text-center text-slate-300">
+                                                                {equipment.weight ? `${equipment.weight} lb` : '-'}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                {isProficientWith(equipment, proficiencies) && (
+                                                                    <Star className="h-4 w-4 text-green-400 mx-auto" />
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-center">
+                                                                <Button 
+                                                                    size="sm" 
+                                                                    onClick={() => handleEquipmentAdd(equipment, 'purchased')}
+                                                                    disabled={!canAfford}
+                                                                    className={`${canAfford 
+                                                                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                                                        : 'bg-slate-600 text-slate-400 cursor-not-allowed'}`}
+                                                                >
+                                                                    <Plus className="h-4 w-4 mr-1" />
+                                                                    {canAfford ? TEXT.BUY : TEXT.NO_GOLD}
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                        
+                                                        {isExpanded && equipment.desc && (
+                                                            <TableRow className="border-slate-700">
+                                                                <TableCell colSpan={8} className="bg-slate-800/30">
+                                                                    <Collapsible open={isExpanded}>
+                                                                        <CollapsibleContent>
+                                                                            <div className="p-4 space-y-3">
+                                                                                <div>
+                                                                                    <h4 className="font-semibold text-slate-200 mb-2">{TEXT.DESCRIPTION}</h4>
+                                                                                    {equipment.desc.map((paragraph, index) => (
+                                                                                        <p key={index} className="text-sm text-slate-300 mb-2">
+                                                                                            {paragraph}
+                                                                                        </p>
+                                                                                    ))}
+                                                                                </div>
+                                                                                {equipment.properties && equipment.properties.length > 0 && (
+                                                                                    <div>
+                                                                                        <h4 className="font-semibold text-slate-200 mb-2">{TEXT.PROPERTIES}</h4>
+                                                                                        <div className="flex flex-wrap gap-2">
+                                                                                            {equipment.properties.map((prop, index) => (
+                                                                                                <Badge
+                                                                                                    key={index}
+                                                                                                    variant="outline"
+                                                                                                    className="border-slate-600 text-slate-300"
+                                                                                                >
+                                                                                                    {prop.name}
+                                                                                                </Badge>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </CollapsibleContent>
+                                                                    </Collapsible>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </Fragment>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                    
+                                    {filteredAndSortedEquipment.length === 0 && (
+                                        <div className="text-center py-12">
+                                            <Package className="h-16 w-16 text-slate-500 mx-auto mb-4" />
+                                            <h3 className="text-lg font-semibold text-slate-300 mb-2">{TEXT.NO_EQUIPMENT}</h3>
+                                            <p className="text-slate-400">{TEXT.NO_EQUIPMENT_DESC}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+            </div>
         </div>
     );
 };

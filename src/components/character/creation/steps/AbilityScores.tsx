@@ -3,8 +3,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import { 
     type AbilityScores, 
     type DndRace,
@@ -464,473 +467,561 @@ export const AbilityScoresComponent = ({ onValidationChange }: AbilityScoresProp
     // ===========================
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 bg-slate-900 min-h-screen p-6">
             {/* Debug Info */}
             {process.env.NODE_ENV === 'development' && (
-                <Card className="p-4 bg-blue-50">
-                    <h4 className="font-bold text-sm mb-2">Debug - Storage Status + Racial Bonuses:</h4>
-                    <div className="text-xs space-y-1">
-                        <p>Método: {selectedMethod || 'Não selecionado'}</p>
-                        <p>Pontos restantes: {pointsRemaining}</p>
-                        <p>Arrays rolados: {rolledArrays.length}</p>
-                        <p>Raça: {crossStepData.selectedRace?.name || 'Não selecionada'}</p>
-                        <p>Sub-raça: {crossStepData.selectedSubrace?.name || 'Não selecionada'}</p>
-                        
-                        {/* Debug detalhado dos bônus */}
-                        {crossStepData.selectedRace && (
-                            <div className="mt-2 p-2 bg-white rounded">
-                                <strong>Dados da Raça ({crossStepData.selectedRace.name}):</strong>
+                <Card className="border border-blue-500/30 bg-slate-800/50 backdrop-blur">
+                    <CardContent className="p-4">
+                        <h4 className="font-bold text-sm mb-2 text-blue-300">Debug - Storage Status + Racial Bonuses:</h4>
+                        <div className="text-xs space-y-1 text-slate-300">
+                            <p>Método: {selectedMethod || 'Não selecionado'}</p>
+                            <p>Pontos restantes: {pointsRemaining}</p>
+                            <p>Arrays rolados: {rolledArrays.length}</p>
+                            <p>Raça: {crossStepData.selectedRace?.name || 'Não selecionada'}</p>
+                            <p>Sub-raça: {crossStepData.selectedSubrace?.name || 'Não selecionada'}</p>
+                            
+                            {/* Debug detalhado dos bônus */}
+                            {crossStepData.selectedRace && (
+                                <div className="mt-2 p-2 bg-slate-700/50 rounded border border-slate-600/40">
+                                    <strong className="text-blue-300">Dados da Raça ({crossStepData.selectedRace.name}):</strong>
+                                    <div className="ml-2">
+                                        {crossStepData.selectedRace.ability_bonuses?.map((bonus, index) => (
+                                            <p key={index} className="text-green-400">
+                                                {bonus.ability_score.index} ({bonus.ability_score.name}): +{bonus.bonus}
+                                            </p>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {crossStepData.selectedSubrace && (
+                                <div className="mt-2 p-2 bg-slate-700/50 rounded border border-slate-600/40">
+                                    <strong className="text-blue-300">Dados da Sub-raça ({crossStepData.selectedSubrace.name}):</strong>
+                                    <div className="ml-2">
+                                        {crossStepData.selectedSubrace.ability_bonuses?.map((bonus, index) => (
+                                            <p key={index} className="text-green-400">
+                                                {bonus.ability_score.index} ({bonus.ability_score.name}): +{bonus.bonus}
+                                            </p>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="mt-2 p-2 bg-slate-700/50 rounded border border-slate-600/40">
+                                <strong className="text-blue-300">Bônus Calculados:</strong>
                                 <div className="ml-2">
-                                    {crossStepData.selectedRace.ability_bonuses?.map((bonus, index) => (
-                                        <p key={index} className="text-green-600">
-                                            {bonus.ability_score.index} ({bonus.ability_score.name}): +{bonus.bonus}
+                                    {Object.entries(getRacialBonuses()).map(([ability, bonus]) => (
+                                        <p key={ability} className={bonus > 0 ? 'text-green-400' : 'text-slate-400'}>
+                                            {ability}: +{bonus}
                                         </p>
                                     ))}
                                 </div>
                             </div>
-                        )}
-                        
-                        {crossStepData.selectedSubrace && (
-                            <div className="mt-2 p-2 bg-white rounded">
-                                <strong>Dados da Sub-raça ({crossStepData.selectedSubrace.name}):</strong>
+
+                            <div className="mt-2 p-2 bg-slate-700/50 rounded border border-slate-600/40">
+                                <strong className="text-blue-300">Scores Finais:</strong>
                                 <div className="ml-2">
-                                    {crossStepData.selectedSubrace.ability_bonuses?.map((bonus, index) => (
-                                        <p key={index} className="text-green-600">
-                                            {bonus.ability_score.index} ({bonus.ability_score.name}): +{bonus.bonus}
-                                        </p>
-                                    ))}
+                                    {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
+                                        const baseScore = abilityScores[ability as keyof AbilityScores];
+                                        const racialBonus = getRacialBonuses()[ability as keyof AbilityScores];
+                                        return (
+                                            <p key={ability} className="text-purple-400">
+                                                {ability}: {baseScore} + {racialBonus} = {finalScore}
+                                            </p>
+                                        );
+                                    })}
                                 </div>
                             </div>
-                        )}
-
-                        <div className="mt-2 p-2 bg-white rounded">
-                            <strong>Bônus Calculados:</strong>
-                            <div className="ml-2">
-                                {Object.entries(getRacialBonuses()).map(([ability, bonus]) => (
-                                    <p key={ability} className={bonus > 0 ? 'text-green-600' : 'text-gray-400'}>
-                                        {ability}: +{bonus}
-                                    </p>
-                                ))}
+                            
+                            <div className="flex gap-2 mt-2">
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={clearStorageData}
+                                    className="border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-600/50"
+                                >
+                                    Limpar Storage
+                                </Button>
+                                <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    onClick={forceReloadRacialData}
+                                    className="border-green-600 bg-green-900/20 text-green-400 hover:bg-green-800/30"
+                                >
+                                    🔄 Recarregar Dados Raciais
+                                </Button>
                             </div>
                         </div>
-
-                        <div className="mt-2 p-2 bg-white rounded">
-                            <strong>Scores Finais:</strong>
-                            <div className="ml-2">
-                                {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
-                                    const baseScore = abilityScores[ability as keyof AbilityScores];
-                                    const racialBonus = getRacialBonuses()[ability as keyof AbilityScores];
-                                    return (
-                                        <p key={ability} className="text-purple-600">
-                                            {ability}: {baseScore} + {racialBonus} = {finalScore}
-                                        </p>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                        
-                        <div className="flex gap-2 mt-2">
-                            <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={clearStorageData}
-                            >
-                                Limpar Storage
-                            </Button>
-                            <Button 
-                                size="sm" 
-                                variant="outline" 
-                                onClick={forceReloadRacialData}
-                                className="bg-green-100"
-                            >
-                                🔄 Recarregar Dados Raciais
-                            </Button>
-                        </div>
-                    </div>
+                    </CardContent>
                 </Card>
             )}
 
             {/* Informações Raciais */}
             {(crossStepData.selectedRace || crossStepData.selectedSubrace) && (
-                <Card className="p-6 bg-green-50">
-                    <h3 className="text-lg font-bold mb-4">Bônus Raciais Aplicados</h3>
-                    
-                    <div className="space-y-3">
-                        {crossStepData.selectedRace && (
-                            <div>
-                                <h4 className="font-semibold text-green-800">
-                                    {crossStepData.selectedRace.name}
-                                </h4>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {crossStepData.selectedRace.ability_bonuses?.map((bonus: DndAbilityBonus, index: number) => (
-                                        <span
-                                            key={index}
-                                            className="inline-block px-3 py-1 bg-green-200 text-green-800 rounded text-sm font-medium"
-                                        >
-                                            {bonus.ability_score.name}: +{bonus.bonus}
-                                        </span>
-                                    ))}
+                <Card className="border border-green-500/30 bg-slate-800/80 backdrop-blur shadow-xl">
+                    <CardContent className="p-6">
+                        <h3 className="text-lg font-bold mb-4 text-green-400">Bônus Raciais Aplicados</h3>
+                        
+                        <div className="space-y-3">
+                            {crossStepData.selectedRace && (
+                                <div>
+                                    <h4 className="font-semibold text-green-300 mb-2">
+                                        {crossStepData.selectedRace.name}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {crossStepData.selectedRace.ability_bonuses?.map((bonus: DndAbilityBonus, index: number) => (
+                                            <Badge
+                                                key={index}
+                                                className="bg-green-500/20 text-green-300 border border-green-500/40 hover:bg-green-500/30"
+                                            >
+                                                {bonus.ability_score.name}: +{bonus.bonus}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {crossStepData.selectedSubrace && (
+                                <div>
+                                    <h4 className="font-semibold text-green-300 mb-2">
+                                        {crossStepData.selectedSubrace.name}
+                                    </h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {crossStepData.selectedSubrace.ability_bonuses?.map((bonus: DndAbilityBonus, index: number) => (
+                                            <Badge
+                                                key={index}
+                                                className="bg-green-500/20 text-green-300 border border-green-500/40 hover:bg-green-500/30"
+                                            >
+                                                {bonus.ability_score.name}: +{bonus.bonus}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Mostrar o resultado final dos bônus */}
+                            <div className="mt-4 pt-4 border-t border-green-500/20">
+                                <h5 className="font-medium text-green-300 mb-3">Bônus Totais:</h5>
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(getRacialBonuses()).map(([ability, bonus]) => 
+                                        bonus > 0 && (
+                                            <Badge
+                                                key={ability}
+                                                className="bg-green-400/20 text-green-200 border border-green-400/50 px-3 py-1"
+                                            >
+                                                {ability.charAt(0).toUpperCase() + ability.slice(1)}: +{bonus}
+                                            </Badge>
+                                        )
+                                    )}
                                 </div>
                             </div>
-                        )}
 
-                        {crossStepData.selectedSubrace && (
-                            <div>
-                                <h4 className="font-semibold text-green-800">
-                                    {crossStepData.selectedSubrace.name}
-                                </h4>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {crossStepData.selectedSubrace.ability_bonuses?.map((bonus: DndAbilityBonus, index: number) => (
-                                        <span
-                                            key={index}
-                                            className="inline-block px-3 py-1 bg-green-200 text-green-800 rounded text-sm font-medium"
-                                        >
-                                            {bonus.ability_score.name}: +{bonus.bonus}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Mostrar o resultado final dos bônus */}
-                        <div className="mt-4 pt-4 border-t border-green-200">
-                            <h5 className="font-medium text-green-800 mb-2">Bônus Totais:</h5>
-                            <div className="flex flex-wrap gap-2">
-                                {Object.entries(getRacialBonuses()).map(([ability, bonus]) => 
-                                    bonus > 0 && (
-                                        <span
-                                            key={ability}
-                                            className="inline-block px-3 py-1 bg-green-300 text-green-900 rounded text-sm font-bold"
-                                        >
-                                            {ability.charAt(0).toUpperCase() + ability.slice(1)}: +{bonus}
-                                        </span>
-                                    )
-                                )}
-                            </div>
+                            <p className="text-sm text-green-300 mt-4 font-medium flex items-center gap-2">
+                                <span className="text-yellow-400">✨</span>
+                                Estes bônus serão automaticamente aplicados aos seus atributos finais!
+                            </p>
                         </div>
-
-                        <p className="text-sm text-green-700 mt-4 font-medium">
-                            ✨ Estes bônus serão automaticamente aplicados aos seus atributos finais!
-                        </p>
-                    </div>
+                    </CardContent>
                 </Card>
             )}
 
             {/* Seleção de Método */}
-            <Card className="p-6">
-                <h3 className="text-lg font-bold mb-4">Escolha o Método de Determinação de Atributos</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <button
-                        onClick={() => selectMethod("point-buy")}
-                        className={`p-4 border-2 rounded-lg text-left transition-all ${
-                            selectedMethod === "point-buy"
-                                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                : 'border-gray-300 bg-white hover:border-gray-400'
-                        }`}
-                    >
-                        <h4 className="font-semibold">Point Buy</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Distribua 27 pontos entre os atributos (8-15)
-                        </p>
-                    </button>
+            <Card className="border border-slate-600/50 bg-slate-800/80 backdrop-blur shadow-xl">
+                <CardContent className="p-6">
+                    <h3 className="text-lg font-bold mb-4 text-slate-100">Escolha o Método de Determinação de Atributos</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <Button
+                            onClick={() => selectMethod("point-buy")}
+                            variant="ghost"
+                            className={`h-auto p-6 justify-start text-left transition-all duration-200 ${
+                                selectedMethod === "point-buy"
+                                    ? 'border-2 border-blue-400 bg-blue-500/20 text-blue-200 shadow-lg shadow-blue-500/20'
+                                    : 'border-2 border-slate-600/50 bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:border-slate-500'
+                            }`}
+                        >
+                            <div>
+                                <h4 className="font-semibold text-lg mb-2">Point Buy</h4>
+                                <p className="text-sm opacity-80">
+                                    Distribua 27 pontos entre os atributos (8-15)
+                                </p>
+                            </div>
+                        </Button>
 
-                    <button
-                        onClick={() => selectMethod("standard")}
-                        className={`p-4 border-2 rounded-lg text-left transition-all ${
-                            selectedMethod === "standard"
-                                ? 'border-green-500 bg-green-50 text-green-700'
-                                : 'border-gray-300 bg-white hover:border-gray-400'
-                        }`}
-                    >
-                        <h4 className="font-semibold">Standard Array</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Atribua os valores: 15, 14, 13, 12, 10, 8
-                        </p>
-                    </button>
+                        <Button
+                            onClick={() => selectMethod("standard")}
+                            variant="ghost"
+                            className={`h-auto p-6 justify-start text-left transition-all duration-200 ${
+                                selectedMethod === "standard"
+                                    ? 'border-2 border-green-400 bg-green-500/20 text-green-200 shadow-lg shadow-green-500/20'
+                                    : 'border-2 border-slate-600/50 bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:border-slate-500'
+                            }`}
+                        >
+                            <div>
+                                <h4 className="font-semibold text-lg mb-2">Standard Array</h4>
+                                <p className="text-sm opacity-80">
+                                    Atribua os valores: 15, 14, 13, 12, 10, 8
+                                </p>
+                            </div>
+                        </Button>
 
-                    <button
-                        onClick={() => selectMethod("rolled")}
-                        className={`p-4 border-2 rounded-lg text-left transition-all ${
-                            selectedMethod === "rolled"
-                                ? 'border-purple-500 bg-purple-50 text-purple-700'
-                                : 'border-gray-300 bg-white hover:border-gray-400'
-                        }`}
-                    >
-                        <h4 className="font-semibold">Rolled Stats</h4>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Role 4d6, descarte o menor (6 arrays)
-                        </p>
-                    </button>
-                </div>
+                        <Button
+                            onClick={() => selectMethod("rolled")}
+                            variant="ghost"
+                            className={`h-auto p-6 justify-start text-left transition-all duration-200 ${
+                                selectedMethod === "rolled"
+                                    ? 'border-2 border-purple-400 bg-purple-500/20 text-purple-200 shadow-lg shadow-purple-500/20'
+                                    : 'border-2 border-slate-600/50 bg-slate-700/50 text-slate-300 hover:bg-slate-600/50 hover:border-slate-500'
+                            }`}
+                        >
+                            <div>
+                                <h4 className="font-semibold text-lg mb-2">Rolled Stats</h4>
+                                <p className="text-sm opacity-80">
+                                    Role 4d6, descarte o menor (6 arrays)
+                                </p>
+                            </div>
+                        </Button>
+                    </div>
+                </CardContent>
             </Card>
 
             {/* Point Buy */}
             {selectedMethod === "point-buy" && (
-                <Card className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold">Point Buy</h3>
-                        <div className="text-lg font-semibold">
-                            Pontos restantes: <span className="text-blue-600">{pointsRemaining}</span>
+                <Card className="border border-slate-600/50 bg-slate-800/80 backdrop-blur shadow-xl">
+                    <CardContent className="p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold text-slate-100">Point Buy</h3>
+                            <div className="text-lg font-semibold bg-blue-500/20 px-4 py-2 rounded-lg border border-blue-500/30">
+                                <span className="text-slate-300">Pontos restantes: </span>
+                                <span className="text-blue-300 text-xl">{pointsRemaining}</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(abilityScores).map(([ability, score]) => {
-                            const racialBonuses = getRacialBonuses();
-                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
-                            const finalScore = score + racialBonus;
-                            const finalModifier = getModifier(finalScore);
-                            
-                            return (
-                                <div key={ability} className="bg-gray-50 p-4 rounded-lg">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="font-medium capitalize">{ability}</span>
-                                        <span className="text-sm font-mono">
-                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => updatePointBuyScore(ability as keyof AbilityScores, score - 1)}
-                                            disabled={score <= 8}
-                                        >
-                                            -
-                                        </Button>
-                                        
-                                        <div className="mx-4 text-center">
-                                            <div className="text-2xl font-bold text-blue-600">{score}</div>
-                                            <div className="text-xs text-gray-600">Base</div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {Object.entries(abilityScores).map(([ability, score]) => {
+                                const racialBonuses = getRacialBonuses();
+                                const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                                const finalScore = score + racialBonus;
+                                const finalModifier = getModifier(finalScore);
+                                
+                                return (
+                                    <div key={ability} className="bg-slate-700/50 p-5 rounded-xl border border-slate-600/50 shadow-lg backdrop-blur">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="font-semibold capitalize text-slate-200 text-lg">{ability}</span>
+                                            <span className="text-sm font-mono bg-slate-600/50 px-2 py-1 rounded text-slate-300">
+                                                {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
+                                            </span>
                                         </div>
                                         
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => updatePointBuyScore(ability as keyof AbilityScores, score + 1)}
-                                            disabled={score >= 15 || pointsRemaining <= 0}
-                                        >
-                                            +
-                                        </Button>
-                                    </div>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => updatePointBuyScore(ability as keyof AbilityScores, score - 1)}
+                                                disabled={score <= 8}
+                                                className="w-10 h-10 border-slate-500 bg-slate-600/50 text-slate-300 hover:bg-slate-500/50 disabled:opacity-30"
+                                            >
+                                                -
+                                            </Button>
+                                            
+                                            <div className="mx-4 text-center">
+                                                <div className="text-3xl font-bold text-blue-300 mb-1">{score}</div>
+                                                <div className="text-xs text-slate-400 uppercase tracking-wide">Base</div>
+                                            </div>
+                                            
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => updatePointBuyScore(ability as keyof AbilityScores, score + 1)}
+                                                disabled={score >= 15 || pointsRemaining <= 0}
+                                                className="w-10 h-10 border-slate-500 bg-slate-600/50 text-slate-300 hover:bg-slate-500/50 disabled:opacity-30"
+                                            >
+                                                +
+                                            </Button>
+                                        </div>
 
-                                    {/* Score Final com Bônus Racial */}
-                                    <div className="border-t pt-2 text-center">
-                                        <div className="text-sm text-gray-600 mb-1">
-                                            {score} {racialBonus > 0 && `+ ${racialBonus}`} = 
-                                            <span className="font-bold text-green-600 ml-1">{finalScore}</span>
-                                        </div>
-                                        <div className="text-sm text-gray-600">
-                                            Modificador: {finalModifier >= 0 ? '+' : ''}{finalModifier}
+                                        {/* Score Final com Bônus Racial */}
+                                        <Separator className="my-3 bg-slate-600/50" />
+                                        <div className="text-center space-y-2">
+                                            <div className="text-sm text-slate-400">
+                                                <span className="text-blue-300">{score}</span>
+                                                {racialBonus > 0 && (
+                                                    <>
+                                                        <span className="text-slate-500 mx-1">+</span>
+                                                        <span className="text-green-400">{racialBonus}</span>
+                                                    </>
+                                                )}
+                                                <span className="text-slate-500 mx-1">=</span>
+                                                <span className="font-bold text-green-300 text-lg">{finalScore}</span>
+                                            </div>
+                                            <div className="text-sm">
+                                                <span className="text-slate-400">Modificador: </span>
+                                                <Badge
+                                                    className={`${
+                                                        finalModifier >= 0
+                                                            ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                                            : 'bg-red-500/20 text-red-300 border-red-500/40'
+                                                    }`}
+                                                >
+                                                    {finalModifier >= 0 ? '+' : ''}{finalModifier}
+                                                </Badge>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    </CardContent>
                 </Card>
             )}
 
             {/* Standard Array */}
             {selectedMethod === "standard" && (
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold mb-4">Standard Array</h3>
-                    
-                    <div className="mb-4">
-                        <h4 className="font-medium mb-2">Valores disponíveis:</h4>
-                        <div className="flex flex-wrap gap-2">
-                            {standardArrayValues.map((value, index) => (
-                                <span
-                                    key={`${value}-${index}`}
-                                    className="px-3 py-1 bg-blue-100 text-blue-800 rounded font-medium"
-                                >
-                                    {value}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {Object.entries(abilityScores).map(([ability], index) => {
-                            const racialBonuses = getRacialBonuses();
-                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
-                            const assignedValue = assignedValues[index];
-                            const finalScore = (assignedValue || 8) + racialBonus;
-                            const finalModifier = getModifier(finalScore);
-                            
-                            return (
-                                <div key={ability} className="bg-gray-50 p-4 rounded-lg">
-                                    <div className="flex justify-between items-center mb-2">
-                                        <span className="font-medium capitalize">{ability}</span>
-                                        <span className="text-sm font-mono">
-                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
-                                        </span>
-                                    </div>
-                                    
-                                    <select
-                                        value={assignedValues[index] || ''}
-                                        onChange={(e) => {
-                                            const value = parseInt(e.target.value);
-                                            if (!isNaN(value)) {
-                                                assignStandardValue(index, value);
-                                            }
-                                        }}
-                                        className="w-full p-2 border rounded mb-2"
+                <Card className="border border-slate-600/50 bg-slate-800/80 backdrop-blur shadow-xl">
+                    <CardContent className="p-6">
+                        <h3 className="text-lg font-bold mb-4 text-slate-100">Standard Array</h3>
+                        
+                        <div className="mb-6">
+                            <h4 className="font-medium mb-3 text-slate-200">Valores disponíveis:</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {standardArrayValues.map((value, index) => (
+                                    <Badge
+                                        key={`${value}-${index}`}
+                                        className="bg-blue-500/20 text-blue-300 border border-blue-500/40 px-3 py-1 text-sm"
                                     >
-                                        <option value="">Selecione um valor</option>
-                                        {[...standardArrayValues, assignedValues[index]].filter(v => v !== null).sort((a, b) => b! - a!).map((value, idx) => (
-                                            <option key={idx} value={value!}>
-                                                {value} ({getModifier(value!) >= 0 ? '+' : ''}{getModifier(value!)})
-                                            </option>
-                                        ))}
-                                    </select>
-                                    
-                                    {assignedValues[index] && (
-                                        <div className="border-t pt-2 text-center">
-                                            <div className="text-xl font-bold text-blue-600 mb-1">{assignedValues[index]}</div>
-                                            <div className="text-xs text-gray-600 mb-2">Base</div>
-                                            
-                                            <div className="text-sm text-gray-600">
-                                                {assignedValues[index]} {racialBonus > 0 && `+ ${racialBonus}`} = 
-                                                <span className="font-bold text-green-600 ml-1">{finalScore}</span>
-                                            </div>
-                                            <div className="text-sm text-gray-600">
-                                                Modificador: {finalModifier >= 0 ? '+' : ''}{finalModifier}
-                                            </div>
+                                        {value}
+                                    </Badge>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {Object.entries(abilityScores).map(([ability], index) => {
+                                const racialBonuses = getRacialBonuses();
+                                const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                                const assignedValue = assignedValues[index];
+                                const finalScore = (assignedValue || 8) + racialBonus;
+                                const finalModifier = getModifier(finalScore);
+                                
+                                return (
+                                    <div key={ability} className="bg-slate-700/50 p-5 rounded-xl border border-slate-600/50 shadow-lg backdrop-blur">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <span className="font-semibold capitalize text-slate-200 text-lg">{ability}</span>
+                                            <span className="text-sm font-mono bg-slate-600/50 px-2 py-1 rounded text-slate-300">
+                                                {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
+                                            </span>
                                         </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                                        
+                                        <Select
+                                            value={assignedValues[index]?.toString() || '0'}
+                                            onValueChange={(value) => {
+                                                const numValue = parseInt(value);
+                                                if (!isNaN(numValue)) {
+                                                    assignStandardValue(index, numValue);
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className="w-full mb-4 bg-slate-600/50 border-slate-500 text-slate-200">
+                                                <SelectValue placeholder="Selecione um valor" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-slate-700 border-slate-600">
+                                                <SelectItem value="0" className="text-slate-400">Selecione um valor</SelectItem>
+                                                {[...standardArrayValues, assignedValues[index]].filter(v => v !== null).sort((a, b) => b! - a!).map((value, idx) => (
+                                                    <SelectItem key={idx} value={value!.toString()} className="text-slate-200">
+                                                        {value} ({getModifier(value!) >= 0 ? '+' : ''}{getModifier(value!)})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        
+                                        {assignedValues[index] && (
+                                            <div className="text-center space-y-2">
+                                                <div className="text-3xl font-bold text-blue-300 mb-1">{assignedValues[index]}</div>
+                                                <div className="text-xs text-slate-400 uppercase tracking-wide mb-3">Base</div>
+                                                
+                                                <Separator className="my-3 bg-slate-600/50" />
+                                                <div className="space-y-2">
+                                                    <div className="text-sm text-slate-400">
+                                                        <span className="text-blue-300">{assignedValues[index]}</span>
+                                                        {racialBonus > 0 && (
+                                                            <>
+                                                                <span className="text-slate-500 mx-1">+</span>
+                                                                <span className="text-green-400">{racialBonus}</span>
+                                                            </>
+                                                        )}
+                                                        <span className="text-slate-500 mx-1">=</span>
+                                                        <span className="font-bold text-green-300 text-lg">{finalScore}</span>
+                                                    </div>
+                                                    <div className="text-sm">
+                                                        <Badge
+                                                            className={`${
+                                                                finalModifier >= 0
+                                                                    ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                                                    : 'bg-red-500/20 text-red-300 border-red-500/40'
+                                                            }`}
+                                                        >
+                                                            {finalModifier >= 0 ? '+' : ''}{finalModifier}
+                                                        </Badge>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </CardContent>
                 </Card>
             )}
 
             {/* Rolled Stats */}
             {selectedMethod === "rolled" && (
-                <Card className="p-6">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold">Rolled Stats</h3>
-                        <Button onClick={rollStats} variant="outline">
-                            🎲 Rolar Novamente
-                        </Button>
-                    </div>
+                <Card className="border border-slate-600/50 bg-slate-800/80 backdrop-blur shadow-xl">
+                    <CardContent className="p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold text-slate-100">Rolled Stats</h3>
+                            <Button 
+                                onClick={rollStats} 
+                                variant="outline"
+                                className="border-purple-500 bg-purple-500/20 text-purple-300 hover:bg-purple-500/30"
+                            >
+                                🎲 Rolar Novamente
+                            </Button>
+                        </div>
 
-                    {rolledArrays.length > 0 && (
-                        <div className="space-y-4">
-                            <p className="text-sm text-gray-600">Escolha um dos arrays abaixo:</p>
-                            
-                            {rolledArrays.map((array, arrayIndex) => (
-                                <button
-                                    key={arrayIndex}
-                                    onClick={() => selectRolledArray(arrayIndex)}
-                                    className={`w-full p-4 border-2 rounded-lg transition-all ${
-                                        selectedRolledArray === arrayIndex
-                                            ? 'border-purple-500 bg-purple-50'
-                                            : 'border-gray-300 bg-white hover:border-gray-400'
-                                    }`}
-                                >
-                                    <div className="flex justify-between items-center">
+                        {rolledArrays.length > 0 && (
+                            <div className="space-y-4">
+                                <p className="text-sm text-slate-400">Escolha um dos arrays abaixo:</p>
+                                
+                                {rolledArrays.map((array, arrayIndex) => (
+                                    <Button
+                                        key={arrayIndex}
+                                        onClick={() => selectRolledArray(arrayIndex)}
+                                        variant="ghost"
+                                        className={`w-full h-auto p-4 justify-between transition-all duration-200 ${
+                                            selectedRolledArray === arrayIndex
+                                                ? 'border-2 border-purple-400 bg-purple-500/20 text-purple-200 shadow-lg'
+                                                : 'border-2 border-slate-600/50 bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
+                                        }`}
+                                    >
                                         <span className="font-medium">Array {arrayIndex + 1}:</span>
                                         <div className="flex gap-2">
                                             {array.map((value, index) => (
-                                                <span
-                                                    key={index}
-                                                    className="px-2 py-1 bg-gray-100 rounded font-mono"
-                                                >
+                                                <Badge key={index} className="bg-slate-600/50 text-slate-200 border-slate-500">
                                                     {value}
-                                                </span>
+                                                </Badge>
                                             ))}
                                         </div>
-                                        <span className="text-sm text-gray-600">
+                                        <span className="text-sm text-slate-400">
                                             Total: {array.reduce((sum, val) => sum + val, 0)}
                                         </span>
-                                    </div>
-                                </button>
-                            ))}
+                                    </Button>
+                                ))}
 
-                            {selectedRolledArray !== null && (
-                                <div className="mt-6">
-                                    <h4 className="font-medium mb-4">Atributos finais com bônus raciais:</h4>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                        {Object.entries(abilityScores).map(([ability, score]) => {
-                                            const racialBonuses = getRacialBonuses();
-                                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
-                                            const finalScore = score + racialBonus;
-                                            const finalModifier = getModifier(finalScore);
-                                            
-                                            return (
-                                                <div key={ability} className="bg-gray-50 p-3 rounded text-center">
-                                                    <div className="font-medium capitalize">{ability}</div>
-                                                    <div className="text-xl font-bold text-blue-600">{score}</div>
-                                                    <div className="text-xs text-gray-600 mb-1">Base</div>
-                                                    
-                                                    <div className="border-t pt-1">
-                                                        <div className="text-sm text-gray-600">
-                                                            {score} {racialBonus > 0 && `+ ${racialBonus}`} = 
-                                                            <span className="font-bold text-green-600 ml-1">{finalScore}</span>
+                                {selectedRolledArray !== null && (
+                                    <div className="mt-8">
+                                        <h4 className="font-medium mb-4 text-slate-200">Atributos finais com bônus raciais:</h4>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
+                                                const baseScore = abilityScores[ability as keyof AbilityScores];
+                                                const racialBonuses = getRacialBonuses();
+                                                const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                                                const modifier = getModifier(finalScore);
+                                                
+                                                return (
+                                                    <div key={ability} className="bg-slate-700/50 p-4 rounded-lg shadow-sm border border-slate-600/50 text-center">
+                                                        <div className="font-semibold capitalize text-slate-200 mb-1">{ability}</div>
+                                                        <div className="text-sm font-mono text-slate-400 mb-2">
+                                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
                                                         </div>
-                                                        <div className="text-sm text-gray-600">
-                                                            {finalModifier >= 0 ? '+' : ''}{finalModifier}
+                                                        
+                                                        <div className="text-3xl font-bold text-green-300 mb-1">{finalScore}</div>
+                                                        
+                                                        <div className="text-sm text-slate-400 mb-2">
+                                                            {baseScore} {racialBonus > 0 && `+ ${racialBonus}`}
                                                         </div>
+                                                        
+                                                        <Badge
+                                                            className={`${
+                                                                modifier >= 0
+                                                                    ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                                                    : 'bg-red-500/20 text-red-300 border-red-500/40'
+                                                            }`}
+                                                        >
+                                                            {modifier >= 0 ? '+' : ''}{modifier}
+                                                        </Badge>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
                 </Card>
             )}
 
             {/* Resumo Final dos Atributos */}
             {selectedMethod && (crossStepData.selectedRace || crossStepData.selectedSubrace) && (
-                <Card className="p-6 bg-gradient-to-r from-green-50 to-blue-50">
-                    <h3 className="text-lg font-bold mb-4">📊 Resumo Final dos Atributos</h3>
-                    
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
-                            const baseScore = abilityScores[ability as keyof AbilityScores];
-                            const racialBonuses = getRacialBonuses();
-                            const racialBonus = racialBonuses[ability as keyof AbilityScores];
-                            const modifier = getModifier(finalScore);
-                            
-                            return (
-                                <div key={ability} className="bg-white p-4 rounded-lg shadow-sm border">
-                                    <div className="text-center">
-                                        <div className="font-semibold capitalize text-gray-700 mb-1">
-                                            {ability}
-                                        </div>
-                                        <div className="text-sm font-mono text-gray-500 mb-2">
-                                            {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
-                                        </div>
-                                        
-                                        <div className="text-3xl font-bold text-green-600 mb-1">
-                                            {finalScore}
-                                        </div>
-                                        
-                                        <div className="text-sm text-gray-600 mb-2">
-                                            {baseScore} {racialBonus > 0 && `+ ${racialBonus}`}
-                                        </div>
-                                        
-                                        <div className={`text-sm font-semibold px-2 py-1 rounded ${
-                                            modifier >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                        }`}>
-                                            {modifier >= 0 ? '+' : ''}{modifier}
+                <Card className="border border-indigo-500/30 bg-gradient-to-br from-slate-800/90 to-slate-700/90 backdrop-blur shadow-2xl">
+                    <CardContent className="p-6">
+                        <h3 className="text-lg font-bold mb-6 text-slate-100 flex items-center gap-2">
+                            <span className="text-2xl">📊</span>
+                            Resumo Final dos Atributos
+                        </h3>
+                        
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                            {Object.entries(getFinalAbilityScores()).map(([ability, finalScore]) => {
+                                const baseScore = abilityScores[ability as keyof AbilityScores];
+                                const racialBonuses = getRacialBonuses();
+                                const racialBonus = racialBonuses[ability as keyof AbilityScores];
+                                const modifier = getModifier(finalScore);
+                                
+                                return (
+                                    <div key={ability} className="bg-slate-700/60 p-5 rounded-xl shadow-lg border border-slate-600/50 backdrop-blur">
+                                        <div className="text-center space-y-3">
+                                            <div className="font-semibold capitalize text-slate-200 text-lg">
+                                                {ability}
+                                            </div>
+                                            <div className="text-sm font-mono text-slate-400 bg-slate-600/50 px-2 py-1 rounded">
+                                                {ABILITY_SCORE_ABBREVIATIONS[ability as keyof AbilityScores]}
+                                            </div>
+                                            
+                                            <div className="text-4xl font-bold text-green-300 mb-2">
+                                                {finalScore}
+                                            </div>
+                                            
+                                            <div className="text-sm text-slate-400">
+                                                <span className="text-blue-300">{baseScore}</span>
+                                                {racialBonus > 0 && (
+                                                    <>
+                                                        <span className="text-slate-500 mx-1">+</span>
+                                                        <span className="text-green-400">{racialBonus}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                            
+                                            <Badge
+                                                className={`text-lg px-3 py-1 ${
+                                                    modifier >= 0
+                                                        ? 'bg-green-500/20 text-green-300 border-green-500/40'
+                                                        : 'bg-red-500/20 text-red-300 border-red-500/40'
+                                                }`}
+                                            >
+                                                {modifier >= 0 ? '+' : ''}{modifier}
+                                            </Badge>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    
-                    <div className="mt-4 text-center text-sm text-gray-600">
-                        ✨ Estes são seus atributos finais que serão utilizados no jogo!
-                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <div className="mt-6 text-center text-sm text-slate-400 bg-slate-700/30 p-4 rounded-lg border border-slate-600/30">
+                            <span className="text-yellow-400 mr-2">✨</span>
+                            Estes são seus atributos finais que serão utilizados no jogo!
+                        </div>
+                    </CardContent>
                 </Card>
             )}
         </div>

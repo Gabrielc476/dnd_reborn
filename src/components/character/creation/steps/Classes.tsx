@@ -325,188 +325,92 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
 
     if (error) {
         return (
-            <Card className="p-6">
-                <div className="text-center text-red-600">
-                    <h3 className="font-bold mb-2">Erro ao carregar classes</h3>
-                    <p className="mb-4">{error}</p>
-                    <Button onClick={pullClasses} variant="outline">
-                        Tentar novamente
-                    </Button>
-                </div>
-            </Card>
+            <div className="min-h-screen bg-slate-900 p-6">
+                <Card className="p-6 bg-slate-800/80 border-slate-700">
+                    <div className="text-center text-red-400">
+                        <h3 className="font-bold mb-2 text-white">Erro ao carregar classes</h3>
+                        <p className="mb-4">{error}</p>
+                        <Button
+                            onClick={pullClasses}
+                            variant="outline"
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
+                        >
+                            Tentar novamente
+                        </Button>
+                    </div>
+                </Card>
+            </div>
         );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Debug Info */}
-            {process.env.NODE_ENV === 'development' && (
-                <Card className="p-4 bg-blue-50">
-                    <h4 className="font-bold text-sm mb-2">Debug - Classes Storage (Usando Dados Mock):</h4>
-                    <div className="text-xs space-y-1">
-                        <p>Classe: {selectedClass?.name || 'Não selecionada'}</p>
-                        <p>Subclasse: {selectedSubclass?.name || 'Não selecionada'}</p>
-                        <p>Background: {selectedBackground?.name || 'Não selecionado'}</p>
-                        <p>Raça (de outro step): {crossStepData.selectedRace?.name || 'N/A'}</p>
-                        <p>Cache de classes: {apiClasses.length} itens</p>
-                        <p>Subclasses disponíveis: {availableSubclasses.length} (mock data)</p>
-                        <p>Backgrounds disponíveis: {mockBackgrounds.length} (mock data)</p>
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={clearStorageData}
-                            className="mt-2"
-                        >
-                            Limpar Storage
-                        </Button>
-                    </div>
-                </Card>
-            )}
-
-            {/* Context Info */}
-            {crossStepData.selectedRace && (
-                <Card className="p-4 bg-green-50">
-                    <h4 className="font-semibold mb-2">Raça Selecionada (do step anterior)</h4>
-                    <p className="text-sm">
-                        <strong>{crossStepData.selectedRace.name}</strong>
-                        {crossStepData.selectedSubrace && (
-                            <span> - {crossStepData.selectedSubrace.name}</span>
-                        )}
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                        Algumas combinações de raça e classe podem ter sinergias especiais!
-                    </p>
-                </Card>
-            )}
-
-            {/* Seleção de Classe */}
-            <Card className="p-6">
-                <h3 className="text-lg font-bold mb-4">Escolha uma Classe</h3>
-                
-                {isLoading.classes ? (
-                    <div className="text-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                        <p className="text-gray-600">Carregando classes...</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {apiClasses.map((classRef) => (
-                            <button
-                                key={classRef.index}
-                                onClick={() => handleClassSelection(classRef)}
-                                className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${
-                                    selectedClass?.index === classRef.index
-                                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                                        : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50'
-                                }`}
-                                disabled={isLoading.details}
+        <div className="min-h-screen bg-slate-900 p-6">
+            <div className="space-y-6">
+                {/* Debug Info */}
+                {process.env.NODE_ENV === 'development' && (
+                    <Card className="p-4 bg-slate-800/60 border-slate-700">
+                        <h4 className="font-bold text-sm mb-2 text-slate-200">Debug - Classes Storage (Usando Dados Mock):</h4>
+                        <div className="text-xs space-y-1 text-slate-400">
+                            <p>Classe: {selectedClass?.name || 'Não selecionada'}</p>
+                            <p>Subclasse: {selectedSubclass?.name || 'Não selecionada'}</p>
+                            <p>Background: {selectedBackground?.name || 'Não selecionado'}</p>
+                            <p>Raça (de outro step): {crossStepData.selectedRace?.name || 'N/A'}</p>
+                            <p>Cache de classes: {apiClasses.length} itens</p>
+                            <p>Subclasses disponíveis: {availableSubclasses.length} (mock data)</p>
+                            <p>Backgrounds disponíveis: {mockBackgrounds.length} (mock data)</p>
+                            <Button 
+                                size="sm" 
+                                variant="outline" 
+                                onClick={clearStorageData}
+                                className="mt-2 border-slate-600 text-slate-300 hover:bg-slate-700 bg-transparent"
                             >
-                                <h4 className="font-semibold capitalize">{classRef.name}</h4>
-                                {selectedClass?.index === classRef.index && (
-                                    <div className="mt-2 text-xs text-blue-600">
-                                        ✓ Selecionada
-                                    </div>
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                                Limpar Storage
+                            </Button>
+                        </div>
+                    </Card>
                 )}
-            </Card>
 
-            {/* Detalhes da Classe */}
-            {selectedClass && (
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold mb-4">Detalhes: {selectedClass.name}</h3>
+                {/* Context Info */}
+                {crossStepData.selectedRace && (
+                    <Card className="p-4 bg-green-500/10 border-green-500/30">
+                        <h4 className="font-semibold mb-2 text-green-300">Raça Selecionada (do step anterior)</h4>
+                        <p className="text-sm text-slate-300">
+                            <strong>{crossStepData.selectedRace.name}</strong>
+                            {crossStepData.selectedSubrace && (
+                                <span> - {crossStepData.selectedSubrace.name}</span>
+                            )}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            Algumas combinações de raça e classe podem ter sinergias especiais!
+                        </p>
+                    </Card>
+                )}
+
+                {/* Seleção de Classe */}
+                <Card className="p-6 bg-slate-800/80 border-slate-700">
+                    <h3 className="text-lg font-bold mb-4 text-white">Escolha uma Classe</h3>
                     
-                    <div className="space-y-4">
-                        {/* Hit Die */}
-                        {selectedClass.hit_die && (
-                            <div>
-                                <h4 className="font-semibold mb-2">Dado de Vida</h4>
-                                <p className="text-gray-700">d{selectedClass.hit_die}</p>
-                            </div>
-                        )}
-
-                        {/* Proficiências */}
-                        {selectedClass.proficiencies && selectedClass.proficiencies.length > 0 && (
-                            <div>
-                                <h4 className="font-semibold mb-2">Proficiências</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedClass.proficiencies.map((prof, index) => (
-                                        <span
-                                            key={index}
-                                            className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm"
-                                        >
-                                            {prof.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Saving Throws */}
-                        {selectedClass.saving_throws && selectedClass.saving_throws.length > 0 && (
-                            <div>
-                                <h4 className="font-semibold mb-2">Testes de Resistência</h4>
-                                <div className="flex flex-wrap gap-2">
-                                    {selectedClass.saving_throws.map((save) => (
-                                        <span
-                                            key={save.index}
-                                            className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm"
-                                        >
-                                            {save.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Spellcasting */}
-                        {selectedClass.spellcasting && (
-                            <div>
-                                <h4 className="font-semibold mb-2">Conjuração</h4>
-                                <p className="text-gray-700">
-                                    Esta classe pode conjurar magias usando {selectedClass.spellcasting.spellcasting_ability?.name}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </Card>
-            )}
-
-            {/* Seleção de Subclasse */}
-            {selectedClass && availableSubclasses.length > 0 && (
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold mb-4">Escolha uma Subclasse</h3>
-                    
-                    {isLoading.subclasses ? (
-                        <div className="text-center py-4">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600 mx-auto mb-2"></div>
-                            <p className="text-gray-600">Carregando subclasses...</p>
+                    {isLoading.classes ? (
+                        <div className="text-center py-8">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-2"></div>
+                            <p className="text-slate-400">Carregando classes...</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {availableSubclasses.map((subclass) => (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {apiClasses.map((classRef) => (
                                 <button
-                                    key={subclass.index}
-                                    onClick={() => handleSubclassSelection(subclass)}
+                                    key={classRef.index}
+                                    onClick={() => handleClassSelection(classRef)}
                                     className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${
-                                        selectedSubclass?.index === subclass.index
-                                            ? 'border-purple-500 bg-purple-50 text-purple-700'
-                                            : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50'
+                                        selectedClass?.index === classRef.index
+                                            ? 'border-blue-400 bg-blue-500/20 text-blue-300'
+                                            : 'border-slate-600 bg-slate-700/50 hover:border-slate-500 hover:bg-slate-700 text-slate-300'
                                     }`}
+                                    disabled={isLoading.details}
                                 >
-                                    <h4 className="font-semibold">{subclass.name}</h4>
-                                    
-                                    {/* Descrição da subclasse se disponível */}
-                                    {subclass.desc && subclass.desc.length > 0 && (
-                                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                                            {Array.isArray(subclass.desc) ? subclass.desc[0] : subclass.desc}
-                                        </p>
-                                    )}
-                                    
-                                    {selectedSubclass?.index === subclass.index && (
-                                        <div className="mt-2 text-xs text-purple-600">
+                                    <h4 className="font-semibold capitalize">{classRef.name}</h4>
+                                    {selectedClass?.index === classRef.index && (
+                                        <div className="mt-2 text-xs text-blue-400">
                                             ✓ Selecionada
                                         </div>
                                     )}
@@ -515,109 +419,213 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
                         </div>
                     )}
                 </Card>
-            )}
 
-            {/* Seleção de Background */}
-            <Card className="p-6">
-                <h3 className="text-lg font-bold mb-4">Escolha um Background</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {mockBackgrounds.map((background) => (
-                        <button
-                            key={background.index}
-                            onClick={() => handleBackgroundSelection(background)}
-                            className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${
-                                selectedBackground?.index === background.index
-                                    ? 'border-orange-500 bg-orange-50 text-orange-700'
-                                    : 'border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50'
-                            }`}
-                        >
-                            <h4 className="font-semibold">{background.name}</h4>
-                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">{background.desc}</p>
-                            
-                            {/* Skills do background */}
-                            <div className="mt-2">
-                                <div className="flex flex-wrap gap-1">
-                                    {background.starting_proficiencies?.map((prof, index) => (
+                {/* Detalhes da Classe */}
+                {selectedClass && (
+                    <Card className="p-6 bg-slate-800/80 border-slate-700">
+                        <h3 className="text-lg font-bold mb-4 text-white">Detalhes: {selectedClass.name}</h3>
+                        
+                        <div className="space-y-4">
+                            {/* Hit Die */}
+                            {selectedClass.hit_die && (
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-slate-200">Dado de Vida</h4>
+                                    <p className="text-slate-300">d{selectedClass.hit_die}</p>
+                                </div>
+                            )}
+
+                            {/* Proficiências */}
+                            {selectedClass.proficiencies && selectedClass.proficiencies.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-slate-200">Proficiências</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedClass.proficiencies.map((prof, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-sm border border-blue-500/30"
+                                            >
+                                                {prof.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Saving Throws */}
+                            {selectedClass.saving_throws && selectedClass.saving_throws.length > 0 && (
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-slate-200">Testes de Resistência</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedClass.saving_throws.map((save) => (
+                                            <span
+                                                key={save.index}
+                                                className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-sm border border-green-500/30"
+                                            >
+                                                {save.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Spellcasting */}
+                            {selectedClass.spellcasting && (
+                                <div>
+                                    <h4 className="font-semibold mb-2 text-slate-200">Conjuração</h4>
+                                    <p className="text-slate-300">
+                                        Esta classe pode conjurar magias usando {selectedClass.spellcasting.spellcasting_ability?.name}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </Card>
+                )}
+
+                {/* Seleção de Subclasse */}
+                {selectedClass && availableSubclasses.length > 0 && (
+                    <Card className="p-6 bg-slate-800/80 border-slate-700">
+                        <h3 className="text-lg font-bold mb-4 text-white">Escolha uma Subclasse</h3>
+                        
+                        {isLoading.subclasses ? (
+                            <div className="text-center py-4">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-400 mx-auto mb-2"></div>
+                                <p className="text-slate-400">Carregando subclasses...</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {availableSubclasses.map((subclass) => (
+                                    <button
+                                        key={subclass.index}
+                                        onClick={() => handleSubclassSelection(subclass)}
+                                        className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${
+                                            selectedSubclass?.index === subclass.index
+                                                ? 'border-purple-400 bg-purple-500/20 text-purple-300'
+                                                : 'border-slate-600 bg-slate-700/50 hover:border-slate-500 hover:bg-slate-700 text-slate-300'
+                                        }`}
+                                    >
+                                        <h4 className="font-semibold">{subclass.name}</h4>
+                                        
+                                        {/* Descrição da subclasse se disponível */}
+                                        {subclass.desc && subclass.desc.length > 0 && (
+                                            <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+                                                {Array.isArray(subclass.desc) ? subclass.desc[0] : subclass.desc}
+                                            </p>
+                                        )}
+                                        
+                                        {selectedSubclass?.index === subclass.index && (
+                                            <div className="mt-2 text-xs text-purple-400">
+                                                ✓ Selecionada
+                                            </div>
+                                        )}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </Card>
+                )}
+
+                {/* Seleção de Background */}
+                <Card className="p-6 bg-slate-800/80 border-slate-700">
+                    <h3 className="text-lg font-bold mb-4 text-white">Escolha um Background</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {mockBackgrounds.map((background) => (
+                            <button
+                                key={background.index}
+                                onClick={() => handleBackgroundSelection(background)}
+                                className={`p-4 border-2 rounded-lg text-left transition-all duration-200 ${
+                                    selectedBackground?.index === background.index
+                                        ? 'border-orange-400 bg-orange-500/20 text-orange-300'
+                                        : 'border-slate-600 bg-slate-700/50 hover:border-slate-500 hover:bg-slate-700 text-slate-300'
+                                }`}
+                            >
+                                <h4 className="font-semibold">{background.name}</h4>
+                                <p className="text-sm text-slate-400 mt-1 line-clamp-2">{background.desc}</p>
+                                
+                                {/* Skills do background */}
+                                <div className="mt-2">
+                                    <div className="flex flex-wrap gap-1">
+                                        {background.starting_proficiencies?.map((prof, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded text-xs border border-orange-500/30"
+                                            >
+                                                {prof.name}
+                                            </span>
+                                        )) || (
+                                            <span className="text-xs text-slate-500">Sem proficiências</span>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {selectedBackground?.index === background.index && (
+                                    <div className="mt-2 text-xs text-orange-400">
+                                        ✓ Selecionado
+                                    </div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </Card>
+
+                {/* Background Selecionado - Detalhes */}
+                {selectedBackground && (
+                    <Card className="p-6 bg-slate-800/80 border-slate-700">
+                        <h3 className="text-lg font-bold mb-4 text-white">Background: {selectedBackground.name}</h3>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-semibold mb-2 text-slate-200">Descrição</h4>
+                                <p className="text-slate-300">{selectedBackground.desc}</p>
+                            </div>
+
+                            <div>
+                                <h4 className="font-semibold mb-2 text-slate-200">Proficiências em Perícias</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {selectedBackground.starting_proficiencies?.map((prof, index) => (
                                         <span
                                             key={index}
-                                            className="px-1 py-0.5 bg-orange-100 text-orange-700 rounded text-xs"
+                                            className="px-2 py-1 bg-orange-500/20 text-orange-300 rounded text-sm border border-orange-500/30"
                                         >
                                             {prof.name}
                                         </span>
                                     )) || (
-                                        <span className="text-xs text-gray-500">Sem proficiências</span>
+                                        <span className="text-slate-500">Nenhuma proficiência específica</span>
                                     )}
                                 </div>
                             </div>
-                            
-                            {selectedBackground?.index === background.index && (
-                                <div className="mt-2 text-xs text-orange-600">
-                                    ✓ Selecionado
+
+                            <div>
+                                <h4 className="font-semibold mb-2 text-slate-200">Característica: {selectedBackground.feature.name}</h4>
+                                <div className="text-slate-300">
+                                    {Array.isArray(selectedBackground.feature.desc) 
+                                        ? selectedBackground.feature.desc.map((paragraph, index) => (
+                                            <p key={index} className="mb-2">{paragraph}</p>
+                                          ))
+                                        : <p>{selectedBackground.feature.desc}</p>
+                                    }
                                 </div>
-                            )}
-                        </button>
-                    ))}
-                </div>
-            </Card>
+                            </div>
 
-            {/* Background Selecionado - Detalhes */}
-            {selectedBackground && (
-                <Card className="p-6">
-                    <h3 className="text-lg font-bold mb-4">Background: {selectedBackground.name}</h3>
-                    
-                    <div className="space-y-4">
-                        <div>
-                            <h4 className="font-semibold mb-2">Descrição</h4>
-                            <p className="text-gray-700">{selectedBackground.desc}</p>
-                        </div>
-
-                        <div>
-                            <h4 className="font-semibold mb-2">Proficiências em Perícias</h4>
-                            <div className="flex flex-wrap gap-2">
-                                {selectedBackground.starting_proficiencies?.map((prof, index) => (
-                                    <span
-                                        key={index}
-                                        className="px-2 py-1 bg-orange-100 text-orange-800 rounded text-sm"
-                                    >
-                                        {prof.name}
-                                    </span>
-                                )) || (
-                                    <span className="text-gray-500">Nenhuma proficiência específica</span>
-                                )}
+                            <div>
+                                <h4 className="font-semibold mb-2 text-slate-200">Equipamento Inicial</h4>
+                                <ul className="list-disc list-inside text-slate-300 space-y-1">
+                                    {selectedBackground.starting_equipment?.map((equipment, index) => (
+                                        <li key={index}>
+                                            {typeof equipment === 'string' 
+                                                ? equipment 
+                                                : `${equipment.quantity}x ${equipment.equipment.name}`
+                                            }
+                                        </li>
+                                    )) || (
+                                        <li className="text-slate-500">Equipamento não especificado</li>
+                                    )}
+                                </ul>
                             </div>
                         </div>
-
-                        <div>
-                            <h4 className="font-semibold mb-2">Característica: {selectedBackground.feature.name}</h4>
-                            <div className="text-gray-700">
-                                {Array.isArray(selectedBackground.feature.desc) 
-                                    ? selectedBackground.feature.desc.map((paragraph, index) => (
-                                        <p key={index} className="mb-2">{paragraph}</p>
-                                      ))
-                                    : <p>{selectedBackground.feature.desc}</p>
-                                }
-                            </div>
-                        </div>
-
-                        <div>
-                            <h4 className="font-semibold mb-2">Equipamento Inicial</h4>
-                            <ul className="list-disc list-inside text-gray-700 space-y-1">
-                                {selectedBackground.starting_equipment?.map((equipment, index) => (
-                                    <li key={index}>
-                                        {typeof equipment === 'string' 
-                                            ? equipment 
-                                            : `${equipment.quantity}x ${equipment.equipment.name}`
-                                        }
-                                    </li>
-                                )) || (
-                                    <li className="text-gray-500">Equipamento não especificado</li>
-                                )}
-                            </ul>
-                        </div>
-                    </div>
-                </Card>
-            )}
+                    </Card>
+                )}
+            </div>
         </div>
     );
 };

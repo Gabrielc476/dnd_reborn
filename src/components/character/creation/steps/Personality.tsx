@@ -5,7 +5,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from "react";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -246,7 +246,7 @@ const PersonalityStep: React.FC<PersonalityStepProps> = ({ onValidationChange })
     accentColor: string;
     suggestionType: keyof typeof INSPIRATION_SUGGESTIONS;
   }) => (
-    <Card className="overflow-hidden shadow-lg border-0">
+    <Card className="overflow-hidden shadow-lg border-slate-700 bg-slate-800/80">
       <div className={`${bgColor} px-6 py-4`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
@@ -295,24 +295,24 @@ const PersonalityStep: React.FC<PersonalityStepProps> = ({ onValidationChange })
                 value={item}
                 onChange={(e) => handleListUpdate(items, setItems, storageKey, index, e.target.value)}
                 placeholder={placeholder}
-                className={`pr-12 border-2 focus:border-${accentColor} transition-colors resize-none`}
+                className={`pr-12 border-2 focus:border-${accentColor} transition-colors resize-none bg-slate-700/50 border-slate-600 text-slate-200 placeholder-slate-400`}
                 rows={2}
               />
               <Button
                 onClick={() => handleListRemove(items, setItems, storageKey, index)}
                 size="sm"
                 variant="ghost"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 hover:bg-red-500/20 h-8 w-8 p-0"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
             </div>
           ))}
           {items.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Icon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <div className="text-center py-8 text-slate-400">
+              <Icon className="w-12 h-12 mx-auto mb-3 text-slate-500" />
               <p className="text-sm">Nenhum item adicionado ainda</p>
-              <p className="text-xs text-gray-400">Clique em "Adicionar" ou "Inspiração" para começar</p>
+              <p className="text-xs text-slate-500">Clique em "Adicionar" ou "Inspiração" para começar</p>
             </div>
           )}
         </div>
@@ -323,197 +323,199 @@ const PersonalityStep: React.FC<PersonalityStepProps> = ({ onValidationChange })
   // Loading state
   if (!isMounted) {
     return (
-      <div className="p-8">
+      <div className="min-h-screen bg-slate-900 p-8">
         <div className="space-y-6">
-          <div className="h-8 bg-gray-200 rounded animate-pulse" />
-          <div className="h-32 bg-gray-200 rounded animate-pulse" />
-          <div className="h-32 bg-gray-200 rounded animate-pulse" />
+          <div className="h-8 bg-slate-700 rounded animate-pulse" />
+          <div className="h-32 bg-slate-700 rounded animate-pulse" />
+          <div className="h-32 bg-slate-700 rounded animate-pulse" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      {/* Header */}
-      <div className="text-center mb-8">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg">
-            <Heart className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-slate-900 p-6">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-600 rounded-xl shadow-lg">
+              <Heart className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-slate-100">Personalidade do Personagem</h1>
+              <p className="text-slate-400">Defina a personalidade única e história do seu personagem</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Personalidade do Personagem</h1>
-            <p className="text-gray-600">Defina a personalidade única e história do seu personagem</p>
-          </div>
+
+          {/* Validação */}
+          {characterName.trim().length === 0 && (
+            <Alert className="max-w-md mx-auto bg-yellow-500/10 border-yellow-500/30">
+              <AlertCircle className="h-4 w-4 text-yellow-400" />
+              <AlertDescription className="text-yellow-300">
+                O nome do personagem é obrigatório para prosseguir.
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
-        {/* Validação */}
-        {characterName.trim().length === 0 && (
-          <Alert className="max-w-md mx-auto">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              O nome do personagem é obrigatório para prosseguir.
-            </AlertDescription>
-          </Alert>
-        )}
-      </div>
-
-      {/* Nome do Personagem */}
-      <Card className="overflow-hidden shadow-lg border-0">
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
-          <div className="flex items-center gap-2 text-white">
-            <User className="w-5 h-5" />
-            <h2 className="text-xl font-semibold">Nome do Personagem</h2>
-            <Badge variant="secondary" className="ml-auto bg-white/20 text-white">
-              Obrigatório
-            </Badge>
+        {/* Nome do Personagem */}
+        <Card className="overflow-hidden shadow-lg border-slate-700 bg-slate-800/80">
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
+            <div className="flex items-center gap-2 text-white">
+              <User className="w-5 h-5" />
+              <h2 className="text-xl font-semibold">Nome do Personagem</h2>
+              <Badge variant="secondary" className="ml-auto bg-white/20 text-white border-white/30">
+                Obrigatório
+              </Badge>
+            </div>
           </div>
-        </div>
-        <div className="p-6">
-          <Input
-            value={characterName}
-            onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="Digite o nome do seu personagem..."
-            className="text-lg font-medium border-2 focus:border-blue-500 transition-colors"
+          <div className="p-6">
+            <Input
+              value={characterName}
+              onChange={(e) => handleNameChange(e.target.value)}
+              placeholder="Digite o nome do seu personagem..."
+              className="text-lg font-medium border-2 focus:border-blue-500 transition-colors bg-slate-700/50 border-slate-600 text-slate-200 placeholder-slate-400"
+            />
+          </div>
+        </Card>
+
+        {/* Grid de Seções de Personalidade */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ListSection
+            title="Traços de Personalidade"
+            icon={Heart}
+            items={personalityTraits}
+            setItems={setPersonalityTraits}
+            storageKey={STORAGE_KEYS.PERSONALITY_TRAITS}
+            placeholder="Descreva um traço único de personalidade..."
+            bgColor="bg-gradient-to-r from-pink-500 to-rose-600"
+            accentColor="pink-500"
+            suggestionType="traits"
+          />
+
+          <ListSection
+            title="Ideais"
+            icon={Target}
+            items={ideals}
+            setItems={setIdeals}
+            storageKey={STORAGE_KEYS.IDEALS}
+            placeholder="Descreva um ideal que guia seu personagem..."
+            bgColor="bg-gradient-to-r from-amber-500 to-orange-600"
+            accentColor="amber-500"
+            suggestionType="ideals"
+          />
+
+          <ListSection
+            title="Vínculos"
+            icon={Users}
+            items={bonds}
+            setItems={setBonds}
+            storageKey={STORAGE_KEYS.BONDS}
+            placeholder="Descreva uma conexão importante do personagem..."
+            bgColor="bg-gradient-to-r from-green-500 to-emerald-600"
+            accentColor="green-500"
+            suggestionType="bonds"
+          />
+
+          <ListSection
+            title="Defeitos"
+            icon={Zap}
+            items={flaws}
+            setItems={setFlaws}
+            storageKey={STORAGE_KEYS.FLAWS}
+            placeholder="Descreva uma fraqueza ou defeito..."
+            bgColor="bg-gradient-to-r from-red-500 to-rose-600"
+            accentColor="red-500"
+            suggestionType="flaws"
           />
         </div>
-      </Card>
 
-      {/* Grid de Seções de Personalidade */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ListSection
-          title="Traços de Personalidade"
-          icon={Heart}
-          items={personalityTraits}
-          setItems={setPersonalityTraits}
-          storageKey={STORAGE_KEYS.PERSONALITY_TRAITS}
-          placeholder="Descreva um traço único de personalidade..."
-          bgColor="bg-gradient-to-r from-pink-500 to-rose-600"
-          accentColor="pink-500"
-          suggestionType="traits"
-        />
+        {/* História e Notas */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="overflow-hidden shadow-lg border-slate-700 bg-slate-800/80">
+            <div className="bg-gradient-to-r from-purple-500 to-violet-600 px-6 py-4">
+              <div className="flex items-center gap-2 text-white">
+                <BookOpen className="w-5 h-5" />
+                <h3 className="text-lg font-semibold">História de Fundo</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <Textarea
+                value={backstory}
+                onChange={(e) => handleBackstoryChange(e.target.value)}
+                placeholder="Conte a história de vida do seu personagem, suas origens, experiências importantes..."
+                className="min-h-[150px] border-2 focus:border-purple-500 transition-colors resize-none bg-slate-700/50 border-slate-600 text-slate-200 placeholder-slate-400"
+              />
+            </div>
+          </Card>
 
-        <ListSection
-          title="Ideais"
-          icon={Target}
-          items={ideals}
-          setItems={setIdeals}
-          storageKey={STORAGE_KEYS.IDEALS}
-          placeholder="Descreva um ideal que guia seu personagem..."
-          bgColor="bg-gradient-to-r from-amber-500 to-orange-600"
-          accentColor="amber-500"
-          suggestionType="ideals"
-        />
+          <Card className="overflow-hidden shadow-lg border-slate-700 bg-slate-800/80">
+            <div className="bg-gradient-to-r from-gray-500 to-slate-600 px-6 py-4">
+              <div className="flex items-center gap-2 text-white">
+                <Edit className="w-5 h-5" />
+                <h3 className="text-lg font-semibold">Notas Adicionais</h3>
+              </div>
+            </div>
+            <div className="p-6">
+              <Textarea
+                value={notes}
+                onChange={(e) => handleNotesChange(e.target.value)}
+                placeholder="Anote qualquer informação adicional sobre seu personagem..."
+                className="min-h-[150px] border-2 focus:border-gray-500 transition-colors resize-none bg-slate-700/50 border-slate-600 text-slate-200 placeholder-slate-400"
+              />
+            </div>
+          </Card>
+        </div>
 
-        <ListSection
-          title="Vínculos"
-          icon={Users}
-          items={bonds}
-          setItems={setBonds}
-          storageKey={STORAGE_KEYS.BONDS}
-          placeholder="Descreva uma conexão importante do personagem..."
-          bgColor="bg-gradient-to-r from-green-500 to-emerald-600"
-          accentColor="green-500"
-          suggestionType="bonds"
-        />
+        {/* Resumo */}
+        {(characterName || personalityTraits.length > 0 || ideals.length > 0 || bonds.length > 0 || flaws.length > 0) && (
+          <Card className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border-blue-500/30 bg-slate-800/80">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-200">
+                <Save className="w-5 h-5" />
+                Resumo da Personalidade
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">{characterName ? '✓' : '○'}</div>
+                  <div className="text-slate-400">Nome</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-pink-400">{personalityTraits.length}</div>
+                  <div className="text-slate-400">Traços</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-400">{ideals.length}</div>
+                  <div className="text-slate-400">Ideais</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{bonds.length + flaws.length}</div>
+                  <div className="text-slate-400">Vínculos/Defeitos</div>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
-        <ListSection
-          title="Defeitos"
-          icon={Zap}
-          items={flaws}
-          setItems={setFlaws}
-          storageKey={STORAGE_KEYS.FLAWS}
-          placeholder="Descreva uma fraqueza ou defeito..."
-          bgColor="bg-gradient-to-r from-red-500 to-rose-600"
-          accentColor="red-500"
-          suggestionType="flaws"
-        />
+        {/* Debug Info (apenas em desenvolvimento) */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="bg-yellow-500/10 border-yellow-500/30">
+            <div className="p-4">
+              <h4 className="font-bold text-sm mb-2 text-yellow-300">Debug - Dados salvos:</h4>
+              <div className="text-xs space-y-1 text-yellow-200">
+                <p>Nome: {characterName || 'vazio'}</p>
+                <p>Traços: {personalityTraits.length} itens</p>
+                <p>Ideais: {ideals.length} itens</p>
+                <p>Vínculos: {bonds.length} itens</p>
+                <p>Defeitos: {flaws.length} itens</p>
+                <p>História: {backstory ? 'preenchida' : 'vazia'}</p>
+                <p>Notas: {notes ? 'preenchidas' : 'vazias'}</p>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
-
-      {/* História e Notas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="overflow-hidden shadow-lg border-0">
-          <div className="bg-gradient-to-r from-purple-500 to-violet-600 px-6 py-4">
-            <div className="flex items-center gap-2 text-white">
-              <BookOpen className="w-5 h-5" />
-              <h3 className="text-lg font-semibold">História de Fundo</h3>
-            </div>
-          </div>
-          <div className="p-6">
-            <Textarea
-              value={backstory}
-              onChange={(e) => handleBackstoryChange(e.target.value)}
-              placeholder="Conte a história de vida do seu personagem, suas origens, experiências importantes..."
-              className="min-h-[150px] border-2 focus:border-purple-500 transition-colors resize-none"
-            />
-          </div>
-        </Card>
-
-        <Card className="overflow-hidden shadow-lg border-0">
-          <div className="bg-gradient-to-r from-gray-500 to-slate-600 px-6 py-4">
-            <div className="flex items-center gap-2 text-white">
-              <Edit className="w-5 h-5" />
-              <h3 className="text-lg font-semibold">Notas Adicionais</h3>
-            </div>
-          </div>
-          <div className="p-6">
-            <Textarea
-              value={notes}
-              onChange={(e) => handleNotesChange(e.target.value)}
-              placeholder="Anote qualquer informação adicional sobre seu personagem..."
-              className="min-h-[150px] border-2 focus:border-gray-500 transition-colors resize-none"
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* Resumo */}
-      {(characterName || personalityTraits.length > 0 || ideals.length > 0 || bonds.length > 0 || flaws.length > 0) && (
-        <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-          <div className="p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Save className="w-5 h-5" />
-              Resumo da Personalidade
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{characterName ? '✓' : '○'}</div>
-                <div className="text-gray-600">Nome</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-pink-600">{personalityTraits.length}</div>
-                <div className="text-gray-600">Traços</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-amber-600">{ideals.length}</div>
-                <div className="text-gray-600">Ideais</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{bonds.length + flaws.length}</div>
-                <div className="text-gray-600">Vínculos/Defeitos</div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Debug Info (apenas em desenvolvimento) */}
-      {process.env.NODE_ENV === 'development' && (
-        <Card className="bg-yellow-50 border-yellow-200">
-          <div className="p-4">
-            <h4 className="font-bold text-sm mb-2">Debug - Dados salvos:</h4>
-            <div className="text-xs space-y-1">
-              <p>Nome: {characterName || 'vazio'}</p>
-              <p>Traços: {personalityTraits.length} itens</p>
-              <p>Ideais: {ideals.length} itens</p>
-              <p>Vínculos: {bonds.length} itens</p>
-              <p>Defeitos: {flaws.length} itens</p>
-              <p>História: {backstory ? 'preenchida' : 'vazia'}</p>
-              <p>Notas: {notes ? 'preenchidas' : 'vazias'}</p>
-            </div>
-          </div>
-        </Card>
-      )}
     </div>
   );
 };
