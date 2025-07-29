@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthContext } from '@/hooks/useAuth';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { characterAPI } from '@/api/characterAPI';
+import { Character } from '@/types/character';
 import { 
   Shield, 
   Sparkles, 
@@ -15,15 +16,10 @@ import {
   Heart
 } from 'lucide-react';
 
-// Definir tipo compatível com o mapeamento da characterAPI
-type Character = ReturnType<typeof characterAPI.mapCharacterFields>;
-
 const CharactersList = () => {
   const {
     campaign,
-    characters: rawCharacters,
     isLoading: isCampaignLoading,
-    loadCharacters,
     isGM,
     isPlayer,
     canPerformAction
@@ -31,27 +27,49 @@ const CharactersList = () => {
 
   const router = useRouter();
   const { user } = useAuthContext();
+  
   const [isLoading, setIsLoading] = useState(true);
   const [showGMOnlyActions, setShowGMOnlyActions] = useState(false);
-  
-  // Normalizar personagens usando a API
-  const characters: Character[] = rawCharacters.map(char => 
-    characterAPI.mapCharacterFields(char)
-  );
+  const [characters, setCharacters] = useState<Character[]>([]);
 
-  // Recarregar personagens quando solicitado
-  useEffect(() => {
-    if (campaign?.id && rawCharacters.length === 0 && !isCampaignLoading) {
-      loadCharacters();
-    }
-  }, [campaign?.id, rawCharacters, isCampaignLoading, loadCharacters]);
+  const loadedCampaignIdRef = useRef<string | null>(null);
 
-  // Atualizar estado de carregamento
   useEffect(() => {
-    if (!isCampaignLoading) {
-      setIsLoading(false);
+    if (campaign?.id && !isCampaignLoading && loadedCampaignIdRef.current !== campaign.id) {
+      loadedCampaignIdRef.current = campaign.id;
+      setIsLoading(true);
+
+      characterAPI.getCampaignCharacters(campaign.id)
+        .then(response => {
+          if (response.success && response.characters) {
+            // Garante que todos os objetos necessários existam
+            const safeCharacters = response.characters.map(char => ({
+              ...char,
+              details: char.details || {},
+              basic_info: char.basic_info || {
+                name: 'Personagem sem nome',
+                race_info: {},
+                class: 'Classe desconhecida',
+                level: 1
+              },
+              stats: char.stats || {
+                hitpoints: 0, // Usando hitpoints em vez de current_hp/max_hp
+                armor_class: 0
+              }
+            }));
+            setCharacters(safeCharacters);
+          } else {
+            console.error("Erro ao carregar personagens:", response.error);
+          }
+        })
+        .catch(error => {
+          console.error("Erro ao carregar personagens:", error);
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
     }
-  }, [isCampaignLoading]);
+  }, [campaign?.id, isCampaignLoading]);
 
   const handleCreateCharacter = () => {
     if (!campaign?.id) return;
@@ -67,14 +85,11 @@ const CharactersList = () => {
     router.push(`/characters/${characterId}`);
   };
 
-  // Verificar se o usuário atual pode criar personagem
   const canCreateCharacter = () => {
     if (!user || !campaign) return false;
     
-    // GM sempre pode criar personagens (para testes/NPCs)
     if (isGM) return true;
     
-    // Jogador pode criar se não tem personagem ainda
     if (isPlayer) {
       const playerData = campaign.players.find(p => p.user_id === user.id);
       return !playerData?.character_id;
@@ -83,14 +98,11 @@ const CharactersList = () => {
     return false;
   };
 
-  // Verificar se o usuário pode editar um personagem específico
   const canEditCharacter = (character: Character) => {
     if (!user || !campaign) return false;
     
-    // GM pode editar qualquer personagem
     if (isGM) return true;
     
-    // Jogador só pode editar seu próprio personagem
     if (isPlayer && character.user_id === user.id) {
       return true;
     }
@@ -98,7 +110,6 @@ const CharactersList = () => {
     return false;
   };
 
-  // Renderizar estado de carregamento
   if (isCampaignLoading || isLoading) {
     return (
       <div className="text-center py-12">
@@ -108,11 +119,18 @@ const CharactersList = () => {
     );
   }
 
-  // Calcular estatísticas
   const activeCharacters = characters.filter(c => c.is_active).length;
+  
+  // Cálculo seguro do nível médio
+  const totalLevel = characters.reduce((sum, c) => {
+    const level = c.basic_info?.level || 1;
+    return sum + level;
+  }, 0);
+  
   const averageLevel = characters.length > 0 
-    ? Math.round(characters.reduce((sum, c) => sum + (c.level || 1), 0) / characters.length)
+    ? Math.round(totalLevel / characters.length)
     : 0;
+    
   const remainingSlots = (campaign?.max_players || 0) - characters.length;
 
   return (
@@ -193,7 +211,7 @@ const CharactersList = () => {
                 {character.avatar_url ? (
                   <img 
                     src={character.avatar_url} 
-                    alt={character.name}
+                    alt={character.basic_info?.name || 'Personagem sem nome'}
                     className="w-16 h-16 rounded-full object-cover border-2 border-purple-500/50"
                   />
                 ) : (
@@ -204,10 +222,12 @@ const CharactersList = () => {
                 
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-white">
-                    {character.name || 'Personagem sem nome'}
+                    {character.basic_info?.name || 'Personagem sem nome'}
                   </h3>
                   <p className="text-sm text-gray-400">
-                    {character.race || 'Raça desconhecida'} • {character.class || 'Classe desconhecida'} • Nível {character.level || 1}
+                    {character.basic_info?.race_info?.race_name || 'Raça desconhecida'} • 
+                    {character.basic_info?.class || 'Classe desconhecida'} • 
+                    Nível {character.basic_info?.level || 1}
                   </p>
                   {character.player_name && (
                     <p className="text-xs text-purple-400 mt-1">
@@ -224,7 +244,8 @@ const CharactersList = () => {
                     <span className="text-sm">PV</span>
                   </div>
                   <div className="text-white font-mono mt-1">
-                    {character.max_hit_points || 0}/{character.max_hit_points || 0}
+                    {/* Usando hitpoints em vez de current_hp/max_hp */}
+                    {character.stats?.hit_points || 0}
                   </div>
                 </div>
                 
@@ -234,15 +255,16 @@ const CharactersList = () => {
                     <span className="text-sm">CA</span>
                   </div>
                   <div className="text-white font-mono mt-1">
-                    {character.armor_class || 0}
+                    {character.stats?.armor_class || 0}
                   </div>
                 </div>
               </div>
               
-              {character.personality_traits && (
+              {/* Renderização segura dos traços de personalidade */}
+              {character.details?.personality_traits && (
                 <div className="bg-gray-800/40 rounded-lg p-3 mb-4">
                   <p className="text-xs text-gray-400 italic line-clamp-2">
-                    "{character.personality_traits}"
+                    "{character.details.personality_traits}"
                   </p>
                 </div>
               )}

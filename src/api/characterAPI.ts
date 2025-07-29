@@ -1,28 +1,19 @@
 import { CharacterCreationData } from "@/types/characterCreation";
-
-export interface Character {
-  id: string;
-  user_id: string;
-  name?: string;
-  class?: string;
-  level?: number;
-  hit_points?: number;
-  max_hit_points?: number;
-  armor_class?: number;
-  conditions?: string[];
-  notes?: string;
-  race?: string;
-  background?: string;
-  alignment?: string;
-  experience_points?: number;
-  skills?: string[];
-  inventory?: string[];
-  spells?: string[];
-  personality_traits?: string;
-  ideals?: string;
-  bonds?: string;
-  flaws?: string;
-}
+import { 
+  Character, 
+  CharacterSummary, 
+  BasicInfo, 
+  RaceInfo, 
+  Attributes, 
+  Skills, 
+  Stats, 
+  Combat, 
+  Magic, 
+  CharacterDetails,
+  DiceRoll,
+  Attack,
+  Spell
+} from "@/types/character";
 
 export interface CharacterResponse {
   success: boolean;
@@ -78,57 +69,6 @@ class CharacterAPI {
     }
   }
 
-  /**
-   * Mapeia os campos de um personagem de forma universal
-   * Extrai dados tanto da raiz quanto de subobjetos como basic_info e stats
-   */
-  public mapCharacterFields(character: any): Character {
-    // Função helper para obter valor de qualquer nível
-    const getValue = (primaryPath: string, fallbackPaths: string[] = [], defaultValue: any = "") => {
-      // Tenta o caminho principal primeiro
-      if (character[primaryPath] !== undefined && character[primaryPath] !== null) {
-        return character[primaryPath];
-      }
-      
-      // Tenta caminhos alternativos
-      for (const path of fallbackPaths) {
-        const value = this.getNestedValue(character, path);
-        if (value !== undefined && value !== null) return value;
-      }
-      
-      // Valor padrão se não encontrar
-      return defaultValue;
-    };
-
-    // Mapeamento de campos com prioridades
-    return {
-      ...character,
-      id: character.id || "",
-      user_id: character.user_id || "",
-      name: getValue("name", ["basic_info.name"], "Personagem sem nome"),
-      class: getValue("class", ["basic_info.character_class"], "Classe desconhecida"),
-      level: getValue("level", ["basic_info.level"], 1),
-      max_hit_points: getValue("max_hit_points", ["stats.max_hit_points", "stats.hit_points"], 0),
-      armor_class: getValue("armor_class", ["stats.armor_class"], 0),
-      conditions: character.conditions || [],
-      race: getValue("race", ["basic_info.race_info.race_name"], ""),
-      background: getValue("background", ["basic_info.background"], ""),
-      alignment: getValue("alignment", ["basic_info.alignment"], ""),
-      experience_points: getValue("experience_points", ["stats.experience_points"], 0)
-    };
-  }
-
-  /**
-   * Helper para obter valores aninhados em objetos
-   * Ex: getNestedValue(char, "basic_info.race_info.race_name")
-   */
-  private getNestedValue(obj: any, path: string) {
-    return path.split('.').reduce((acc, part) => {
-      if (acc === null || acc === undefined) return undefined;
-      return acc[part];
-    }, obj);
-  }
-
   async getCharacterById(characterId: string): Promise<CharacterResponse> {
     try {
       const response = await this.request<CharacterResponse>(`/characters/${characterId}`);
@@ -136,7 +76,7 @@ class CharacterAPI {
       if (response.success && response.character) {
         return {
           success: true,
-          character: this.mapCharacterFields(response.character)
+          character: response.character
         };
       }
       
@@ -160,7 +100,7 @@ class CharacterAPI {
       if (response.success && response.characters) {
         return {
           success: true,
-          characters: response.characters.map(char => this.mapCharacterFields(char))
+          characters: response.characters
         };
       }
       
@@ -238,46 +178,95 @@ class CharacterAPI {
         };
       }
 
-      const characterPayload = {
-        name: characterData.name.trim(),
-        race: {
-          index: characterData.selectedRace?.index,
-          name: characterData.selectedRace?.name,
+      // Mapear para a nova estrutura de personagem
+      const characterPayload: Character = {
+        id: "", // Será gerado pelo backend
+        user_id: characterData.userId,
+        campaign_id: characterData.campaignId,
+        basic_info: {
+          name: characterData.name.trim(),
+          race_info: {
+            race_name: characterData.selectedRace?.name || "",
+            race_index: characterData.selectedRace?.index || "",
+            subrace_name: characterData.selectedSubrace?.name,
+            subrace_index: characterData.selectedSubrace?.index,
+            speed: 30, // Valor padrão, pode ser ajustado
+            size: "Medium", // Valor padrão
+            ability_bonuses: characterData.raceAbilityBonuses || {},
+            racial_traits: characterData.racialTraits || [],
+            languages: characterData.languages || [],
+            proficiencies: characterData.raceProficiencies || []
+          },
+          class: characterData.selectedClass?.name || "",
+          level: characterData.level || 1,
+          background: characterData.selectedBackground?.name || "",
+          alignment: characterData.alignment || ""
         },
-        subrace: characterData.selectedSubrace ? {
-          index: characterData.selectedSubrace.index,
-          name: characterData.selectedSubrace.name,
-        } : null,
-        class: {
-          index: characterData.selectedClass?.index,
-          name: characterData.selectedClass?.name,
+        attributes: {
+          strength: characterData.abilityScores?.strength || 10,
+          dexterity: characterData.abilityScores?.dexterity || 10,
+          constitution: characterData.abilityScores?.constitution || 10,
+          intelligence: characterData.abilityScores?.intelligence || 10,
+          wisdom: characterData.abilityScores?.wisdom || 10,
+          charisma: characterData.abilityScores?.charisma || 10
         },
-        subclass: characterData.selectedSubclass ? {
-          index: characterData.selectedSubclass.index,
-          name: characterData.selectedSubclass.name,
-        } : null,
-        background: {
-          index: characterData.selectedBackground?.index,
-          name: characterData.selectedBackground?.name,
+        skills: this.mapSkills(characterData.selectedSkills),
+        stats: {
+          current_hp: characterData.hitPoints || 0,
+          max_hp: characterData.hitPoints || 0,
+          armor_class: characterData.armorClass || 10,
+          experience_points: 0
         },
-        level: characterData.level,
-        alignment: characterData.alignment,
-        abilityScores: characterData.abilityScores,
-        abilityMethod: characterData.abilityMethod,
-        selectedSkills: characterData.selectedSkills,
-        hitPoints: characterData.hitPoints,
-        armorClass: characterData.armorClass,
-        isSpellcaster: characterData.isSpellcaster,
-        spellcastingAbility: characterData.spellcastingAbility,
-        selectedSpells: characterData.selectedSpells.map(spell => ({
-          index: spell.index,
-          name: spell.name,
-          level: spell.level,
-        })),
-        personalityTraits: characterData.personalityTraits,
-        ideals: characterData.ideals,
-        bonds: characterData.bonds,
-        flaws: characterData.flaws,
+        combat: {
+          attacks: characterData.attacks || []
+        },
+        magic: {
+          spellcaster: characterData.isSpellcaster || false,
+          spellcasting_ability: characterData.spellcastingAbility,
+          known_spells: characterData.selectedSpells.map(spell => ({
+            name: spell.name,
+            level: spell.level,
+            school: spell.school || "",
+            description: spell.description,
+            is_attack_spell: spell.isAttack,
+            attack_bonus: spell.attackBonus,
+            damage: spell.damage ? {
+              dice_count: spell.damage.diceCount,
+              dice_sides: spell.damage.diceSides,
+              modifier: spell.damage.modifier
+            } : undefined,
+            damage_type: spell.damageType,
+            save_dc: spell.saveDC,
+            save_ability: spell.saveAbility,
+            range: spell.range || "Toque"
+          })),
+          spell_slots_1: characterData.spellSlots?.[1] || 0,
+          spell_slots_2: characterData.spellSlots?.[2] || 0,
+          spell_slots_3: characterData.spellSlots?.[3] || 0,
+          spell_slots_4: characterData.spellSlots?.[4] || 0,
+          spell_slots_5: characterData.spellSlots?.[5] || 0,
+          spell_slots_6: characterData.spellSlots?.[6] || 0,
+          spell_slots_7: characterData.spellSlots?.[7] || 0,
+          spell_slots_8: characterData.spellSlots?.[8] || 0,
+          spell_slots_9: characterData.spellSlots?.[9] || 0
+        },
+        details: {
+          background: characterData.selectedBackground?.description || "",
+          alignment: characterData.alignment || "",
+          personality_traits: characterData.personalityTraits || "",
+          ideals: characterData.ideals || "",
+          bonds: characterData.bonds || "",
+          flaws: characterData.flaws || "",
+          backstory: characterData.backstory || "",
+          appearance: characterData.appearance || ""
+        },
+        equipment: characterData.equipment || [],
+        features: characterData.features || [],
+        languages: characterData.languages || [],
+        proficiencies: characterData.proficiencies || [],
+        player_name: characterData.playerName,
+        is_active: true,
+        avatar_url: characterData.avatarUrl || ""
       };
 
       const response = await this.request<CharacterResponse>("/characters", {
@@ -297,10 +286,42 @@ class CharacterAPI {
     }
   }
 
+  // Helper para mapear skills para o novo formato
+  private mapSkills(selectedSkills: string[]): Skills {
+    const skills: Skills = {
+      athletics: false,
+      acrobatics: false,
+      sleight_of_hand: false,
+      stealth: false,
+      arcana: false,
+      history: false,
+      investigation: false,
+      nature: false,
+      religion: false,
+      animal_handling: false,
+      insight: false,
+      medicine: false,
+      perception: false,
+      survival: false,
+      deception: false,
+      intimidation: false,
+      performance: false,
+      persuasion: false
+    };
+
+    selectedSkills.forEach(skill => {
+      const skillKey = skill.toLowerCase().replace(/[\s-]+/g, '_') as keyof Skills;
+      if (skills.hasOwnProperty(skillKey)) {
+        skills[skillKey] = true;
+      }
+    });
+
+    return skills;
+  }
+
   async getCharacter(characterId: string): Promise<Character | null> {
     try {
-      const character = await this.request<Character>(`/characters/${characterId}`);
-      return this.mapCharacterFields(character);
+      return await this.request<Character>(`/characters/${characterId}`);
     } catch (error) {
       console.error("Erro ao buscar personagem:", error);
       return null;
@@ -310,8 +331,7 @@ class CharacterAPI {
   async getCharacters(userId?: string): Promise<Character[]> {
     try {
       const endpoint = userId ? `/characters?userId=${userId}` : "/characters";
-      const characters = await this.request<Character[]>(endpoint);
-      return characters.map(this.mapCharacterFields);
+      return await this.request<Character[]>(endpoint);
     } catch (error) {
       console.error("Erro ao listar personagens:", error);
       return [];
@@ -320,20 +340,13 @@ class CharacterAPI {
 
   async updateCharacter(
     characterId: string, 
-    updates: Partial<CharacterCreationData>
+    updates: Partial<Character>
   ): Promise<CharacterResponse> {
     try {
       const response = await this.request<CharacterResponse>(`/characters/${characterId}`, {
         method: "PUT",
         body: JSON.stringify(updates),
       });
-
-      if (response.success && response.character) {
-        return {
-          success: true,
-          character: this.mapCharacterFields(response.character)
-        };
-      }
 
       return response;
     } catch (error) {
@@ -365,8 +378,7 @@ class CharacterAPI {
 
   async healthCheck(): Promise<{ status: string; message?: string }> {
     try {
-      const response = await this.request<{ status: string; message?: string }>("/health");
-      return response;
+      return await this.request<{ status: string; message?: string }>("/health");
     } catch (error) {
       console.error("Erro no health check:", error);
       return {
@@ -376,7 +388,7 @@ class CharacterAPI {
     }
   }
 
-  exportCharacter(characterData: CharacterCreationData): string {
+  exportCharacter(characterData: Character): string {
     const exportData = {
       ...characterData,
       exportedAt: new Date().toISOString(),
@@ -386,15 +398,15 @@ class CharacterAPI {
     return JSON.stringify(exportData, null, 2);
   }
 
-  importCharacter(jsonData: string): CharacterCreationData | null {
+  importCharacter(jsonData: string): Character | null {
     try {
       const data = JSON.parse(jsonData);
       
-      if (!data.name || !data.selectedRace || !data.selectedClass) {
+      if (!data.basic_info?.name || !data.basic_info?.race_info) {
         throw new Error("Dados de personagem inválidos");
       }
 
-      return data as CharacterCreationData;
+      return data as Character;
     } catch (error) {
       console.error("Erro ao importar personagem:", error);
       return null;

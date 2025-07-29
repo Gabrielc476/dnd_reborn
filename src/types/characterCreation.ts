@@ -1,34 +1,14 @@
 // ===========================
-// CHARACTER CREATION TYPES - COMPLETO E CORRIGIDO
+// CHARACTER CREATION TYPES - REFATORADO
 // src/types/characterCreation.ts
-// 
-// ✅ CORREÇÕES APLICADAS:
-// - Propriedades faltantes adicionadas ao CharacterCreationContextType
-// - Debug functions incluídas
-// - Tipos consistentes para spellcastingAbility
-// - Todas as utility functions definidas
 // ===========================
 
-// ===========================
-// BASE INTERFACES
-// ===========================
-
-export interface AbilityScores {
-  strength: number;
-  dexterity: number;
-  constitution: number;
-  intelligence: number;
-  wisdom: number;
-  charisma: number;
-}
-
-export interface CharacterCreationStep {
-  id: string;
-  title: string;
-  description?: string;
-  isValid: boolean;
-  isCompleted: boolean;
-}
+import { 
+  Character, 
+  AbilityScores,
+  Skills,
+  Spell
+} from "@/types/character";
 
 // ===========================
 // ABILITY SCORE CONSTANTS
@@ -57,30 +37,30 @@ export const ABILITY_SCORE_ABBREVIATIONS: Record<keyof AbilityScores, string> = 
 // ===========================
 
 export interface Skill {
-  key: string;
+  key: keyof Skills;
   name: string;
   ability: keyof AbilityScores;
 }
 
 export const SKILLS: Skill[] = [
-  { key: "acrobatics", name: "Acrobacia", ability: "dexterity" },
-  { key: "animal-handling", name: "Adestramento", ability: "wisdom" },
-  { key: "arcana", name: "Arcanismo", ability: "intelligence" },
   { key: "athletics", name: "Atletismo", ability: "strength" },
-  { key: "deception", name: "Enganação", ability: "charisma" },
-  { key: "history", name: "História", ability: "intelligence" },
-  { key: "insight", name: "Intuição", ability: "wisdom" },
-  { key: "intimidation", name: "Intimidação", ability: "charisma" },
-  { key: "investigation", name: "Investigação", ability: "intelligence" },
-  { key: "medicine", name: "Medicina", ability: "wisdom" },
-  { key: "nature", name: "Natureza", ability: "intelligence" },
-  { key: "perception", name: "Percepção", ability: "wisdom" },
-  { key: "performance", name: "Atuação", ability: "charisma" },
-  { key: "persuasion", name: "Persuasão", ability: "charisma" },
-  { key: "religion", name: "Religião", ability: "intelligence" },
-  { key: "sleight-of-hand", name: "Prestidigitação", ability: "dexterity" },
+  { key: "acrobatics", name: "Acrobacia", ability: "dexterity" },
+  { key: "sleight_of_hand", name: "Prestidigitação", ability: "dexterity" },
   { key: "stealth", name: "Furtividade", ability: "dexterity" },
-  { key: "survival", name: "Sobrevivência", ability: "wisdom" }
+  { key: "arcana", name: "Arcanismo", ability: "intelligence" },
+  { key: "history", name: "História", ability: "intelligence" },
+  { key: "investigation", name: "Investigação", ability: "intelligence" },
+  { key: "nature", name: "Natureza", ability: "intelligence" },
+  { key: "religion", name: "Religião", ability: "intelligence" },
+  { key: "animal_handling", name: "Adestramento", ability: "wisdom" },
+  { key: "insight", name: "Intuição", ability: "wisdom" },
+  { key: "medicine", name: "Medicina", ability: "wisdom" },
+  { key: "perception", name: "Percepção", ability: "wisdom" },
+  { key: "survival", name: "Sobrevivência", ability: "wisdom" },
+  { key: "deception", name: "Enganação", ability: "charisma" },
+  { key: "intimidation", name: "Intimidação", ability: "charisma" },
+  { key: "performance", name: "Atuação", ability: "charisma" },
+  { key: "persuasion", name: "Persuasão", ability: "charisma" }
 ];
 
 // ===========================
@@ -347,94 +327,46 @@ export interface DndSpell {
 // ===========================
 
 export interface CharacterCreationData {
-  // Basic Info
+  userId: string;
+  campaignId?: string;
   name: string;
   level: number;
-  experience: number;
-  
-  // Character Choices
   selectedRace: DndRace | null;
   selectedSubrace: DndSubrace | null;
   selectedClass: DndClass | null;
   selectedSubclass: DndSubclass | null;
   selectedBackground: DndBackground | null;
   alignment: string | null;
-  
-  // Ability Scores - ✅ CORRIGIDO: tipo consistente
   abilityMethod: "point-buy" | "standard" | "rolled";
   abilityScores: AbilityScores;
   pointsRemaining: number;
-  
-  // Combat Stats
   hitPoints: number;
   armorClass: number;
-  
-  // Skills & Proficiencies
-  selectedSkills: string[];
+  selectedSkills: (keyof Skills)[];
   availableSkillChoices: number;
-  proficiencies: string[];
+  equipment: string[];
+  features: string[];
   languages: string[];
-  
-  // Equipment
-  selectedEquipment: string[];
-  
-  // Spellcasting - ✅ CORRIGIDO: tipo consistente
+  proficiencies: string[];
   isSpellcaster: boolean;
   spellcastingAbility: keyof AbilityScores | null;
-  selectedSpells: string[];
-  knownSpells: number;
-  spellSlots: Record<string, number>;
-  
-  // Personality
-  personalityTraits: string[];
-  ideals: string[];
-  bonds: string[];
-  flaws: string[];
-  
-  // Additional Info
+  selectedSpells: Spell[];
+  spellSlots: Record<number, number>;
+  personalityTraits: string;
+  ideals: string;
+  bonds: string;
+  flaws: string;
   backstory: string;
-  notes: string;
+  appearance: string;
+  playerName?: string;
+  avatarUrl?: string;
 }
 
 // ===========================
-// API RESPONSE TYPES
-// ===========================
-
-export interface APIResponse<T> {
-  count: number;
-  results: T[];
-}
-
-export interface CreateCharacterResponse {
-  success: boolean;
-  character?: CharacterCreationData;
-  error?: string;
-}
-
-// ===========================
-// SPELL FILTERING & SEARCH
-// ===========================
-
-export interface SpellFilters {
-  level?: number;
-  school?: string;
-  class?: string;
-  ritual?: boolean;
-  concentration?: boolean;
-  searchTerm?: string;
-}
-
-export interface SpellSearchResult {
-  spells: DndSpell[];
-  availableLevelSpells?: DndSpell[];
-}
-
-// ===========================
-// CONTEXT TYPE - COMPLETO E CORRIGIDO
+// CONTEXT TYPE - REFATORADO
 // ===========================
 
 export interface CharacterCreationContextType {
-  // Step Management
   currentStep: number;
   steps: CharacterCreationStep[];
   currentStepData?: CharacterCreationStep;
@@ -444,7 +376,6 @@ export interface CharacterCreationContextType {
   goToStep: (stepIndex: number) => void;
   canProceed: () => boolean;
 
-  // Character Data
   characterData: CharacterCreationData;
   updateCharacterData: (updates: Partial<CharacterCreationData>) => void;
   updateCharacterField: <K extends keyof CharacterCreationData>(
@@ -452,15 +383,13 @@ export interface CharacterCreationContextType {
     value: CharacterCreationData[K]
   ) => void;
   updateAbilityScore: (ability: keyof AbilityScores, value: number) => void;
-  toggleSkill: (skillKey: string) => void;
-  toggleSpell: (spellIndex: string) => void;
+  toggleSkill: (skillKey: keyof Skills) => void;
+  toggleSpell: (spellId: string) => void;
 
-  // Loading States
   isLoading: boolean;
   loading: boolean;
   error: string | null;
 
-  // D&D Data
   races: DndRace[];
   classes: DndClass[];
   backgrounds: DndBackground[];
@@ -468,7 +397,6 @@ export interface CharacterCreationContextType {
   subclasses: DndSubclass[];
   subraces: DndSubrace[];
 
-  // Individual Loading States
   isLoadingRaces: boolean;
   isLoadingClasses: boolean;
   isLoadingBackgrounds: boolean;
@@ -476,7 +404,6 @@ export interface CharacterCreationContextType {
   isLoadingSubclasses: boolean;
   isLoadingSubraces: boolean;
 
-  // Search Functionality
   raceSearch: string;
   setRaceSearch: (search: string) => void;
   classSearch: string;
@@ -490,95 +417,46 @@ export interface CharacterCreationContextType {
   spellSearchTerm: string;
   setSpellSearchTerm: (search: string) => void;
 
-  // Validation
   validateStep: (stepId: string) => boolean;
   validateCurrentStep: () => boolean;
   isStepValid: (stepId: string) => boolean;
 
-  // Actions
   resetCharacter: () => void;
-  createCharacter: () => Promise<void>;
+  createCharacter: () => Promise<Character | null>;
 
-  // ===========================
-  // UTILITY FUNCTIONS - TODAS IMPLEMENTADAS
-  // ===========================
-
-  /**
-   * Bônus combinados de habilidade (raça + sub-raça)
-   */
   getCombinedAbilityBonuses: Record<keyof AbilityScores, number>;
-
-  /**
-   * Calcula modificador de habilidade
-   */
   calculateModifier: (score: number) => number;
   getAbilityModifier: (score: number) => number;
-
-  /**
-   * Calcula pontos de vida baseados na classe e constituição
-   */
   calculateHitPoints: () => number;
-
-  /**
-   * Calcula classe de armadura baseada na destreza
-   */
   calculateArmorClass: () => number;
-
-  /**
-   * Determina a habilidade de conjuração baseada na classe
-   */
   getSpellcastingAbility: (classIndex?: string) => DndReference | null;
-
-  /**
-   * Calcula bônus de proficiência baseado no nível
-   */
   getProficiencyBonus: (level: number) => number;
-
-  /**
-   * Calcula modificador de perícia
-   */
-  getSkillModifier: (skill: string, scores: AbilityScores, isProficient?: boolean) => number;
-
-  /**
-   * Funções para sub-raças e sub-classes
-   */
+  getSkillModifier: (skill: keyof Skills, isProficient: boolean) => number;
   getAvailableSubraces: () => DndSubrace[];
   getAvailableSubclasses: () => DndSubclass[];
-  needsSubrace: () => boolean; // ✅ CORRIGIDO: agora retorna boolean
+  needsSubrace: () => boolean;
   needsSubclass: () => boolean;
-
-  /**
-   * Funções para perícias
-   */
   getAvailableSkills: () => Skill[];
   getSkillChoices: () => number;
-
-  /**
-   * Geração de atributos
-   */
   generateRandomAbilityScores: () => AbilityScores;
   calculateAbilityScorePoints: (scores: AbilityScores) => number;
-
-  /**
-   * Funções auxiliares
-   */
   getSubclassLevel: () => number;
-
-  /**
-   * ✅ DEBUG FUNCTIONS - IMPLEMENTADAS
-   */
   debugAbilityScores: () => void;
   fixPointsRemaining: () => void;
-
-  /**
-   * Final ability scores with racial bonuses applied
-   */
   getFinalAbilityScores: AbilityScores;
 }
 
 // ===========================
 // UTILITY TYPES
 // ===========================
+
+export interface CharacterCreationStep {
+  id: string;
+  title: string;
+  description?: string;
+  isValid: boolean;
+  isCompleted: boolean;
+}
 
 export type AbilityScoreKey = keyof AbilityScores;
 
@@ -611,99 +489,130 @@ export type SpellLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export type RarityType = "common" | "uncommon" | "rare" | "very-rare" | "legendary" | "artifact";
 
 // ===========================
-// FORM VALIDATION TYPES
+// FUNÇÃO DE CONVERSÃO
 // ===========================
 
-export interface ValidationError {
-  field: string;
-  message: string;
-}
-
-export interface StepValidation {
-  isValid: boolean;
-  errors: ValidationError[];
-  warnings: string[];
-}
-
-export interface StepValidationResult {
-  isValid: boolean;
-  errors: ValidationError[];
-  warnings: string[];
-}
-
-// ===========================
-// EQUIPMENT TYPES
-// ===========================
-
-export interface EquipmentItem {
-  index: string;
-  name: string;
-  equipment_category: DndReference;
-  gear_category?: DndReference;
-  cost?: {
-    quantity: number;
-    unit: string;
+export function convertCreationToCharacter(
+  creationData: CharacterCreationData
+): Character {
+  return {
+    id: "",
+    user_id: creationData.userId,
+    campaign_id: creationData.campaignId,
+    basic_info: {
+      name: creationData.name,
+      race_info: {
+        race_name: creationData.selectedRace?.name || "",
+        race_index: creationData.selectedRace?.index || "",
+        subrace_name: creationData.selectedSubrace?.name || undefined,
+        subrace_index: creationData.selectedSubrace?.index || undefined,
+        speed: creationData.selectedRace?.speed || 30,
+        size: "Medium",
+        ability_bonuses: getCombinedAbilityBonuses(creationData),
+        racial_traits: [],
+        languages: creationData.languages,
+        proficiencies: creationData.proficiencies
+      },
+      class: creationData.selectedClass?.name || "",
+      level: creationData.level,
+      background: creationData.selectedBackground?.name || "",
+      alignment: creationData.alignment || undefined
+    },
+    attributes: creationData.abilityScores,
+    skills: createSkillsObject(creationData.selectedSkills),
+    stats: {
+      current_hp: creationData.hitPoints,
+      max_hp: creationData.hitPoints,
+      armor_class: creationData.armorClass,
+      experience_points: 0,
+      hit_dice: `${creationData.level}d${creationData.selectedClass?.hit_die || 8}`
+    },
+    combat: {
+      attacks: []
+    },
+    magic: {
+      spellcaster: creationData.isSpellcaster,
+      spellcasting_ability: creationData.spellcastingAbility || undefined,
+      known_spells: creationData.selectedSpells,
+      spell_slots_1: creationData.spellSlots[1] || 0,
+      spell_slots_2: creationData.spellSlots[2] || 0,
+      spell_slots_3: creationData.spellSlots[3] || 0,
+      spell_slots_4: creationData.spellSlots[4] || 0,
+      spell_slots_5: creationData.spellSlots[5] || 0,
+      spell_slots_6: creationData.spellSlots[6] || 0,
+      spell_slots_7: creationData.spellSlots[7] || 0,
+      spell_slots_8: creationData.spellSlots[8] || 0,
+      spell_slots_9: creationData.spellSlots[9] || 0
+    },
+    details: {
+      background: creationData.selectedBackground?.feature?.desc?.join("\n") || "",
+      alignment: creationData.alignment || undefined,
+      personality_traits: creationData.personalityTraits,
+      ideals: creationData.ideals,
+      bonds: creationData.bonds,
+      flaws: creationData.flaws,
+      backstory: creationData.backstory,
+      appearance: creationData.appearance
+    },
+    equipment: creationData.equipment,
+    features: creationData.features,
+    languages: creationData.languages,
+    proficiencies: creationData.proficiencies,
+    player_name: creationData.playerName,
+    is_active: true,
+    avatar_url: creationData.avatarUrl
   };
-  weight?: number;
-  desc?: string[];
-  properties?: string[];
-  damage?: {
-    damage_dice: string;
-    damage_type: DndReference;
-  };
-  range?: {
-    normal: number;
-    long?: number;
-  };
-  throw_range?: {
-    normal: number;
-    long: number;
-  };
-  armor_category?: string;
-  armor_class?: {
-    base: number;
-    dex_bonus?: boolean;
-    max_bonus?: number;
-  };
-  str_minimum?: number;
-  stealth_disadvantage?: boolean;
-  url: string;
 }
 
-export interface WeaponProperty {
-  index: string;
-  name: string;
-  desc: string[];
-  url: string;
-}
-
-// ===========================
-// BACKGROUND FEATURE TYPES
-// ===========================
-
-export interface BackgroundFeature {
-  name: string;
-  description: string[];
-}
-
-export interface PersonalityOption {
-  trait?: string;
-  ideal?: {
-    description: string;
-    alignments: string[];
+function createSkillsObject(selectedSkills: (keyof Skills)[]): Skills {
+  const skills: Skills = {
+    athletics: false,
+    acrobatics: false,
+    sleight_of_hand: false,
+    stealth: false,
+    arcana: false,
+    history: false,
+    investigation: false,
+    nature: false,
+    religion: false,
+    animal_handling: false,
+    insight: false,
+    medicine: false,
+    perception: false,
+    survival: false,
+    deception: false,
+    intimidation: false,
+    performance: false,
+    persuasion: false
   };
-  bond?: string;
-  flaw?: string;
+
+  selectedSkills.forEach(skillKey => {
+    skills[skillKey] = true;
+  });
+
+  return skills;
+}
+
+function getCombinedAbilityBonuses(
+  creationData: CharacterCreationData
+): Record<string, number> {
+  const bonuses: Record<string, number> = {};
+
+  creationData.selectedRace?.ability_bonuses?.forEach(bonus => {
+    const ability = bonus.ability_score.index;
+    bonuses[ability] = (bonuses[ability] || 0) + bonus.bonus;
+  });
+
+  creationData.selectedSubrace?.ability_bonuses?.forEach(bonus => {
+    const ability = bonus.ability_score.index;
+    bonuses[ability] = (bonuses[ability] || 0) + bonus.bonus;
+  });
+
+  return bonuses;
 }
 
 // ===========================
-// EXPORT LEGACY INTERFACE
-// ===========================
-
-export interface DndApiReference extends DndReference {}
-
-// ===========================
-// EXPORT ALL
+// EXPORT DEFAULT
 // ===========================
 
 export default CharacterCreationData;

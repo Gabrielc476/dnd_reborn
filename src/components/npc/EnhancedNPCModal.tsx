@@ -34,7 +34,7 @@ import { useEnhancedNPCs } from '@/hooks/useEnhancedNPCs';
 import type { RollResult, NPCFormData, Attack, Spell, NPCAttributes, NPCStats, NPCAbility } from '@/types/enhancedNPC';
 
 // Importação direta do modal de D&D
-import { DnDImportModal } from '@/components/campaign-manage/DnDImportModal';
+import { DnDImportModal } from '@/components/campaign-manage/gm/DnDImportModal';
 
 // ===========================
 // MAPEAMENTO DE TIPOS DE DANO: INGLÊS → PORTUGUÊS

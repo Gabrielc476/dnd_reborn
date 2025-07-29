@@ -4,15 +4,16 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { useAuthContext } from '@/hooks/useAuth';
-import CampaignHeader from '@/components/campaign-manage/CampaignHeader';
-import GMSidebar from '@/components/campaign-manage/GMSidebar';
-import CombatTracker from '@/components/campaign-manage/CombatTracker';
-import CampaignOverview from '@/components/campaign-manage/CampaignOverview';
-import PartyOverview from '@/components/campaign-manage/PartyOverview';
-import { NPCsList } from '@/components/campaign-manage/NPCsList';
-import SessionsHistory from '@/components/campaign-manage/SessionsHistory';
-import CharactersList from '@/components/campaign-manage/CharactersList';
-import EncountersList from '@/components/campaign-manage/EncountersList'; // Importe o novo componente
+import CampaignHeader from '@/components/campaign-manage/gm/CampaignHeader';
+import GMSidebar from '@/components/campaign-manage/gm/GMSidebar';
+import PlayerSidebar from '@/components/campaign-manage/player/PlayerSidebar'; // Importe o PlayerSidebar
+import CombatTracker from '@/components/campaign-manage/gm/CombatTracker';
+import CampaignOverview from '@/components/campaign-manage/gm/CampaignOverview';
+import PartyOverview from '@/components/campaign-manage/gm/PartyOverview';
+import { NPCsList } from '@/components/campaign-manage/gm/NPCsList';
+import SessionsHistory from '@/components/campaign-manage/gm/SessionsHistory';
+import CharactersList from '@/components/campaign-manage/gm/CharactersList';
+import EncountersList from '@/components/campaign-manage/gm/EncountersList';
 import { 
   Shield, 
   Sparkles, 
@@ -42,6 +43,15 @@ export type CampaignSection =
   | 'loot' 
   | 'world'
   | 'combat';
+
+// Definir as seções para jogadores
+export type PlayerSection = 
+  | 'overview' 
+  | 'character'
+  | 'party' 
+  | 'sessions' 
+  | 'loot'
+  | 'notes';
 
 interface SectionConfig {
   id: CampaignSection;
@@ -80,7 +90,8 @@ const CampaignManagerPage = () => {
       id: 'characters',
       label: 'Personagens',
       icon: User,
-      component: CharactersList
+      component: CharactersList,
+      gmOnly: false // Apenas GM vê todos os personagens
     },
     {
       id: 'npcs',
@@ -141,6 +152,18 @@ const CampaignManagerPage = () => {
     setCurrentSection(sectionId);
   };
 
+  // Função para navegação de jogadores
+  const navigatePlayerSection = (playerSection: PlayerSection) => {
+    // Mapear seções de jogador para seções da campanha
+    switch (playerSection) {
+      case 'character':
+        setCurrentSection('characters');
+        break;
+      default:
+        setCurrentSection(playerSection as CampaignSection);
+    }
+  };
+
   // Encontrar a seção atual
   const currentSectionConfig = availableSections.find(s => s.id === currentSection);
   const CurrentSectionComponent = currentSectionConfig?.component ?? CampaignOverview;
@@ -190,9 +213,16 @@ const CampaignManagerPage = () => {
       </div>
 
       <div className="relative z-10 flex h-screen">
-        {/* Sidebar */}
+        {/* Sidebar: GM ou Player */}
         <div className="w-80 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700/50 flex flex-col">
-          <GMSidebar onNavigate={navigateToSection} currentSection={currentSection} />
+          {isGM ? (
+            <GMSidebar onNavigate={navigateToSection} currentSection={currentSection} />
+          ) : (
+            <PlayerSidebar 
+              onNavigate={navigatePlayerSection} 
+              currentSection={currentSection as PlayerSection} 
+            />
+          )}
         </div>
 
         {/* Conteúdo Principal */}
