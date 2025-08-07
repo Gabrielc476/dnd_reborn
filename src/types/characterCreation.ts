@@ -167,6 +167,25 @@ export interface DndSpellcasting {
   spellcasting_ability: DndReference;
 }
 
+export interface EquipmentOption {
+  option_type: string;
+  count?: number;
+  of?: DndReference;
+  choice?: EquipmentChoice;
+  items?: EquipmentOption[];
+}
+
+export interface EquipmentChoice {
+  desc: string;
+  choose: number;
+  type: string;
+  from: {
+    option_set_type: string;
+    options?: EquipmentOption[];
+    equipment_category?: DndReference;
+  };
+}
+
 export interface DndClass {
   index: string;
   name: string;
@@ -184,7 +203,8 @@ export interface DndClass {
     type: string;
     from: {
       option_set_type: string;
-      equipment_category: DndReference;
+      options?: EquipmentOption[];
+      equipment_category?: DndReference;
     };
   }>;
   class_levels: string;

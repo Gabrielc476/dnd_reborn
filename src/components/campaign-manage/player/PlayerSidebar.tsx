@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Home,
   Users,
@@ -13,12 +13,11 @@ import {
   Target,
   Zap,
   RefreshCw,
-  Activity,       // Para Atributos
-  SpellIcon,      // Para Magias - substitua por ícone adequado
-  ScrollText,     // Para Perícias
-  Backpack,       // Para Inventário
-  Sword,          // Para Ataques
-  Star            // Para Habilidades
+  Activity,
+  ScrollText,
+  Backpack,
+  Sword,
+  Star
 } from 'lucide-react';
 import { 
   Card,
@@ -37,8 +36,7 @@ import {
 } from '@/components/ui/tooltip';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuthContext } from '@/hooks/useAuth';
-import { characterAPI, Character } from '@/api/characterAPI';
+import { Character } from '@/api/characterAPI';
 
 export type PlayerSection = 
   | 'overview' 
@@ -47,16 +45,17 @@ export type PlayerSection =
   | 'sessions' 
   | 'loot'
   | 'notes'
-  | 'attributes'   // Nova seção
-  | 'spells'       // Nova seção
-  | 'skills'       // Nova seção
-  | 'inventory'    // Nova seção
-  | 'abilities'    // Nova seção
-  | 'attacks';     // Nova seção
+  | 'attributes'
+  | 'spells'
+  | 'skills'
+  | 'inventory'
+  | 'abilities'
+  | 'attacks';
 
 interface PlayerSidebarProps {
   onNavigate: (section: PlayerSection) => void;
   currentSection: PlayerSection;
+  character?: Character | null;
 }
 
 interface SidebarItem {
@@ -70,7 +69,8 @@ interface SidebarItem {
 
 const PlayerSidebar: React.FC<PlayerSidebarProps> = ({ 
   onNavigate, 
-  currentSection 
+  currentSection,
+  character
 }) => {
   const {
     campaign,
@@ -78,11 +78,8 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({
     canPerformAction,
   } = useManageCampaignContext();
 
-  const {user} = useAuthContext();
-
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
   const [isRolling, setIsRolling] = useState(false);
-  const [character, setCharacter] = useState<Character | undefined>(undefined);
 
   const toggleSection = (sectionId: string) => {
     const newCollapsed = new Set(collapsedSections);
@@ -93,27 +90,6 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({
     }
     setCollapsedSections(newCollapsed);
   };
-
-  useEffect(() => {
-    const fetchCharacter = async () => {
-      if (!user?.id || !campaign?.id) return;
-      
-      try {
-        const response = await characterAPI.getCampaignCharacters(campaign.id);
-        
-        if (response.success && response.characters) {
-          const userCharacter = response.characters.find(
-            char => char.user_id === user.id
-          );
-          setCharacter(userCharacter);
-        }
-      } catch (error) {
-        console.error("Failed to fetch character:", error);
-      }
-    };
-
-    fetchCharacter();
-  }, [user?.id, campaign?.id]);
 
   const handleQuickDiceRoll = async (diceType: string) => {
     if (!canPerformAction('roll_dice')) return;
@@ -197,7 +173,7 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({
         { 
           label: 'Magias', 
           action: () => onNavigate('spells'),
-          icon: Sparkles, // Use SpellIcon se tiver um ícone específico
+          icon: Sparkles,
           highlight: currentSection === 'spells'
         },
         { 
@@ -280,7 +256,16 @@ const PlayerSidebar: React.FC<PlayerSidebarProps> = ({
         <CardContent className="pb-4">
           <div className="space-y-3">
             <div className="flex gap-2 flex-wrap">
-              {/* Espaço para informações rápidas do personagem */}
+              {character && (
+                <>
+                  <Badge className="bg-blue-500/20 text-blue-300">
+                    Nível {character.basic_info?.level || 1}
+                  </Badge>
+                  <Badge className="bg-purple-500/20 text-purple-300">
+                    {character.basic_info?.class || 'Sem classe'}
+                  </Badge>
+                </>
+              )}
             </div>
           </div>
         </CardContent>

@@ -4,6 +4,50 @@ export interface DiceRoll {
   modifier: number;
 }
 
+export interface EquipmentItem {
+  index: string;
+  name: string;
+  equipment_category: string;
+  gear_category?: string;
+  cost: {
+    quantity: number;
+    unit: string;
+  };
+  weight?: number;
+  description?: string;
+  
+  // Campos específicos para armas
+  weapon_category?: string;
+  weapon_range?: string;
+  category_range?: string;
+  damage?: DiceRoll;
+  damage_type?: string;
+  range?: {
+    normal: number;
+    long: number | null;
+  };
+  properties?: Array<{
+    index: string;
+    name: string;
+    url?: string;
+  }>;
+  
+  // Campos específicos para armaduras
+  armor_category?: string;
+  armor_class?: {
+    base: number;
+    dex_bonus: boolean;
+    max_bonus?: number | null;
+  };
+  str_minimum?: number;
+  stealth_disadvantage?: boolean;
+  
+  // Campos para itens mágicos
+  rarity?: string;
+  attunement?: boolean;
+  is_magical?: boolean;
+}
+
 export interface Attack {
   name: string;
   attack_bonus?: number;
@@ -52,8 +96,10 @@ export interface RaceInfo {
 export interface BasicInfo {
   name: string;
   race_info: RaceInfo;
-  class: string;
+  character_class: string;
   level: number;
+  background: string;
+  alignment?: string;
 }
 
 export interface Skills {
@@ -156,7 +202,7 @@ export interface Character {
   details: CharacterDetails;
   
   // Itens e características
-  equipment: string[];
+  equipment: EquipmentItem[];  // Alterado para usar EquipmentItem
   features: string[];
   languages: string[];
   proficiencies: string[];
