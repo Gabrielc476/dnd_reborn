@@ -9,1094 +9,1535 @@ export const mockSubclasses = [
   // BÁRBARO SUBCLASSES
   // ===========================
   {
-    index: "berserker",
-    name: "Caminho do Berserker",
-    class: { index: "barbarian", name: "Bárbaro", url: "/api/classes/barbarian" },
-    desc: ["Para alguns bárbaros, a raiva é um meio para um fim – esse fim sendo a violência. O Caminho do Berserker é um caminho de fúria desenfreada, escorrendo sangue."],
-    subclass_flavor: "Quando você entra na sua fúria em batalha, você se desloca em direção a um berserker, e o caos reina.",
-    subclass_levels: [
-      {
-        level: 3,
-        features: [
-          { index: "frenzy", name: "Frenesi", url: "/api/features/frenzy" }
-        ]
+  "subclasses": [
+    {
+      "index": "berserker",
+      "name": "Caminho do Berserker",
+      "class": {
+        "index": "barbarian",
+        "name": "Bárbaro",
+        "url": "/api/classes/barbarian"
       },
-      {
-        level: 6,
-        features: [
-          { index: "mindless-rage", name: "Fúria Irracional", url: "/api/features/mindless-rage" }
-        ]
+      "desc": ["Para alguns bárbaros, a raiva é um meio para um fim – esse fim sendo a violência. O Caminho do Berserker é um caminho de fúria desenfreada, escorrendo sangue."],
+      "subclass_flavor": "Quando você entra na sua fúria em batalha, você se desloca em direção a um berserker, e o caos reina.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "frenzy",
+              "name": "Frenesi",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "mindless-rage",
+              "name": "Fúria Irracional",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 10,
+          "features": [
+            {
+              "index": "intimidating-presence",
+              "name": "Presença Intimidante",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "retaliation",
+              "name": "Retaliação",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/berserker"
+    },
+    {
+      "index": "totem-warrior",
+      "name": "Caminho do Guerreiro Totêmico",
+      "class": {
+        "index": "barbarian",
+        "name": "Bárbaro",
+        "url": "/api/classes/barbarian"
       },
-      {
-        level: 10,
-        features: [
-          { index: "intimidating-presence", name: "Presença Intimidante", url: "/api/features/intimidating-presence" }
-        ]
+      "desc": [
+        "O Caminho do Guerreiro Totêmico é uma jornada espiritual, pois o bárbaro aceita um espírito animal como guia, protetor e inspiração.",
+        "Em batalha, seu espírito totêmico preenche você com força sobrenatural, adicionando combustível mágico à sua fúria bárbara."
+      ],
+      "subclass_flavor": "A maioria das tribos bárbaras considera um espírito animal totêmico como parente de um clã particular. Em tais casos, é incomum para um indivíduo ter mais de um espírito animal totêmico, embora existam exceções.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "spirit-seeker",
+              "name": "Buscador de Espíritos",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "totem-spirit",
+              "name": "Espírito Totêmico",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "aspect-of-the-beast",
+              "name": "Aspecto da Fera",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 10,
+          "features": [
+            {
+              "index": "spirit-walker",
+              "name": "Andarilho Espiritual",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "totemic-attunement",
+              "name": "Sintonia Totêmica",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/totem-warrior"
+    },
+    {
+      "index": "wild-magic-barbarian",
+      "name": "Caminho da Magia Selvagem",
+      "class": {
+        "index": "barbarian",
+        "name": "Bárbaro",
+        "url": "/api/classes/barbarian"
       },
-      {
-        level: 14,
-        features: [
-          { index: "retaliation", name: "Retaliação", url: "/api/features/retaliation" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/berserker",
-  },
-  {
-  index: "totem-warrior",
-  name: "Caminho do Guerreiro Totêmico",
-  class: { index: "barbarian", name: "Bárbaro", url: "/api/classes/barbarian" },
-  desc: [
-    "O Caminho do Guerreiro Totêmico é uma jornada espiritual, pois o bárbaro aceita um espírito animal como guia, protetor e inspiração.",
-    "Em batalha, seu espírito totêmico preenche você com força sobrenatural, adicionando combustível mágico à sua fúria bárbara."
-  ],
-  subclass_flavor: "A maioria das tribos bárbaras considera um espírito animal totêmico como parente de um clã particular. Em tais casos, é incomum para um indivíduo ter mais de um espírito animal totêmico, embora existam exceções.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "spirit-seeker", name: "Buscador de Espíritos", url: "/api/features/spirit-seeker" },
-        { index: "totem-spirit", name: "Espírito Totêmico", url: "/api/features/totem-spirit" }
-      ]
+      "desc": [
+        "Muitas terras no multiverso abrigam sua própria forma de magia bárbara. Em reinos como o Feywild, ou em certas regiões da Shadowfell, a mágica se infiltra em tudo.",
+        "Alguns bárbaros dessas terras desenvolvem uma relação primitiva com a magia que existe em sua terra natal, canalizando-a em seus ataques de fúria."
+      ],
+      "subclass_flavor": "Esses bárbaros da magia selvagem encontram sua fúria infundida com magia primitiva, permitindo que conjurem feitiços e efeitos mágicos enquanto estão furiosos.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "magic-awareness",
+              "name": "Consciência Mágica",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "wild-surge",
+              "name": "Surto Selvagem",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "bolstering-magic",
+              "name": "Magia Fortalecedora",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 10,
+          "features": [
+            {
+              "index": "unstable-backlash",
+              "name": "Reação Instável",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "controlled-surge",
+              "name": "Surto Controlado",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/wild-magic-barbarian"
     },
     {
-      level: 6,
-      features: [
-        { index: "aspect-of-the-beast", name: "Aspecto da Fera", url: "/api/features/aspect-of-the-beast" }
-      ]
-    },
-    {
-      level: 10,
-      features: [
-        { index: "spirit-walker", name: "Andarilho Espiritual", url: "/api/features/spirit-walker" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "totemic-attunement", name: "Sintonia Totêmica", url: "/api/features/totemic-attunement" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/totem-warrior",
-},
-
-// ===========================
-// 🎲 OPCIONAIS - SUBCLASSES ADICIONAIS (Tasha's Cauldron e Xanathar's Guide)
-// ===========================
-// Estas subclasses NÃO são do SRD básico, mas são muito populares:
-// Você pode incluí-las se quiser expandir o conteúdo do seu projeto
-
-{
-  index: "wild-magic-barbarian",
-  name: "Caminho da Magia Selvagem",
-  class: { index: "barbarian", name: "Bárbaro", url: "/api/classes/barbarian" },
-  desc: [
-    "Muitas terras no multiverso abrigam sua própria forma de magia bárbara. Em reinos como o Feywild, ou em certas regiões da Shadowfell, a mágica se infiltra em tudo.",
-    "Alguns bárbaros dessas terras desenvolvem uma relação primitiva com a magia que existe em sua terra natal, canalizando-a em seus ataques de fúria."
-  ],
-  subclass_flavor: "Esses bárbaros da magia selvagem encontram sua fúria infundida com magia primitiva, permitindo que conjurem feitiços e efeitos mágicos enquanto estão furiosos.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "magic-awareness", name: "Consciência Mágica", url: "/api/features/magic-awareness" },
-        { index: "wild-surge", name: "Surto Selvagem", url: "/api/features/wild-surge" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "bolstering-magic", name: "Magia Fortalecedora", url: "/api/features/bolstering-magic" }
-      ]
-    },
-    {
-      level: 10,
-      features: [
-        { index: "unstable-backlash", name: "Reação Instável", url: "/api/features/unstable-backlash" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "controlled-surge", name: "Surto Controlado", url: "/api/features/controlled-surge" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/wild-magic-barbarian",
-},
-
-{
-  index: "zealot",
-  name: "Caminho do Zelote",
-  class: { index: "barbarian", name: "Bárbaro", url: "/api/classes/barbarian" },
-  desc: [
-    "Alguns deuses enxergam os bárbaros como seus escolhidos, empregando esses guerreiros furiosos como instrumentos divinos para semear destruição.",
-    "Esses bárbaros são conhecidos como zelotes, e veem sua fúria como uma benção divina - um estado de êxtase religioso que os conecta aos deuses."
-  ],
-  subclass_flavor: "Para um zelote, a batalha é um ato de devoção, uma oração violenta oferecida em honra aos deuses da guerra e da morte.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "divine-fury", name: "Fúria Divina", url: "/api/features/divine-fury" },
-        { index: "warrior-of-the-gods", name: "Guerreiro dos Deuses", url: "/api/features/warrior-of-the-gods" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "fanatical-focus", name: "Foco Fanático", url: "/api/features/fanatical-focus" }
-      ]
-    },
-    {
-      level: 10,
-      features: [
-        { index: "zealous-presence", name: "Presença Zelosa", url: "/api/features/zealous-presence" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "rage-beyond-death", name: "Fúria Além da Morte", url: "/api/features/rage-beyond-death" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/zealot",
-},
-
-{
-  index: "ancestral-guardian",
-  name: "Caminho do Guardião Ancestral",
-  class: { index: "barbarian", name: "Bárbaro", url: "/api/classes/barbarian" },
-  desc: [
-    "Alguns bárbaros são visitados pelos espíritos de ancestrais mortos que os guiam e protegem.",
-    "Quando um bárbaro que segue esse caminho entra em fúria, o bárbaro faz contato com o mundo dos espíritos e convoca esses guardiões."
-  ],
-  subclass_flavor: "Os bárbaros que seguem o Caminho do Guardião Ancestral veem suas tradições como uma ligação vital com seu passado, honrando a memória daqueles que vieram antes.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "ancestral-protectors", name: "Protetores Ancestrais", url: "/api/features/ancestral-protectors" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "spirit-shield", name: "Escudo Espiritual", url: "/api/features/spirit-shield" }
-      ]
-    },
-    {
-      level: 10,
-      features: [
-        { index: "consult-the-spirits", name: "Consultar os Espíritos", url: "/api/features/consult-the-spirits" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "vengeful-ancestors", name: "Ancestrais Vingativos", url: "/api/features/vengeful-ancestors" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/ancestral-guardian",
-},
-
-  // ===========================
-  // BARDO SUBCLASSES
-  // ===========================
-  
-
-  {
-    index: "college-of-valor",
-    name: "Colégio da Bravura",
-    class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-    desc: ["Os bardos do Colégio da Bravura são audaciosos contadores de histórias cujos contos mantêm viva a memória dos grandes heróis do passado."],
-    subclass_flavor: "Esses bardos se reúnem em halls de hidromel ou ao redor de grandes fogueiras para cantar as façanhas dos poderosos, tanto do passado quanto do presente.",
-    subclass_levels: [
-      {
-        level: 3,
-        features: [
-          { index: "bonus-proficiencies-valor", name: "Proficiências Adicionais", url: "/api/features/bonus-proficiencies-valor" },
-          { index: "combat-inspiration", name: "Inspiração em Combate", url: "/api/features/combat-inspiration" }
-        ]
+      "index": "zealot",
+      "name": "Caminho do Zelote",
+      "class": {
+        "index": "barbarian",
+        "name": "Bárbaro",
+        "url": "/api/classes/barbarian"
       },
-      {
-        level: 6,
-        features: [
-          { index: "extra-attack", name: "Ataque Extra", url: "/api/features/extra-attack" }
-        ]
+      "desc": [
+        "Alguns deuses enxergam os bárbaros como seus escolhidos, empregando esses guerreiros furiosos como instrumentos divinos para semear destruição.",
+        "Esses bárbaros são conhecidos como zelotes, e veem sua fúria como uma benção divina - um estado de êxtase religioso que os conecta aos deuses."
+      ],
+      "subclass_flavor": "Para um zelote, a batalha é um ato de devoção, uma oração violenta oferecida em honra aos deuses da guerra e da morte.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "divine-fury",
+              "name": "Fúria Divina",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "warrior-of-the-gods",
+              "name": "Guerreiro dos Deuses",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "fanatical-focus",
+              "name": "Foco Fanático",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 10,
+          "features": [
+            {
+              "index": "zealous-presence",
+              "name": "Presença Zelosa",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "rage-beyond-death",
+              "name": "Fúria Além da Morte",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/zealot"
+    },
+    {
+      "index": "ancestral-guardian",
+      "name": "Caminho do Guardião Ancestral",
+      "class": {
+        "index": "barbarian",
+        "name": "Bárbaro",
+        "url": "/api/classes/barbarian"
       },
-      {
-        level: 14,
-        features: [
-          { index: "combat-inspiration-improved", name: "Inspiração em Combate (Aprimorada)", url: "/api/features/combat-inspiration-improved" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/college-of-valor",
-  },
-
-  // 🎭 SUBCLASSES DO XANATHAR'S GUIDE TO EVERYTHING:
-
-{
-  index: "college-of-glamour",
-  name: "Colégio do Glamour",
-  class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-  desc: [
-    "O Colégio do Glamour é o lar de bardos que dominaram suas artes no reino vibrante das fadas ou sob a tutela de alguém que residiu lá.",
-    "Instruídos por sátiros, eladrin e outras criaturas feéricas, esses bardos aprendem a usar sua magia para deleitar e cativar outros."
-  ],
-  subclass_flavor: "Os membros deste colégio são considerados cativantes e carismáticos, embora muitos também sejam considerados egocêntricos e perigosos.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "mantle-of-inspiration", name: "Manto da Inspiração", url: "/api/features/mantle-of-inspiration" },
-        { index: "enthralling-performance", name: "Performance Cativante", url: "/api/features/enthralling-performance" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "extra-magical-secrets", name: "Segredos Mágicos Extras", url: "/api/features/extra-magical-secrets" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "unbreakable-majesty", name: "Majestade Inquebrantável", url: "/api/features/unbreakable-majesty" }
-      ]
+      "desc": [
+        "Alguns bárbaros são visitados pelos espíritos de ancestrais mortos que os guiam e protegem.",
+        "Quando um bárbaro que segue esse caminho entra em fúria, o bárbaro faz contato com o mundo dos espíritos e convoca esses guardiões."
+      ],
+      "subclass_flavor": "Os bárbaros que seguem o Caminho do Guardião Ancestral veem suas tradições como uma ligação vital com seu passado, honrando a memória daqueles que vieram antes.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "ancestral-protectors",
+              "name": "Protetores Ancestrais",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "spirit-shield",
+              "name": "Escudo Espiritual",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 10,
+          "features": [
+            {
+              "index": "consult-the-spirits",
+              "name": "Consultar os Espíritos",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "vengeful-ancestors",
+              "name": "Ancestrais Vingativos",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/ancestral-guardian"
     }
-  ],
-  url: "/api/subclasses/college-of-glamour",
+  ]
 },
-
-{
-  index: "college-of-swords",
-  name: "Colégio das Espadas",
-  class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-  desc: [
-    "Os bardos do Colégio das Espadas são chamados de lâminas, e entretêm através de façanhas de proeza marcial.",
-    "As lâminas realizam acrobacias como engolir espadas, arremesso de punhais e exibições de esgrima."
-  ],
-  subclass_flavor: "Embora usem sua magia para criar efeitos extraordinários, uma lâmina verdadeira confia na sua arma tanto quanto na sua sagacidade.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "fighting-style-bard", name: "Estilo de Luta", url: "/api/features/fighting-style-bard" },
-        { index: "blade-flourish", name: "Floreio de Lâmina", url: "/api/features/blade-flourish" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "extra-attack-bard", name: "Ataque Extra", url: "/api/features/extra-attack-bard" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "masters-flourish", name: "Floreio do Mestre", url: "/api/features/masters-flourish" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/college-of-swords",
-},
-
-{
-  index: "college-of-whispers",
-  name: "Colégio dos Sussurros",
-  class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-  desc: [
-    "A maioria das pessoas fica feliz em receber um bardo em uma taverna ou numa fogueira de acampamento.",
-    "Afinal, bardos trazem notícias, músicas e contos de terras distantes. Mas nem todo bardo é tão benigno."
-  ],
-  subclass_flavor: "O Colégio dos Sussurros ensina que música e palavras são não apenas para diversão, mas também armas poderosas.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "psychic-blades", name: "Lâminas Psíquicas", url: "/api/features/psychic-blades" },
-        { index: "words-of-terror", name: "Palavras de Terror", url: "/api/features/words-of-terror" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "mantle-of-whispers", name: "Manto dos Sussurros", url: "/api/features/mantle-of-whispers" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "shadow-lore", name: "Conhecimento Sombrio", url: "/api/features/shadow-lore" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/college-of-whispers",
-},
-
-// 🎪 SUBCLASSES DO TASHA'S CAULDRON OF EVERYTHING:
-
-{
-  index: "college-of-eloquence",
-  name: "Colégio da Eloquência",
-  class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-  desc: [
-    "Aderentes ao Colégio da Eloquência dominam a arte da oratória.",
-    "Persuasão é considerada uma alta arte, e um bardo bem versado é respeitado nos salões de poder."
-  ],
-  subclass_flavor: "Esses bardos exercem uma mistura de lógica e performance teatral, ganhando força das verdades universais da retórica e do drama.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "silver-tongue", name: "Língua de Prata", url: "/api/features/silver-tongue" },
-        { index: "unsettling-words", name: "Palavras Perturbadoras", url: "/api/features/unsettling-words" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "universal-speech", name: "Fala Universal", url: "/api/features/universal-speech" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "infectious-inspiration", name: "Inspiração Contagiosa", url: "/api/features/infectious-inspiration" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/college-of-eloquence",
-},
-
-{
-  index: "college-of-creation",
-  name: "Colégio da Criação",
-  class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-  desc: [
-    "Bardos acreditam que o cosmos é uma obra de arte - as criações dos primeiros dragões e deuses.",
-    "Esse conceito de origem criativa alimenta a filosofia do Colégio da Criação."
-  ],
-  subclass_flavor: "Os bardos deste colégio acreditam que o multiverso é literalmente uma performance que ainda está sendo escrita, e buscam deixar sua marca nesta grande obra.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "note-of-potential", name: "Nota de Potencial", url: "/api/features/note-of-potential" },
-        { index: "performance-of-creation", name: "Performance da Criação", url: "/api/features/performance-of-creation" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "animating-performance", name: "Performance Animadora", url: "/api/features/animating-performance" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "creative-crescendo", name: "Crescendo Criativo", url: "/api/features/creative-crescendo" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/college-of-creation",
-},
-
-// 🔮 SUBCLASSE DO VAN RICHTEN'S GUIDE TO RAVENLOFT:
-
-{
-  index: "college-of-spirits",
-  name: "Colégio dos Espíritos",
-  class: { index: "bard", name: "Bardo", url: "/api/classes/bard" },
-  desc: [
-    "Os bardos do Colégio dos Espíritos buscam contos com espíritos mortos.",
-    "Usando rituais rituais e seances, esses bardos chamam os espíritos dos mortos."
-  ],
-  subclass_flavor: "Esses bardos usam suas canções e contos para invocar espíritos que compartilham conhecimento esquecido e auxiliam o bardo em suas aventuras.",
-  subclass_levels: [
-    {
-      level: 3,
-      features: [
-        { index: "guiding-whispers", name: "Sussurros Orientadores", url: "/api/features/guiding-whispers" },
-        { index: "spiritual-focus", name: "Foco Espiritual", url: "/api/features/spiritual-focus" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "tales-from-beyond", name: "Contos do Além", url: "/api/features/tales-from-beyond" }
-      ]
-    },
-    {
-      level: 14,
-      features: [
-        { index: "spirit-session", name: "Sessão Espiritual", url: "/api/features/spirit-session" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/college-of-spirits",
-},
-
-  // ===========================
-  // CLÉRICO SUBCLASSES
-  // ===========================
-  
 
   {
-    index: "light-domain",
-    name: "Domínio da Luz",
-    class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-    desc: ["Deuses da luz – incluindo Helm, Lathander, Pholtus, Branchala, a Chama Prateada, Belenus, Apolo e Re-Horakhty – promovem os ideais de renascimento e renovação, verdade, vigilância e beleza."],
-    subclass_flavor: "Alguns desses deuses são retratados como o próprio sol ou como um cocheiro que guia o sol pelo céu. Outros são sentinelas incansáveis cujos olhos perfuram toda sombra e veem através de todo engano.",
-    subclass_levels: [
-      {
-        level: 1,
-        features: [
-          { index: "bonus-cantrip-light", name: "Truque Adicional", url: "/api/features/bonus-cantrip-light" },
-          { index: "warding-flare", name: "Clarão Protetor", url: "/api/features/warding-flare" }
-        ]
-      },
-      {
-        level: 2,
-        features: [
-          { index: "channel-divinity-radiance-of-dawn", name: "Canalizar Divindade: Radiância do Amanhecer", url: "/api/features/channel-divinity-radiance-of-dawn" }
-        ]
-      },
-      {
-        level: 6,
-        features: [
-          { index: "improved-flare", name: "Clarão Aprimorado", url: "/api/features/improved-flare" }
-        ]
-      },
-      {
-        level: 8,
-        features: [
-          { index: "potent-spellcasting", name: "Conjuração Potente", url: "/api/features/potent-spellcasting" }
-        ]
-      },
-      {
-        level: 17,
-        features: [
-          { index: "corona-of-light", name: "Coroa de Luz", url: "/api/features/corona-of-light" }
-        ]
-      }
-    ],
-    spells: [
-      {
-        level: 1,
-        spells: [
-          { index: "burning-hands", name: "Mãos Flamejantes", url: "/api/spells/burning-hands" },
-          { index: "faerie-fire", name: "Fogo das Fadas", url: "/api/spells/faerie-fire" }
-        ]
-      },
-      {
-        level: 3,
-        spells: [
-          { index: "flaming-sphere", name: "Esfera Flamejante", url: "/api/spells/flaming-sphere" },
-          { index: "scorching-ray", name: "Raio Ardente", url: "/api/spells/scorching-ray" }
-        ]
-      },
-      {
-        level: 5,
-        spells: [
-          { index: "daylight", name: "Luz do Dia", url: "/api/spells/daylight" },
-          { index: "fireball", name: "Bola de Fogo", url: "/api/spells/fireball" }
-        ]
-      },
-      {
-        level: 7,
-        spells: [
-          { index: "guardian-of-faith", name: "Guardião da Fé", url: "/api/spells/guardian-of-faith" },
-          { index: "wall-of-fire", name: "Muralha de Fogo", url: "/api/spells/wall-of-fire" }
-        ]
-      },
-      {
-        level: 9,
-        spells: [
-          { index: "flame-strike", name: "Coluna de Chamas", url: "/api/spells/flame-strike" },
-          { index: "scrying", name: "Vidência", url: "/api/spells/scrying" }
-        ]
-      }
-    ],
-    url: "/api/subclasses/light-domain",
-  },
-  {
-  index: "knowledge-domain",
-  name: "Domínio do Conhecimento",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "Os deuses do conhecimento – incluindo Oghma, Boccob, Gilean, Aureon e Thoth – valorizam o aprendizado e o entendimento acima de tudo.",
-    "Alguns ensinam que o conhecimento deve ser reunido e compartilhado em bibliotecas e universidades, ou promovem o conhecimento prático do artesanato e da invenção."
-  ],
-  subclass_flavor: "Alguns deuses acumulam conhecimento e os mantêm em segredo para si mesmos, outros prometem conceder aos seus seguidores acesso a uma grande biblioteca mística.",
-  subclass_levels: [
+  "subclasses": [
     {
-      level: 1,
-      features: [
-        { index: "blessings-of-knowledge", name: "Bênçãos do Conhecimento", url: "/api/features/blessings-of-knowledge" }
-      ]
+      "index": "college-of-valor",
+      "name": "Colégio da Bravura",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": ["Os bardos do Colégio da Bravura são audaciosos contadores de histórias cujos contos mantêm viva a memória dos grandes heróis do passado."],
+      "subclass_flavor": "Esses bardos se reúnem em halls de hidromel ou ao redor de grandes fogueiras para cantar as façanhas dos poderosos, tanto do passado quanto do presente.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "bonus-proficiencies-valor",
+              "name": "Proficiências Adicionais",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "combat-inspiration",
+              "name": "Inspiração em Combate",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "extra-attack",
+              "name": "Ataque Extra",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "combat-inspiration-improved",
+              "name": "Inspiração em Combate (Aprimorada)",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-valor"
     },
     {
-      level: 2,
-      features: [
-        { index: "channel-divinity-knowledge-of-ages", name: "Canalizar Divindade: Conhecimento das Eras", url: "/api/features/channel-divinity-knowledge-of-ages" }
-      ]
+      "index": "college-of-glamour",
+      "name": "Colégio do Glamour",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": [
+        "O Colégio do Glamour é o lar de bardos que dominaram suas artes no reino vibrante das fadas ou sob a tutela de alguém que residiu lá.",
+        "Instruídos por sátiros, eladrin e outras criaturas feéricas, esses bardos aprendem a usar sua magia para deleitar e cativar outros."
+      ],
+      "subclass_flavor": "Os membros deste colégio são considerados cativantes e carismáticos, embora muitos também sejam considerados egocêntricos e perigosos.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "mantle-of-inspiration",
+              "name": "Manto da Inspiração",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "enthralling-performance",
+              "name": "Performance Cativante",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "extra-magical-secrets",
+              "name": "Segredos Mágicos Extras",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "unbreakable-majesty",
+              "name": "Majestade Inquebrantável",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-glamour"
     },
     {
-      level: 6,
-      features: [
-        { index: "channel-divinity-read-thoughts", name: "Canalizar Divindade: Ler Pensamentos", url: "/api/features/channel-divinity-read-thoughts" }
-      ]
+      "index": "college-of-swords",
+      "name": "Colégio das Espadas",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": [
+        "Os bardos do Colégio das Espadas são chamados de lâminas, e entretêm através de façanhas de proeza marcial.",
+        "As lâminas realizam acrobacias como engolir espadas, arremesso de punhais e exibições de esgrima."
+      ],
+      "subclass_flavor": "Embora usem sua magia para criar efeitos extraordinários, uma lâmina verdadeira confia na sua arma tanto quanto na sua sagacidade.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "fighting-style-bard",
+              "name": "Estilo de Luta",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "blade-flourish",
+              "name": "Floreio de Lâmina",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "extra-attack-bard",
+              "name": "Ataque Extra",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "masters-flourish",
+              "name": "Floreio do Mestre",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-swords"
     },
     {
-      level: 8,
-      features: [
-        { index: "potent-spellcasting", name: "Conjuração Potente", url: "/api/features/potent-spellcasting" }
-      ]
+      "index": "college-of-whispers",
+      "name": "Colégio dos Sussurros",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": [
+        "A maioria das pessoas fica feliz em receber um bardo em uma taverna ou numa fogueira de acampamento.",
+        "Afinal, bardos trazem notícias, músicas e contos de terras distantes. Mas nem todo bardo é tão benigno."
+      ],
+      "subclass_flavor": "O Colégio dos Sussurros ensina que música e palavras são não apenas para diversão, mas também armas poderosas.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "psychic-blades",
+              "name": "Lâminas Psíquicas",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "words-of-terror",
+              "name": "Palavras de Terror",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "mantle-of-whispers",
+              "name": "Manto dos Sussurros",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "shadow-lore",
+              "name": "Conhecimento Sombrio",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-whispers"
     },
     {
-      level: 17,
-      features: [
-        { index: "visions-of-the-past", name: "Visões do Passado", url: "/api/features/visions-of-the-past" }
-      ]
+      "index": "college-of-eloquence",
+      "name": "Colégio da Eloquência",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": [
+        "Aderentes ao Colégio da Eloquência dominam a arte da oratória.",
+        "Persuasão é considerada uma alta arte, e um bardo bem versado é respeitado nos salões de poder."
+      ],
+      "subclass_flavor": "Esses bardos exercem uma mistura de lógica e performance teatral, ganhando força das verdades universais da retórica e do drama.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "silver-tongue",
+              "name": "Língua de Prata",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "unsettling-words",
+              "name": "Palavras Perturbadoras",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "universal-speech",
+              "name": "Fala Universal",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "infectious-inspiration",
+              "name": "Inspiração Contagiosa",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-eloquence"
+    },
+    {
+      "index": "college-of-creation",
+      "name": "Colégio da Criação",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": [
+        "Bardos acreditam que o cosmos é uma obra de arte - as criações dos primeiros dragões e deuses.",
+        "Esse conceito de origem criativa alimenta a filosofia do Colégio da Criação."
+      ],
+      "subclass_flavor": "Os bardos deste colégio acreditam que o multiverso é literalmente uma performance que ainda está sendo escrita, e buscam deixar sua marca nesta grande obra.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "note-of-potential",
+              "name": "Nota de Potencial",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "performance-of-creation",
+              "name": "Performance da Criação",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "animating-performance",
+              "name": "Performance Animadora",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "creative-crescendo",
+              "name": "Crescendo Criativo",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-creation"
+    },
+    {
+      "index": "college-of-spirits",
+      "name": "Colégio dos Espíritos",
+      "class": {
+        "index": "bard",
+        "name": "Bardo",
+        "url": "/api/classes/bard"
+      },
+      "desc": [
+        "Os bardos do Colégio dos Espíritos buscam contos com espíritos mortos.",
+        "Usando rituais rituais e seances, esses bardos chamam os espíritos dos mortos."
+      ],
+      "subclass_flavor": "Esses bardos usam suas canções e contos para invocar espíritos que compartilham conhecimento esquecido e auxiliam o bardo em suas aventuras.",
+      "subclass_levels": [
+        {
+          "level": 3,
+          "features": [
+            {
+              "index": "guiding-whispers",
+              "name": "Sussurros Orientadores",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "spiritual-focus",
+              "name": "Foco Espiritual",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "tales-from-beyond",
+              "name": "Contos do Além",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 14,
+          "features": [
+            {
+              "index": "spirit-session",
+              "name": "Sessão Espiritual",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/college-of-spirits"
     }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "command", name: "Comando", url: "/api/spells/command" },
-        { index: "identify", name: "Identificar", url: "/api/spells/identify" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "augury", name: "Augúrio", url: "/api/spells/augury" },
-        { index: "suggestion", name: "Sugestão", url: "/api/spells/suggestion" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "nondetection", name: "Indetectabilidade", url: "/api/spells/nondetection" },
-        { index: "speak-with-dead", name: "Falar com os Mortos", url: "/api/spells/speak-with-dead" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "arcane-eye", name: "Olho Arcano", url: "/api/spells/arcane-eye" },
-        { index: "confusion", name: "Confusão", url: "/api/spells/confusion" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "legend-lore", name: "Conhecimento Lendário", url: "/api/spells/legend-lore" },
-        { index: "scrying", name: "Vidência", url: "/api/spells/scrying" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/knowledge-domain",
+  ]
 },
 
-{
-  index: "nature-domain",
-  name: "Domínio da Natureza",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "Deuses da natureza são diversos quanto o mundo natural em si, de divindades benignas associadas com bosques particulares para divindades cruéis de desastres e pestilência.",
-    "Os druidas reverenciam a natureza como um todo e podem servir uma dessas divindades, praticando rituais misteriosos e recitando orações na língua druídica."
-  ],
-  subclass_flavor: "Muitos desses deuses têm clérigos, campeões que tomam um papel mais ativo em promover os interesses de um deus da natureza particular.",
-  subclass_levels: [
+ {
+  "subclasses": [
     {
-      level: 1,
-      features: [
-        { index: "acolyte-of-nature", name: "Acólito da Natureza", url: "/api/features/acolyte-of-nature" },
-        { index: "bonus-proficiency-nature", name: "Proficiência Adicional", url: "/api/features/bonus-proficiency-nature" }
-      ]
+      "index": "light-domain",
+      "name": "Domínio da Luz",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": ["Deuses da luz – incluindo Helm, Lathander, Pholtus, Branchala, a Chama Prateada, Belenus, Apolo e Re-Horakhty – promovem os ideais de renascimento e renovação, verdade, vigilância e beleza."],
+      "subclass_flavor": "Alguns desses deuses são retratados como o próprio sol ou como um cocheiro que guia o sol pelo céu. Outros são sentinelas incansáveis cujos olhos perfuram toda sombra e veem através de todo engano.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "bonus-cantrip-light",
+              "name": "Truque Adicional",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "warding-flare",
+              "name": "Clarão Protetor",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-radiance-of-dawn",
+              "name": "Canalizar Divindade: Radiância do Amanhecer",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "improved-flare",
+              "name": "Clarão Aprimorado",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "potent-spellcasting",
+              "name": "Conjuração Potente",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "corona-of-light",
+              "name": "Coroa de Luz",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "burning-hands", "name": "Mãos Flamejantes", "url": "/api/spells/burning-hands" },
+            { "index": "faerie-fire", "name": "Fogo das Fadas", "url": "/api/spells/faerie-fire" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "flaming-sphere", "name": "Esfera Flamejante", "url": "/api/spells/flaming-sphere" },
+            { "index": "scorching-ray", "name": "Raio Ardente", "url": "/api/spells/scorching-ray" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "daylight", "name": "Luz do Dia", "url": "/api/spells/daylight" },
+            { "index": "fireball", "name": "Bola de Fogo", "url": "/api/spells/fireball" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "guardian-of-faith", "name": "Guardião da Fé", "url": "/api/spells/guardian-of-faith" },
+            { "index": "wall-of-fire", "name": "Muralha de Fogo", "url": "/api/spells/wall-of-fire" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "flame-strike", "name": "Coluna de Chamas", "url": "/api/spells/flame-strike" },
+            { "index": "scrying", "name": "Vidência", "url": "/api/spells/scrying" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/light-domain"
     },
     {
-      level: 2,
-      features: [
-        { index: "channel-divinity-charm-animals-plants", name: "Canalizar Divindade: Encantar Animais e Plantas", url: "/api/features/channel-divinity-charm-animals-plants" }
-      ]
+      "index": "knowledge-domain",
+      "name": "Domínio do Conhecimento",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "Os deuses do conhecimento – incluindo Oghma, Boccob, Gilean, Aureon e Thoth – valorizam o aprendizado e o entendimento acima de tudo.",
+        "Alguns ensinam que o conhecimento deve ser reunido e compartilhado em bibliotecas e universidades, ou promovem o conhecimento prático do artesanato e da invenção."
+      ],
+      "subclass_flavor": "Alguns deuses acumulam conhecimento e os mantêm em segredo para si mesmos, outros prometem conceder aos seus seguidores acesso a uma grande biblioteca mística.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "blessings-of-knowledge",
+              "name": "Bênçãos do Conhecimento",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-knowledge-of-ages",
+              "name": "Canalizar Divindade: Conhecimento das Eras",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "channel-divinity-read-thoughts",
+              "name": "Canalizar Divindade: Ler Pensamentos",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "potent-spellcasting",
+              "name": "Conjuração Potente",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "visions-of-the-past",
+              "name": "Visões do Passado",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "command", "name": "Comando", "url": "/api/spells/command" },
+            { "index": "identify", "name": "Identificar", "url": "/api/spells/identify" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "augury", "name": "Augúrio", "url": "/api/spells/augury" },
+            { "index": "suggestion", "name": "Sugestão", "url": "/api/spells/suggestion" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "nondetection", "name": "Indetectabilidade", "url": "/api/spells/nondetection" },
+            { "index": "speak-with-dead", "name": "Falar com os Mortos", "url": "/api/spells/speak-with-dead" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "arcane-eye", "name": "Olho Arcano", "url": "/api/spells/arcane-eye" },
+            { "index": "confusion", "name": "Confusão", "url": "/api/spells/confusion" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "legend-lore", "name": "Conhecimento Lendário", "url": "/api/spells/legend-lore" },
+            { "index": "scrying", "name": "Vidência", "url": "/api/spells/scrying" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/knowledge-domain"
     },
     {
-      level: 6,
-      features: [
-        { index: "dampen-elements", name: "Amortecer Elementos", url: "/api/features/dampen-elements" }
-      ]
+      "index": "nature-domain",
+      "name": "Domínio da Natureza",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "Deuses da natureza são diversos quanto o mundo natural em si, de divindades benignas associadas com bosques particulares para divindades cruéis de desastres e pestilência.",
+        "Os druidas reverenciam a natureza como um todo e podem servir uma dessas divindades, praticando rituais misteriosos e recitando orações na língua druídica."
+      ],
+      "subclass_flavor": "Muitos desses deuses têm clérigos, campeões que tomam um papel mais ativo em promover os interesses de um deus da natureza particular.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "acolyte-of-nature",
+              "name": "Acólito da Natureza",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "bonus-proficiency-nature",
+              "name": "Proficiência Adicional",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-charm-animals-plants",
+              "name": "Canalizar Divindade: Encantar Animais e Plantas",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "dampen-elements",
+              "name": "Amortecer Elementos",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "divine-strike",
+              "name": "Golpe Divino",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "master-of-nature",
+              "name": "Mestre da Natureza",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "animal-friendship", "name": "Amizade Animal", "url": "/api/spells/animal-friendship" },
+            { "index": "speak-with-animals", "name": "Falar com Animais", "url": "/api/spells/speak-with-animals" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "barkskin", "name": "Pele de Árvore", "url": "/api/spells/barkskin" },
+            { "index": "spike-growth", "name": "Crescimento de Espinhos", "url": "/api/spells/spike-growth" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "plant-growth", "name": "Crescimento Vegetal", "url": "/api/spells/plant-growth" },
+            { "index": "wind-wall", "name": "Muralha de Vento", "url": "/api/spells/wind-wall" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "dominate-beast", "name": "Dominar Fera", "url": "/api/spells/dominate-beast" },
+            { "index": "grasping-vine", "name": "Cipó Agarrador", "url": "/api/spells/grasping-vine" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "insect-plague", "name": "Praga de Insetos", "url": "/api/spells/insect-plague" },
+            { "index": "tree-stride", "name": "Caminhar em Árvores", "url": "/api/spells/tree-stride" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/nature-domain"
     },
     {
-      level: 8,
-      features: [
-        { index: "divine-strike", name: "Golpe Divino", url: "/api/features/divine-strike" }
-      ]
+      "index": "tempest-domain",
+      "name": "Domínio da Tempestade",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "Deuses cujos portfólios incluem o Domínio da Tempestade – incluindo Talos, Umberlee, Kord, Zeboim, o Devorador, Zeus e Thor – governam tempestades, mar e céu.",
+        "Eles incluem deuses de relâmpagos e trovões, deuses de terremotos, alguns deuses do fogo e certos deuses de violência, força física e coragem."
+      ],
+      "subclass_flavor": "Marinheiros oram a esses deuses buscando ventos favoráveis e mares calmos, e oram para longe de suas iras quando ventos uivantes surgem para devastar embarcações contra os rochedos costeiros.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "bonus-proficiencies-tempest",
+              "name": "Proficiências Adicionais",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "wrath-of-the-storm",
+              "name": "Ira da Tempestade",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-destructive-wrath",
+              "name": "Canalizar Divindade: Ira Destrutiva",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "thunderbolt-strike",
+              "name": "Golpe do Raio",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "divine-strike",
+              "name": "Golpe Divino",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "stormborn",
+              "name": "Nascido da Tempestade",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "fog-cloud", "name": "Nuvem de Névoa", "url": "/api/spells/fog-cloud" },
+            { "index": "thunderwave", "name": "Onda Trovejante", "url": "/api/spells/thunderwave" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "gust-of-wind", "name": "Rajada de Vento", "url": "/api/spells/gust-of-wind" },
+            { "index": "shatter", "name": "Despedaçar", "url": "/api/spells/shatter" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "call-lightning", "name": "Convocar Raios", "url": "/api/spells/call-lightning" },
+            { "index": "sleet-storm", "name": "Tempestade de Granizo", "url": "/api/spells/sleet-storm" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "control-water", "name": "Controlar Água", "url": "/api/spells/control-water" },
+            { "index": "ice-storm", "name": "Tempestade de Gelo", "url": "/api/spells/ice-storm" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "destructive-wave", "name": "Onda Destrutiva", "url": "/api/spells/destructive-wave" },
+            { "index": "insect-plague", "name": "Praga de Insetos", "url": "/api/spells/insect-plague" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/tempest-domain"
     },
     {
-      level: 17,
-      features: [
-        { index: "master-of-nature", name: "Mestre da Natureza", url: "/api/features/master-of-nature" }
-      ]
+      "index": "trickery-domain",
+      "name": "Domínio da Trapaça",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "Deuses da trapaça – como Cyric, Beshaba, Hiddukel, Vecna, e Hermes – são desencaminhadores e instigadores que se colocam como um desafio constante à ordem aceita entre deuses e mortais.",
+        "Eles são patronos de ladrões, canalhas, apostadores, rebeldes e libertadores."
+      ],
+      "subclass_flavor": "Seus clérigos são uma força disruptiva no mundo, cutucando consciências, zombando de tiranos, roubando dos ricos, libertando cativos e ignorando convenções vazias.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "blessing-of-the-trickster",
+              "name": "Bênção do Trapaceiro",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-invoke-duplicity",
+              "name": "Canalizar Divindade: Invocar Duplicata",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "channel-divinity-cloak-of-shadows",
+              "name": "Canalizar Divindade: Manto de Sombras",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "divine-strike",
+              "name": "Golpe Divino",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "improved-duplicity",
+              "name": "Duplicata Aprimorada",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "charm-person", "name": "Encantar Pessoa", "url": "/api/spells/charm-person" },
+            { "index": "disguise-self", "name": "Disfarçar-se", "url": "/api/spells/disguise-self" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "mirror-image", "name": "Imagem Espelhada", "url": "/api/spells/mirror-image" },
+            { "index": "pass-without-trace", "name": "Passar sem Pegadas", "url": "/api/spells/pass-without-trace" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "blink", "name": "Piscar", "url": "/api/spells/blink" },
+            { "index": "dispel-magic", "name": "Dissipar Magia", "url": "/api/spells/dispel-magic" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "dimension-door", "name": "Porta Dimensional", "url": "/api/spells/dimension-door" },
+            { "index": "polymorph", "name": "Metamorfose", "url": "/api/spells/polymorph" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "dominate-person", "name": "Dominar Pessoa", "url": "/api/spells/dominate-person" },
+            { "index": "modify-memory", "name": "Modificar Memória", "url": "/api/spells/modify-memory" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/trickery-domain"
+    },
+    {
+      "index": "war-domain",
+      "name": "Domínio da Guerra",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "Guerra tem muitas manifestações. Pode fazer heróis de pessoas comuns. Pode ser desesperada e aterrorizante, com atos de covardia e brutalidade eclipsando instâncias de excelência e coragem.",
+        "Em qualquer caso, os deuses da guerra observam guerreiros e recompensam por feitos poderosos com atos de violência."
+      ],
+      "subclass_flavor": "Os domínios da guerra e da morte trabalham intimamente juntos, pois guerra semeia morte, e morte desperta medo da guerra.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "bonus-proficiencies-war",
+              "name": "Proficiências Adicionais",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "war-priest",
+              "name": "Sacerdote da Guerra",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-guided-strike",
+              "name": "Canalizar Divindade: Golpe Guiado",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "channel-divinity-war-god-blessing",
+              "name": "Canalizar Divindade: Bênção do Deus da Guerra",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "divine-strike",
+              "name": "Golpe Divino",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "avatar-of-battle",
+              "name": "Avatar da Batalha",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "divine-favor", "name": "Favor Divino", "url": "/api/spells/divine-favor" },
+            { "index": "shield-of-faith", "name": "Escudo da Fé", "url": "/api/spells/shield-of-faith" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "magic-weapon", "name": "Arma Mágica", "url": "/api/spells/magic-weapon" },
+            { "index": "spiritual-weapon", "name": "Arma Espiritual", "url": "/api/spells/spiritual-weapon" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "crusaders-mantle", "name": "Manto do Cruzado", "url": "/api/spells/crusaders-mantle" },
+            { "index": "spirit-guardians", "name": "Guardiões Espirituais", "url": "/api/spells/spirit-guardians" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "freedom-of-movement", "name": "Liberdade de Movimento", "url": "/api/spells/freedom-of-movement" },
+            { "index": "stoneskin", "name": "Pele de Pedra", "url": "/api/spells/stoneskin" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "flame-strike", "name": "Coluna de Chamas", "url": "/api/spells/flame-strike" },
+            { "index": "hold-monster", "name": "Prender Monstro", "url": "/api/spells/hold-monster" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/war-domain"
+    },
+    {
+      "index": "death-domain",
+      "name": "Domínio da Morte",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "O Domínio da Morte se preocupa com as forças que causam morte, bem como a energia negativa que dá origem a criaturas mortas-vivas.",
+        "Divindades da morte também governam sobre sonos e sonhos, às vezes atuando como porteiros entre o mundo dos vivos e o além."
+      ],
+      "subclass_flavor": "Deuses da morte incluem Chemosh, Myrkul, e Wee Jas. Esta subclasse está disponível apenas para campanhas que permitam conteúdo sombrio.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "bonus-proficiency-death",
+              "name": "Proficiência Adicional",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "reaper",
+              "name": "Ceifador",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-touch-of-death",
+              "name": "Canalizar Divindade: Toque da Morte",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "inescapable-destruction",
+              "name": "Destruição Inevitável",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "divine-strike",
+              "name": "Golpe Divino",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "improved-reaper",
+              "name": "Ceifador Aprimorado",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "false-life", "name": "Vida Falsa", "url": "/api/spells/false-life" },
+            { "index": "inflict-wounds", "name": "Infligir Ferimentos", "url": "/api/spells/inflict-wounds" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "blindness-deafness", "name": "Cegueira/Surdez", "url": "/api/spells/blindness-deafness" },
+            { "index": "ray-of-enfeeblement", "name": "Raio de Enfraquecimento", "url": "/api/spells/ray-of-enfeeblement" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "animate-dead", "name": "Animar Mortos", "url": "/api/spells/animate-dead" },
+            { "index": "vampiric-touch", "name": "Toque Vampírico", "url": "/api/spells/vampiric-touch" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "blight", "name": "Praga", "url": "/api/spells/blight" },
+            { "index": "death-ward", "name": "Proteção contra a Morte", "url": "/api/spells/death-ward" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "antilife-shell", "name": "Concha Antivida", "url": "/api/spells/antilife-shell" },
+            { "index": "cloudkill", "name": "Nuvem Mortal", "url": "/api/spells/cloudkill" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/death-domain"
+    },
+    {
+      "index": "forge-domain",
+      "name": "Domínio da Forja",
+      "class": {
+        "index": "cleric",
+        "name": "Clérico",
+        "url": "/api/classes/cleric"
+      },
+      "desc": [
+        "Os deuses do domínio da forja são patronos dos artesãos que trabalham com metal, de ferreiros e artesãos a armeiros e joalheiros.",
+        "Eles ensinam que, com paciência e trabalho duro, mesmo o metal mais intratável pode ser transformado de minério bruto em algo belo."
+      ],
+      "subclass_flavor": "Os seguidores dessas divindades buscam a perfeição através do trabalho incansável, criando não apenas objetos de beleza, mas também de grande poder.",
+      "subclass_levels": [
+        {
+          "level": 1,
+          "features": [
+            {
+              "index": "bonus-proficiencies-forge",
+              "name": "Proficiências Adicionais",
+              "description": "Descrição detalhada indisponível"
+            },
+            {
+              "index": "blessing-of-the-forge",
+              "name": "Bênção da Forja",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 2,
+          "features": [
+            {
+              "index": "channel-divinity-artisans-blessing",
+              "name": "Canalizar Divindade: Bênção do Artesão",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 6,
+          "features": [
+            {
+              "index": "soul-of-the-forge",
+              "name": "Alma da Forja",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 8,
+          "features": [
+            {
+              "index": "divine-strike",
+              "name": "Golpe Divino",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        },
+        {
+          "level": 17,
+          "features": [
+            {
+              "index": "saint-of-forge-and-fire",
+              "name": "Santo da Forja e Fogo",
+              "description": "Descrição detalhada indisponível"
+            }
+          ]
+        }
+      ],
+      "spells": [
+        {
+          "level": 1,
+          "spells": [
+            { "index": "identify", "name": "Identificar", "url": "/api/spells/identify" },
+            { "index": "searing-smite", "name": "Golpe Ardente", "url": "/api/spells/searing-smite" }
+          ]
+        },
+        {
+          "level": 3,
+          "spells": [
+            { "index": "heat-metal", "name": "Aquecer Metal", "url": "/api/spells/heat-metal" },
+            { "index": "magic-weapon", "name": "Arma Mágica", "url": "/api/spells/magic-weapon" }
+          ]
+        },
+        {
+          "level": 5,
+          "spells": [
+            { "index": "elemental-weapon", "name": "Arma Elemental", "url": "/api/spells/elemental-weapon" },
+            { "index": "protection-from-energy", "name": "Proteção contra Energia", "url": "/api/spells/protection-from-energy" }
+          ]
+        },
+        {
+          "level": 7,
+          "spells": [
+            { "index": "fabricate", "name": "Fabricar", "url": "/api/spells/fabricate" },
+            { "index": "wall-of-fire", "name": "Muralha de Fogo", "url": "/api/spells/wall-of-fire" }
+          ]
+        },
+        {
+          "level": 9,
+          "spells": [
+            { "index": "animate-objects", "name": "Animar Objetos", "url": "/api/spells/animate-objects" },
+            { "index": "creation", "name": "Criação", "url": "/api/spells/creation" }
+          ]
+        }
+      ],
+      "url": "/api/subclasses/forge-domain"
     }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "animal-friendship", name: "Amizade Animal", url: "/api/spells/animal-friendship" },
-        { index: "speak-with-animals", name: "Falar com Animais", url: "/api/spells/speak-with-animals" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "barkskin", name: "Pele de Árvore", url: "/api/spells/barkskin" },
-        { index: "spike-growth", name: "Crescimento de Espinhos", url: "/api/spells/spike-growth" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "plant-growth", name: "Crescimento Vegetal", url: "/api/spells/plant-growth" },
-        { index: "wind-wall", name: "Muralha de Vento", url: "/api/spells/wind-wall" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "dominate-beast", name: "Dominar Fera", url: "/api/spells/dominate-beast" },
-        { index: "grasping-vine", name: "Cipó Agarrador", url: "/api/spells/grasping-vine" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "insect-plague", name: "Praga de Insetos", url: "/api/spells/insect-plague" },
-        { index: "tree-stride", name: "Caminhar em Árvores", url: "/api/spells/tree-stride" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/nature-domain",
-},
-
-{
-  index: "tempest-domain",
-  name: "Domínio da Tempestade",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "Deuses cujos portfólios incluem o Domínio da Tempestade – incluindo Talos, Umberlee, Kord, Zeboim, o Devorador, Zeus e Thor – governam tempestades, mar e céu.",
-    "Eles incluem deuses de relâmpagos e trovões, deuses de terremotos, alguns deuses do fogo e certos deuses de violência, força física e coragem."
-  ],
-  subclass_flavor: "Marinheiros oram a esses deuses buscando ventos favoráveis e mares calmos, e oram para longe de suas iras quando ventos uivantes surgem para devastar embarcações contra os rochedos costeiros.",
-  subclass_levels: [
-    {
-      level: 1,
-      features: [
-        { index: "bonus-proficiencies-tempest", name: "Proficiências Adicionais", url: "/api/features/bonus-proficiencies-tempest" },
-        { index: "wrath-of-the-storm", name: "Ira da Tempestade", url: "/api/features/wrath-of-the-storm" }
-      ]
-    },
-    {
-      level: 2,
-      features: [
-        { index: "channel-divinity-destructive-wrath", name: "Canalizar Divindade: Ira Destrutiva", url: "/api/features/channel-divinity-destructive-wrath" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "thunderbolt-strike", name: "Golpe do Raio", url: "/api/features/thunderbolt-strike" }
-      ]
-    },
-    {
-      level: 8,
-      features: [
-        { index: "divine-strike", name: "Golpe Divino", url: "/api/features/divine-strike" }
-      ]
-    },
-    {
-      level: 17,
-      features: [
-        { index: "stormborn", name: "Nascido da Tempestade", url: "/api/features/stormborn" }
-      ]
-    }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "fog-cloud", name: "Nuvem de Névoa", url: "/api/spells/fog-cloud" },
-        { index: "thunderwave", name: "Onda Trovejante", url: "/api/spells/thunderwave" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "gust-of-wind", name: "Rajada de Vento", url: "/api/spells/gust-of-wind" },
-        { index: "shatter", name: "Despedaçar", url: "/api/spells/shatter" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "call-lightning", name: "Convocar Raios", url: "/api/spells/call-lightning" },
-        { index: "sleet-storm", name: "Tempestade de Granizo", url: "/api/spells/sleet-storm" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "control-water", name: "Controlar Água", url: "/api/spells/control-water" },
-        { index: "ice-storm", name: "Tempestade de Gelo", url: "/api/spells/ice-storm" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "destructive-wave", name: "Onda Destrutiva", url: "/api/spells/destructive-wave" },
-        { index: "insect-plague", name: "Praga de Insetos", url: "/api/spells/insect-plague" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/tempest-domain",
-},
-
-{
-  index: "trickery-domain",
-  name: "Domínio da Trapaça",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "Deuses da trapaça – como Cyric, Beshaba, Hiddukel, Vecna, e Hermes – são desencaminhadores e instigadores que se colocam como um desafio constante à ordem aceita entre deuses e mortais.",
-    "Eles são patronos de ladrões, canalhas, apostadores, rebeldes e libertadores."
-  ],
-  subclass_flavor: "Seus clérigos são uma força disruptiva no mundo, cutucando consciências, zombando de tiranos, roubando dos ricos, libertando cativos e ignorando convenções vazias.",
-  subclass_levels: [
-    {
-      level: 1,
-      features: [
-        { index: "blessing-of-the-trickster", name: "Bênção do Trapaceiro", url: "/api/features/blessing-of-the-trickster" }
-      ]
-    },
-    {
-      level: 2,
-      features: [
-        { index: "channel-divinity-invoke-duplicity", name: "Canalizar Divindade: Invocar Duplicata", url: "/api/features/channel-divinity-invoke-duplicity" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "channel-divinity-cloak-of-shadows", name: "Canalizar Divindade: Manto de Sombras", url: "/api/features/channel-divinity-cloak-of-shadows" }
-      ]
-    },
-    {
-      level: 8,
-      features: [
-        { index: "divine-strike", name: "Golpe Divino", url: "/api/features/divine-strike" }
-      ]
-    },
-    {
-      level: 17,
-      features: [
-        { index: "improved-duplicity", name: "Duplicata Aprimorada", url: "/api/features/improved-duplicity" }
-      ]
-    }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "charm-person", name: "Encantar Pessoa", url: "/api/spells/charm-person" },
-        { index: "disguise-self", name: "Disfarçar-se", url: "/api/spells/disguise-self" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "mirror-image", name: "Imagem Espelhada", url: "/api/spells/mirror-image" },
-        { index: "pass-without-trace", name: "Passar sem Pegadas", url: "/api/spells/pass-without-trace" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "blink", name: "Piscar", url: "/api/spells/blink" },
-        { index: "dispel-magic", name: "Dissipar Magia", url: "/api/spells/dispel-magic" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "dimension-door", name: "Porta Dimensional", url: "/api/spells/dimension-door" },
-        { index: "polymorph", name: "Metamorfose", url: "/api/spells/polymorph" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "dominate-person", name: "Dominar Pessoa", url: "/api/spells/dominate-person" },
-        { index: "modify-memory", name: "Modificar Memória", url: "/api/spells/modify-memory" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/trickery-domain",
-},
-
-{
-  index: "war-domain",
-  name: "Domínio da Guerra",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "Guerra tem muitas manifestações. Pode fazer heróis de pessoas comuns. Pode ser desesperada e aterrorizante, com atos de covardia e brutalidade eclipsando instâncias de excelência e coragem.",
-    "Em qualquer caso, os deuses da guerra observam guerreiros e recompensam por feitos poderosos com atos de violência."
-  ],
-  subclass_flavor: "Os domínios da guerra e da morte trabalham intimamente juntos, pois guerra semeia morte, e morte desperta medo da guerra.",
-  subclass_levels: [
-    {
-      level: 1,
-      features: [
-        { index: "bonus-proficiencies-war", name: "Proficiências Adicionais", url: "/api/features/bonus-proficiencies-war" },
-        { index: "war-priest", name: "Sacerdote da Guerra", url: "/api/features/war-priest" }
-      ]
-    },
-    {
-      level: 2,
-      features: [
-        { index: "channel-divinity-guided-strike", name: "Canalizar Divindade: Golpe Guiado", url: "/api/features/channel-divinity-guided-strike" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "channel-divinity-war-god-blessing", name: "Canalizar Divindade: Bênção do Deus da Guerra", url: "/api/features/channel-divinity-war-god-blessing" }
-      ]
-    },
-    {
-      level: 8,
-      features: [
-        { index: "divine-strike", name: "Golpe Divino", url: "/api/features/divine-strike" }
-      ]
-    },
-    {
-      level: 17,
-      features: [
-        { index: "avatar-of-battle", name: "Avatar da Batalha", url: "/api/features/avatar-of-battle" }
-      ]
-    }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "divine-favor", name: "Favor Divino", url: "/api/spells/divine-favor" },
-        { index: "shield-of-faith", name: "Escudo da Fé", url: "/api/spells/shield-of-faith" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "magic-weapon", name: "Arma Mágica", url: "/api/spells/magic-weapon" },
-        { index: "spiritual-weapon", name: "Arma Espiritual", url: "/api/spells/spiritual-weapon" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "crusaders-mantle", name: "Manto do Cruzado", url: "/api/spells/crusaders-mantle" },
-        { index: "spirit-guardians", name: "Guardiões Espirituais", url: "/api/spells/spirit-guardians" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "freedom-of-movement", name: "Liberdade de Movimento", url: "/api/spells/freedom-of-movement" },
-        { index: "stoneskin", name: "Pele de Pedra", url: "/api/spells/stoneskin" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "flame-strike", name: "Coluna de Chamas", url: "/api/spells/flame-strike" },
-        { index: "hold-monster", name: "Prender Monstro", url: "/api/spells/hold-monster" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/war-domain",
-},
-
-// 💀 SUBCLASSES ADICIONAIS (LIVROS DE EXPANSÃO):
-
-{
-  index: "death-domain",
-  name: "Domínio da Morte",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "O Domínio da Morte se preocupa com as forças que causam morte, bem como a energia negativa que dá origem a criaturas mortas-vivas.",
-    "Divindades da morte também governam sobre sonos e sonhos, às vezes atuando como porteiros entre o mundo dos vivos e o além."
-  ],
-  subclass_flavor: "Deuses da morte incluem Chemosh, Myrkul, e Wee Jas. Esta subclasse está disponível apenas para campanhas que permitam conteúdo sombrio.",
-  subclass_levels: [
-    {
-      level: 1,
-      features: [
-        { index: "bonus-proficiency-death", name: "Proficiência Adicional", url: "/api/features/bonus-proficiency-death" },
-        { index: "reaper", name: "Ceifador", url: "/api/features/reaper" }
-      ]
-    },
-    {
-      level: 2,
-      features: [
-        { index: "channel-divinity-touch-of-death", name: "Canalizar Divindade: Toque da Morte", url: "/api/features/channel-divinity-touch-of-death" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "inescapable-destruction", name: "Destruição Inevitável", url: "/api/features/inescapable-destruction" }
-      ]
-    },
-    {
-      level: 8,
-      features: [
-        { index: "divine-strike", name: "Golpe Divino", url: "/api/features/divine-strike" }
-      ]
-    },
-    {
-      level: 17,
-      features: [
-        { index: "improved-reaper", name: "Ceifador Aprimorado", url: "/api/features/improved-reaper" }
-      ]
-    }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "false-life", name: "Vida Falsa", url: "/api/spells/false-life" },
-        { index: "inflict-wounds", name: "Infligir Ferimentos", url: "/api/spells/inflict-wounds" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "blindness-deafness", name: "Cegueira/Surdez", url: "/api/spells/blindness-deafness" },
-        { index: "ray-of-enfeeblement", name: "Raio de Enfraquecimento", url: "/api/spells/ray-of-enfeeblement" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "animate-dead", name: "Animar Mortos", url: "/api/spells/animate-dead" },
-        { index: "vampiric-touch", name: "Toque Vampírico", url: "/api/spells/vampiric-touch" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "blight", name: "Praga", url: "/api/spells/blight" },
-        { index: "death-ward", name: "Proteção contra a Morte", url: "/api/spells/death-ward" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "antilife-shell", name: "Concha Antivida", url: "/api/spells/antilife-shell" },
-        { index: "cloudkill", name: "Nuvem Mortal", url: "/api/spells/cloudkill" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/death-domain",
-},
-
-{
-  index: "forge-domain",
-  name: "Domínio da Forja",
-  class: { index: "cleric", name: "Clérico", url: "/api/classes/cleric" },
-  desc: [
-    "Os deuses do domínio da forja são patronos dos artesãos que trabalham com metal, de ferreiros e artesãos a armeiros e joalheiros.",
-    "Eles ensinam que, com paciência e trabalho duro, mesmo o metal mais intratável pode ser transformado de minério bruto em algo belo."
-  ],
-  subclass_flavor: "Os seguidores dessas divindades buscam a perfeição através do trabalho incansável, criando não apenas objetos de beleza, mas também de grande poder.",
-  subclass_levels: [
-    {
-      level: 1,
-      features: [
-        { index: "bonus-proficiencies-forge", name: "Proficiências Adicionais", url: "/api/features/bonus-proficiencies-forge" },
-        { index: "blessing-of-the-forge", name: "Bênção da Forja", url: "/api/features/blessing-of-the-forge" }
-      ]
-    },
-    {
-      level: 2,
-      features: [
-        { index: "channel-divinity-artisans-blessing", name: "Canalizar Divindade: Bênção do Artesão", url: "/api/features/channel-divinity-artisans-blessing" }
-      ]
-    },
-    {
-      level: 6,
-      features: [
-        { index: "soul-of-the-forge", name: "Alma da Forja", url: "/api/features/soul-of-the-forge" }
-      ]
-    },
-    {
-      level: 8,
-      features: [
-        { index: "divine-strike", name: "Golpe Divino", url: "/api/features/divine-strike" }
-      ]
-    },
-    {
-      level: 17,
-      features: [
-        { index: "saint-of-forge-and-fire", name: "Santo da Forja e Fogo", url: "/api/features/saint-of-forge-and-fire" }
-      ]
-    }
-  ],
-  spells: [
-    {
-      level: 1,
-      spells: [
-        { index: "identify", name: "Identificar", url: "/api/spells/identify" },
-        { index: "searing-smite", name: "Golpe Ardente", url: "/api/spells/searing-smite" }
-      ]
-    },
-    {
-      level: 3,
-      spells: [
-        { index: "heat-metal", name: "Aquecer Metal", url: "/api/spells/heat-metal" },
-        { index: "magic-weapon", name: "Arma Mágica", url: "/api/spells/magic-weapon" }
-      ]
-    },
-    {
-      level: 5,
-      spells: [
-        { index: "elemental-weapon", name: "Arma Elemental", url: "/api/spells/elemental-weapon" },
-        { index: "protection-from-energy", name: "Proteção contra Energia", url: "/api/spells/protection-from-energy" }
-      ]
-    },
-    {
-      level: 7,
-      spells: [
-        { index: "fabricate", name: "Fabricar", url: "/api/spells/fabricate" },
-        { index: "wall-of-fire", name: "Muralha de Fogo", url: "/api/spells/wall-of-fire" }
-      ]
-    },
-    {
-      level: 9,
-      spells: [
-        { index: "animate-objects", name: "Animar Objetos", url: "/api/spells/animate-objects" },
-        { index: "creation", name: "Criação", url: "/api/spells/creation" }
-      ]
-    }
-  ],
-  url: "/api/subclasses/forge-domain",
+  ]
 },
 
   // ===========================
