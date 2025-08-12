@@ -1,17 +1,21 @@
 // components/character/creation/steps/Classes.tsx
-// ✅ RESTAURADO: Agora usando mockSubclasses e mockBackgrounds
 'use client';
 
 import { useState, useEffect } from "react";
-import { DndClass, DndSubclass, DndBackground, DndReference } from "@/types/characterCreation";
+import { 
+  DnDClass,
+  Subclass,
+  APIReference,
+  CharacterBackground 
+} from "@/types/character";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { mockSubclasses } from "@/data/mockSubClasses"; // ✅ RESTAURADO: Import das subclasses mock
-import { mockBackgrounds } from "@/data/mockBackgrounds"; // ✅ RESTAURADO: Import dos backgrounds mock
+import { mockSubclasses } from "@/data/mockSubClasses";
+import { mockBackgrounds } from "@/data/mockBackgrounds";
 
 interface ApiClassesResponse {
     count: number;
-    results: DndReference[];
+    results: APIReference[];
 }
 
 interface ClassesCreationProps {
@@ -60,35 +64,29 @@ const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
     return defaultValue;
 };
 
-// ===========================
-// MOCK DATA - Backgrounds D&D 5e (REMOVIDO - usando import)
-// ===========================
-
-// ✅ RESTAURADO: Agora usando mockBackgrounds importado em vez de dados hardcoded
-
 const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
     // ===========================
     // STATES COM STORAGE
     // ===========================
     
-    const [selectedClass, setSelectedClass] = useState<DndClass | null>(() => 
-        loadFromStorage<DndClass | null>(STORAGE_KEYS.SELECTED_CLASS, null)
+    const [selectedClass, setSelectedClass] = useState<DnDClass | null>(() => 
+        loadFromStorage<DnDClass | null>(STORAGE_KEYS.SELECTED_CLASS, null)
     );
     
-    const [selectedSubclass, setSelectedSubclass] = useState<DndSubclass | null>(() => 
-        loadFromStorage<DndSubclass | null>(STORAGE_KEYS.SELECTED_SUBCLASS, null)
+    const [selectedSubclass, setSelectedSubclass] = useState<Subclass | null>(() => 
+        loadFromStorage<Subclass | null>(STORAGE_KEYS.SELECTED_SUBCLASS, null)
     );
     
-    const [selectedBackground, setSelectedBackground] = useState<DndBackground | null>(() => 
-        loadFromStorage<DndBackground | null>(STORAGE_KEYS.SELECTED_BACKGROUND, null)
+    const [selectedBackground, setSelectedBackground] = useState<CharacterBackground | null>(() => 
+        loadFromStorage<CharacterBackground | null>(STORAGE_KEYS.SELECTED_BACKGROUND, null)
     );
     
-    const [apiClasses, setApiClasses] = useState<DndReference[]>(() => 
-        loadFromStorage<DndReference[]>(STORAGE_KEYS.CLASSES_DATA, [])
+    const [apiClasses, setApiClasses] = useState<APIReference[]>(() => 
+        loadFromStorage<APIReference[]>(STORAGE_KEYS.CLASSES_DATA, [])
     );
 
-    const [classDetails, setClassDetails] = useState<Record<string, DndClass>>({});
-    const [availableSubclasses, setAvailableSubclasses] = useState<DndSubclass[]>([]);
+    const [classDetails, setClassDetails] = useState<Record<string, DnDClass>>({});
+    const [availableSubclasses, setAvailableSubclasses] = useState<Subclass[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState({
         classes: false,
@@ -211,7 +209,7 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
                 throw new Error(`Falha na requisição: Status ${response.status}`);
             }
             
-            const classData: DndClass = await response.json();
+            const classData: DnDClass = await response.json();
             
             setClassDetails(prev => ({
                 ...prev,
@@ -231,7 +229,7 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
         setIsLoading(prev => ({ ...prev, subclasses: true }));
         
         try {
-            // ✅ RESTAURADO: Usar dados mock em vez da API
+            // Usar dados mock em vez da API
             const subclassesForClass = mockSubclasses.filter(subclass => 
                 subclass.class.index === classIndex
             );
@@ -250,7 +248,7 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
     // HANDLERS
     // ===========================
 
-    const handleClassSelection = async (classRef: DndReference) => {
+    const handleClassSelection = async (classRef: APIReference) => {
         console.log("🎯 Selecionando classe:", classRef.name);
         
         const classData = await pullClassDetails(classRef.index);
@@ -266,17 +264,16 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
         }
     };
 
-    const handleSubclassSelection = (subclass: DndSubclass) => {
+    const handleSubclassSelection = (subclass: Subclass) => {
         console.log("🎯 Selecionando subclasse:", subclass.name);
         
-        // ✅ RESTAURADO: Usar o objeto completo dos dados mock
+        // Usar o objeto completo dos dados mock
         setSelectedSubclass(subclass);
         console.log(`✅ Subclasse ${subclass.name} selecionada com sucesso`);
     };
 
-    const handleBackgroundSelection = (background: DndBackground) => {
+    const handleBackgroundSelection = (background: CharacterBackground) => {
         console.log("🎯 Selecionando background:", background.name);
-        console.log("📋 Dados do background:", background); // Debug para verificar estrutura
         setSelectedBackground(background);
         console.log(`✅ Background ${background.name} selecionado com sucesso`);
     };
@@ -298,10 +295,6 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
         setAvailableSubclasses([]);
         
         console.log('🧹 Dados de classes limpos do storage');
-        console.log('📋 Dados mock ainda disponíveis:', {
-            subclasses: mockSubclasses.length,
-            backgrounds: mockBackgrounds.length
-        });
     };
 
     // ===========================

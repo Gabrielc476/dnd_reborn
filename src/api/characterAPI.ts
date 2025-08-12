@@ -1,19 +1,4 @@
-import { CharacterCreationData } from "@/types/characterCreation";
-import { 
-  Character, 
-  CharacterSummary, 
-  BasicInfo, 
-  RaceInfo, 
-  Attributes, 
-  Skills, 
-  Stats, 
-  Combat, 
-  Magic, 
-  CharacterDetails,
-  DiceRoll,
-  Attack,
-  Spell
-} from "@/types/character";
+import { Character, EquipmentItem } from "@/types/character";
 
 export interface CharacterResponse {
   success: boolean;
@@ -52,16 +37,18 @@ class CharacterAPI {
 
     try {
       const response = await fetch(url, config);
-      
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: "Erro na requisição" }));
+        const errorData = await response
+          .json()
+          .catch(() => ({ error: "Erro na requisição" }));
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
 
       return await response.json();
     } catch (error) {
       console.error("Erro na requisição:", error);
-      
+
       if (error instanceof Error) {
         throw error;
       }
@@ -69,23 +56,24 @@ class CharacterAPI {
     }
   }
 
+  // Retorna Character (ou null) consultando o endpoint que devolve um CharacterResponse
   async getCharacterById(characterId: string): Promise<CharacterResponse> {
     try {
       const response = await this.request<CharacterResponse>(`/characters/${characterId}`);
-      
+
       if (response.success && response.character) {
         return {
           success: true,
-          character: response.character
+          character: response.character,
         };
       }
-      
+
       return response;
     } catch (error) {
       console.error("Erro ao buscar personagem:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Erro ao buscar personagem"
+        error: error instanceof Error ? error.message : "Erro ao buscar personagem",
       };
     }
   }
@@ -94,191 +82,104 @@ class CharacterAPI {
     try {
       const endpoint = `/characters/campaign/${campaignId}/characters`;
       console.log(`[characterAPI] GET ${endpoint}`);
-      
+
       const response = await this.request<CampaignCharactersResponse>(endpoint);
-      
+
       if (response.success && response.characters) {
         return {
           success: true,
-          characters: response.characters
+          characters: response.characters,
         };
       }
-      
+
       return response;
     } catch (error) {
       console.error("Erro ao buscar personagens da campanha:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Erro ao buscar personagens"
+        error: error instanceof Error ? error.message : "Erro ao buscar personagens",
       };
     }
   }
 
-  validateCharacterData(characterData: CharacterCreationData): string[] {
+  // Valida utilizando apenas o tipo Character (já no formato do backend)
+  validateCharacterData(characterData: Character): string[] {
     const errors: string[] = [];
 
-    if (!characterData.name?.trim()) {
+    if (!characterData.basic_info?.name?.trim()) {
       errors.push("Nome é obrigatório");
     }
 
-    if (!characterData.selectedRace) {
+    if (!characterData.basic_info?.race_info?.race_name) {
       errors.push("Raça é obrigatória");
     }
 
-    if (!characterData.selectedClass) {
+    if (!characterData.basic_info?.character_class) {
       errors.push("Classe é obrigatória");
     }
 
-    if (!characterData.selectedBackground) {
+    // Background pode estar em details ou em basic_info dependendo do schema; checamos basic_info primeiro
+    if (!characterData.basic_info?.background) {
       errors.push("Background é obrigatório");
     }
 
-    if (!characterData.alignment) {
-      errors.push("Alinhamento é obrigatório");
-    }
-
-    const abilities = characterData.abilityScores;
+    // Atributos
+    const abilities = characterData.attributes;
     if (abilities) {
-      Object.entries(abilities).forEach(([ability, score]) => {
-        if (score < 8 || score > 15) {
-          errors.push(`${ability} deve estar entre 8 e 15`);
+      const allowedRange = { min: 1, max: 30 };
+      (Object.entries(abilities) as [string, number][]).forEach(([ability, score]) => {
+        if (typeof score !== 'number' || score < allowedRange.min || score > allowedRange.max) {
+          errors.push(`${ability} deve estar entre ${allowedRange.min} e ${allowedRange.max}`);
         }
       });
     } else {
       errors.push("Atributos são obrigatórios");
     }
 
-    if (characterData.hitPoints <= 0) {
+    if (!characterData.stats || typeof characterData.stats.hit_points !== 'number' || characterData.stats.hit_points <= 0) {
       errors.push("Pontos de vida devem ser maiores que 0");
     }
 
-    if (characterData.armorClass < 10) {
+    if (!characterData.stats || typeof characterData.stats.armor_class !== 'number' || characterData.stats.armor_class < 10) {
       errors.push("Classe de armadura deve ser pelo menos 10");
     }
 
-    if (characterData.availableSkillChoices > 0 && 
-        characterData.selectedSkills.length !== characterData.availableSkillChoices) {
-      errors.push(`Deve selecionar exatamente ${characterData.availableSkillChoices} perícias`);
-    }
-
-    if (characterData.isSpellcaster && !characterData.spellcastingAbility) {
+    if (characterData.magic?.spellcaster && !characterData.magic?.spellcasting_ability) {
       errors.push("Conjuradores devem ter uma habilidade de conjuração");
     }
 
     return errors;
   }
 
-  async createCharacter(characterData: CharacterCreationData): Promise<CharacterResponse> {
+  // Agora createCharacter recebe diretamente um Character (já formatado para o backend)
+  async createCharacter(characterData: Character): Promise<CharacterResponse> {
     try {
       const validationErrors = this.validateCharacterData(characterData);
       if (validationErrors.length > 0) {
         return {
           success: false,
-          error: `Dados inválidos: ${validationErrors.join(", ")}`,
+          error: `Dados inválidos: ${validationErrors.join(', ')}`,
         };
       }
 
-      // Mapear para a nova estrutura de personagem
-      const characterPayload: Character = {
-        id: "", // Será gerado pelo backend
-        user_id: characterData.userId,
-        campaign_id: characterData.campaignId,
-        basic_info: {
-          name: characterData.name.trim(),
-          race_info: {
-            race_name: characterData.selectedRace?.name || "",
-            race_index: characterData.selectedRace?.index || "",
-            subrace_name: characterData.selectedSubrace?.name,
-            subrace_index: characterData.selectedSubrace?.index,
-            speed: 30, // Valor padrão, pode ser ajustado
-            size: "Medium", // Valor padrão
-            ability_bonuses: characterData.raceAbilityBonuses || {},
-            racial_traits: characterData.racialTraits || [],
-            languages: characterData.languages || [],
-            proficiencies: characterData.raceProficiencies || []
-          },
-          class: characterData.selectedClass?.name || "",
-          level: characterData.level || 1,
-          background: characterData.selectedBackground?.name || "",
-          alignment: characterData.alignment || ""
-        },
-        attributes: {
-          strength: characterData.abilityScores?.strength || 10,
-          dexterity: characterData.abilityScores?.dexterity || 10,
-          constitution: characterData.abilityScores?.constitution || 10,
-          intelligence: characterData.abilityScores?.intelligence || 10,
-          wisdom: characterData.abilityScores?.wisdom || 10,
-          charisma: characterData.abilityScores?.charisma || 10
-        },
-        skills: this.mapSkills(characterData.selectedSkills),
-        stats: {
-          current_hp: characterData.hitPoints || 0,
-          max_hp: characterData.hitPoints || 0,
-          armor_class: characterData.armorClass || 10,
-          experience_points: 0
-        },
-        combat: {
-          attacks: characterData.attacks || []
-        },
-        magic: {
-          spellcaster: characterData.isSpellcaster || false,
-          spellcasting_ability: characterData.spellcastingAbility,
-          known_spells: characterData.selectedSpells.map(spell => ({
-            name: spell.name,
-            level: spell.level,
-            school: spell.school || "",
-            description: spell.description,
-            is_attack_spell: spell.isAttack,
-            attack_bonus: spell.attackBonus,
-            damage: spell.damage ? {
-              dice_count: spell.damage.diceCount,
-              dice_sides: spell.damage.diceSides,
-              modifier: spell.damage.modifier
-            } : undefined,
-            damage_type: spell.damageType,
-            save_dc: spell.saveDC,
-            save_ability: spell.saveAbility,
-            range: spell.range || "Toque"
-          })),
-          spell_slots_1: characterData.spellSlots?.[1] || 0,
-          spell_slots_2: characterData.spellSlots?.[2] || 0,
-          spell_slots_3: characterData.spellSlots?.[3] || 0,
-          spell_slots_4: characterData.spellSlots?.[4] || 0,
-          spell_slots_5: characterData.spellSlots?.[5] || 0,
-          spell_slots_6: characterData.spellSlots?.[6] || 0,
-          spell_slots_7: characterData.spellSlots?.[7] || 0,
-          spell_slots_8: characterData.spellSlots?.[8] || 0,
-          spell_slots_9: characterData.spellSlots?.[9] || 0
-        },
-        details: {
-          background: characterData.selectedBackground?.description || "",
-          alignment: characterData.alignment || "",
-          personality_traits: characterData.personalityTraits || "",
-          ideals: characterData.ideals || "",
-          bonds: characterData.bonds || "",
-          flaws: characterData.flaws || "",
-          backstory: characterData.backstory || "",
-          appearance: characterData.appearance || ""
-        },
-        equipment: characterData.equipment || [],
-        features: characterData.features || [],
-        languages: characterData.languages || [],
-        proficiencies: characterData.proficiencies || [],
-        player_name: characterData.playerName,
-        is_active: true,
-        avatar_url: characterData.avatarUrl || ""
+      // Preparamos payload para enviar ao backend. Permitimos que o backend gere o id.
+      const payload: Partial<Character> = {
+        ...characterData,
+        id: undefined as any, // removemos id para o backend gerar
+        is_active: characterData.is_active ?? true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
 
       const response = await this.request<CharacterResponse>("/characters", {
         method: "POST",
-        body: JSON.stringify(characterPayload),
+        body: JSON.stringify(payload),
       });
 
       return response;
-
     } catch (error) {
       console.error("Erro ao criar personagem:", error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : "Erro ao criar personagem",
@@ -286,42 +187,11 @@ class CharacterAPI {
     }
   }
 
-  // Helper para mapear skills para o novo formato
-  private mapSkills(selectedSkills: string[]): Skills {
-    const skills: Skills = {
-      athletics: false,
-      acrobatics: false,
-      sleight_of_hand: false,
-      stealth: false,
-      arcana: false,
-      history: false,
-      investigation: false,
-      nature: false,
-      religion: false,
-      animal_handling: false,
-      insight: false,
-      medicine: false,
-      perception: false,
-      survival: false,
-      deception: false,
-      intimidation: false,
-      performance: false,
-      persuasion: false
-    };
-
-    selectedSkills.forEach(skill => {
-      const skillKey = skill.toLowerCase().replace(/[\s-]+/g, '_') as keyof Skills;
-      if (skills.hasOwnProperty(skillKey)) {
-        skills[skillKey] = true;
-      }
-    });
-
-    return skills;
-  }
-
+  // Busca simples retornando Character (usa getCharacterById internamente)
   async getCharacter(characterId: string): Promise<Character | null> {
     try {
-      return await this.request<Character>(`/characters/${characterId}`);
+      const resp = await this.getCharacterById(characterId);
+      return resp.success && resp.character ? resp.character : null;
     } catch (error) {
       console.error("Erro ao buscar personagem:", error);
       return null;
@@ -339,19 +209,19 @@ class CharacterAPI {
   }
 
   async updateCharacter(
-    characterId: string, 
+    characterId: string,
     updates: Partial<Character>
   ): Promise<CharacterResponse> {
     try {
       const response = await this.request<CharacterResponse>(`/characters/${characterId}`, {
         method: "PUT",
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ ...updates, updated_at: new Date().toISOString() }),
       });
 
       return response;
     } catch (error) {
       console.error("Erro ao atualizar personagem:", error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : "Erro ao atualizar personagem",
@@ -368,7 +238,7 @@ class CharacterAPI {
       return { success: true };
     } catch (error) {
       console.error("Erro ao deletar personagem:", error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : "Erro ao deletar personagem",
@@ -401,7 +271,7 @@ class CharacterAPI {
   importCharacter(jsonData: string): Character | null {
     try {
       const data = JSON.parse(jsonData);
-      
+
       if (!data.basic_info?.name || !data.basic_info?.race_info) {
         throw new Error("Dados de personagem inválidos");
       }
@@ -418,4 +288,3 @@ export const characterAPI = new CharacterAPI();
 
 export default characterAPI;
 export { CharacterAPI };
-export type { Character, CharacterResponse, CampaignCharactersResponse };

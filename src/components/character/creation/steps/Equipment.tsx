@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+// components/character/creation/steps/Equipment.tsx
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { DndBackground, DndClass, DndRace } from "@/types/characterCreation";
 import { EquipmentItem } from "@/types/character";
 import {
@@ -11,60 +12,31 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
-// Funções relacionadas ao storage
-const saveToStorage = (key: string, data: any) => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error('Erro ao salvar no storage:', { key, error });
-  }
-};
-
-const loadFromStorage = (key: string, defaultValue: any): any => {
-  try {
-    const item = localStorage.getItem(key);
-    return item ? JSON.parse(item) : defaultValue;
-  } catch (error) {
-    console.error('Erro ao carregar do storage:', { key, error });
-    return defaultValue;
-  }
-};
-
-const getConsolidatedCharacterData = () => {
-  try {
-    return {
-      selectedRace: JSON.parse(localStorage.getItem('character_creation_race') || 'null') as DndRace | null,
-      selectedClass: JSON.parse(localStorage.getItem('character_creation_class') || 'null') as DndClass | null,
-      selectedBackground: JSON.parse(localStorage.getItem('character_creation_background') || 'null') as DndBackground | null,
-      finalAbilityScores: JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}') as Record<string, number>
-    };
-  } catch (error) {
-    console.error('Erro ao buscar dados consolidados:', error);
-    return {
-      selectedRace: null,
-      selectedClass: null,
-      selectedBackground: null,
-      finalAbilityScores: {}
-    };
-  }
-};
-
-// Interface Strategy
-interface EquipmentOptionStrategy {
-  render(onSelect?: (selection: any) => void, isSelected?: boolean): JSX.Element;
-  getEquipmentDetails(): { 
-    index: string; 
-    name: string; 
-    url: string; 
-    quantity: number 
-  }[];
+// Interface para dados básicos de equipamento
+interface BasicEquipment {
+  index: string;
+  name: string;
+  url: string;
+  quantity: number;
 }
 
-// Implementações concretas das estratégias
-class CountedReferenceStrategy implements EquipmentOptionStrategy {
-  constructor(private option: any) {}
+// Interface para opções de equipamento
+interface EquipmentOption {
+  option_type: string;
+  [key: string]: any;
+}
 
-  render(onSelect?: (selection: any) => void, isSelected?: boolean) {
+// Interface para estratégias de opção de equipamento
+interface EquipmentOptionStrategy {
+  render(onSelect?: (selection: EquipmentItem) => void, isSelected?: boolean): JSX.Element;
+  getEquipmentDetails(): BasicEquipment[];
+}
+
+// Estratégia para referências contadas
+class CountedReferenceStrategy implements EquipmentOptionStrategy {
+  constructor(private option: EquipmentOption) {}
+
+  render(onSelect?: (selection: EquipmentItem) => void, isSelected?: boolean) {
     const item = this.option.of;
     if (!item) return <p className="text-red-500">Dados incompletos</p>;
     
@@ -77,8 +49,7 @@ class CountedReferenceStrategy implements EquipmentOptionStrategy {
         }`}
         onClick={() => {
           if (!isSelected && onSelect) {
-            console.log(`[Strategy] CountedReference clicado: ${item.name}`);
-            onSelect(null);
+            onSelect(null as any);
           }
         }}
       >
@@ -105,10 +76,11 @@ class CountedReferenceStrategy implements EquipmentOptionStrategy {
   }
 }
 
+// Estratégia para múltiplos itens
 class MultipleItemsStrategy implements EquipmentOptionStrategy {
-  constructor(private option: any) {}
+  constructor(private option: EquipmentOption) {}
 
-  render(onSelect?: (selection: any) => void, isSelected?: boolean) {
+  render(onSelect?: (selection: EquipmentItem) => void, isSelected?: boolean) {
     if (!Array.isArray(this.option.items)) {
       return <p className="text-red-500">Dados de múltiplos itens inválidos</p>;
     }
@@ -122,8 +94,7 @@ class MultipleItemsStrategy implements EquipmentOptionStrategy {
         }`}
         onClick={() => {
           if (!isSelected && onSelect) {
-            console.log(`[Strategy] MultipleItems clicado: ${this.option.items.length} itens`);
-            onSelect(null);
+            onSelect(null as any);
           }
         }}
       >
@@ -131,7 +102,7 @@ class MultipleItemsStrategy implements EquipmentOptionStrategy {
           Conjunto de Itens:
         </p>
         <div className="mt-2 space-y-2">
-          {this.option.items.map((item: any, index: number) => {
+          {this.option.items.map((item: EquipmentOption, index: number) => {
             const strategy = createStrategy(item);
             return <div key={index}>{strategy.render()}</div>;
           })}
@@ -142,21 +113,21 @@ class MultipleItemsStrategy implements EquipmentOptionStrategy {
 
   getEquipmentDetails() {
     if (!Array.isArray(this.option.items)) {
-      console.error('[Strategy] Dados inválidos em múltiplos itens');
       return [];
     }
     
-    return this.option.items.flatMap((item: any) => {
+    return this.option.items.flatMap((item: EquipmentOption) => {
       const strategy = createStrategy(item);
       return strategy.getEquipmentDetails();
     });
   }
 }
 
+// Estratégia para escolhas
 class ChoiceStrategy implements EquipmentOptionStrategy {
-  constructor(private option: any) {}
+  constructor(private option: EquipmentOption) {}
 
-  render(onSelect?: (selection: any) => void, isSelected?: boolean) {
+  render(onSelect?: (selection: EquipmentItem) => void, isSelected?: boolean) {
     return (
       <ChoiceStrategyComponent 
         option={this.option} 
@@ -171,11 +142,11 @@ class ChoiceStrategy implements EquipmentOptionStrategy {
   }
 }
 
-// Nova estratégia para combinação de choice + counted reference
+// Estratégia para escolhas com referência contada
 class ChoiceWithCountedReferenceStrategy implements EquipmentOptionStrategy {
-  constructor(private option: any) {}
+  constructor(private option: EquipmentOption) {}
 
-  render(onSelect?: (selection: any) => void, isSelected?: boolean) {
+  render(onSelect?: (selection: EquipmentItem) => void, isSelected?: boolean) {
     return (
       <ChoiceWithCountedReferenceComponent 
         option={this.option} 
@@ -190,22 +161,24 @@ class ChoiceWithCountedReferenceStrategy implements EquipmentOptionStrategy {
   }
 }
 
-// Componente React para Choice Strategy
+// Interface para props do componente de estratégia de escolha
+interface ChoiceStrategyProps {
+  option: EquipmentOption;
+  onSelect?: (selection: EquipmentItem) => void;
+  isSelected?: boolean;
+}
+
+// Componente para estratégia de escolha
 const ChoiceStrategyComponent = ({ 
   option, 
   onSelect,
   isSelected
-}: { 
-  option: any; 
-  onSelect?: (selection: any) => void;
-  isSelected?: boolean;
-}) => {
+}: ChoiceStrategyProps) => {
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Verificar se é parte de uma opção múltipla
   const isPartOfMultiple = option.option_type === 'choice' && 
                           option.choice?.from?.equipment_category?.index === 'martial-weapons';
 
@@ -228,7 +201,6 @@ const ChoiceStrategyComponent = ({
         const data = await response.json();
         setEquipmentList(data.equipment || []);
       } catch (err) {
-        console.error('[Strategy] Falha ao buscar equipamentos:', err);
         setError('Falha ao carregar equipamentos da categoria');
       } finally {
         setLoading(false);
@@ -242,27 +214,10 @@ const ChoiceStrategyComponent = ({
     setSelectedItem(value);
   };
 
-  // Função para lidar com a confirmação da escolha
   const handleConfirmation = () => {
     const selected = equipmentList.find(item => item.index === selectedItem);
-    
-    if (!selected) {
-      console.error('[Strategy] Item selecionado não encontrado');
-      return;
-    }
-
-    // Log detalhado do item escolhido
-    console.log('[Equipamento Escolhido]', {
-      nome: selected.name,
-      índice: selected.index,
-      url: selected.url,
-      categoria: option.choice.from.equipment_category.name
-    });
-
-    // Chama a função externa de seleção se existir
-    if (onSelect) {
-      onSelect(selected);
-    }
+    if (!selected) return;
+    if (onSelect) onSelect(selected);
   };
 
   if (loading) {
@@ -356,16 +311,12 @@ const ChoiceStrategyComponent = ({
   );
 };
 
-// Componente para Choice + CountedReference
+// Componente para estratégia de escolha com referência contada
 const ChoiceWithCountedReferenceComponent = ({ 
   option, 
   onSelect,
   isSelected
-}: { 
-  option: any; 
-  onSelect?: (selection: any) => void;
-  isSelected?: boolean;
-}) => {
+}: ChoiceStrategyProps) => {
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<string>("");
   const [loading, setLoading] = useState(false);
@@ -390,7 +341,6 @@ const ChoiceWithCountedReferenceComponent = ({
         const data = await response.json();
         setEquipmentList(data.equipment || []);
       } catch (err) {
-        console.error('[Strategy] Falha ao buscar equipamentos:', err);
         setError('Falha ao carregar equipamentos da categoria');
       } finally {
         setLoading(false);
@@ -406,31 +356,8 @@ const ChoiceWithCountedReferenceComponent = ({
 
   const handleConfirmation = () => {
     const selected = equipmentList.find(item => item.index === selectedItem);
-    
-    if (!selected) {
-      console.error('[Strategy] Item selecionado não encontrado');
-      return;
-    }
-
-    // Log detalhado da seleção
-    console.log('[Equipamento Escolhido + Item Fixo]', {
-      item_escolhido: {
-        nome: selected.name,
-        índice: selected.index,
-        url: selected.url,
-        categoria: option.choice.from.equipment_category.name
-      },
-      item_fixo: {
-        nome: option.counted_reference.of.name,
-        índice: option.counted_reference.of.index,
-        quantidade: option.counted_reference.count
-      }
-    });
-
-    // Chama a função externa de seleção se existir
-    if (onSelect) {
-      onSelect(selected);
-    }
+    if (!selected) return;
+    if (onSelect) onSelect(selected);
   };
 
   if (loading) {
@@ -469,7 +396,6 @@ const ChoiceWithCountedReferenceComponent = ({
         Escolha uma arma marcial e receba um escudo
       </p>
       
-      {/* Parte de escolha (arma marcial) */}
       <div className="mb-4">
         <p className="mb-3 text-sm text-slate-400">
           {option.choice.desc}
@@ -501,7 +427,6 @@ const ChoiceWithCountedReferenceComponent = ({
         </div>
       </div>
       
-      {/* Parte de item fixo (escudo) */}
       <div className="p-3 bg-slate-700/40 rounded-lg border border-slate-600">
         <p className="font-medium text-blue-300">
           Item adicional incluído:
@@ -540,17 +465,15 @@ const ChoiceWithCountedReferenceComponent = ({
   );
 };
 
-// Factory para criar estratégias
-function createStrategy(option: any): EquipmentOptionStrategy {
+// Criador de estratégias
+function createStrategy(option: EquipmentOption): EquipmentOptionStrategy {
   if (!option || !option.option_type) {
-    console.error('[Strategy] Opção inválida');
     return {
       render: () => <p className="text-red-500">Opção inválida</p>,
       getEquipmentDetails: () => []
     };
   }
   
-  // Nova detecção para opções combinadas
   if (option.option_type === 'choice' && option.counted_reference) {
     return new ChoiceWithCountedReferenceStrategy(option);
   }
@@ -563,7 +486,6 @@ function createStrategy(option: any): EquipmentOptionStrategy {
     case 'choice':
       return new ChoiceStrategy(option);
     default:
-      console.warn(`[Strategy] Tipo desconhecido: ${option.option_type}`);
       return {
         render: () => <p className="text-red-500">Tipo desconhecido</p>,
         getEquipmentDetails: () => []
@@ -571,153 +493,211 @@ function createStrategy(option: any): EquipmentOptionStrategy {
   }
 }
 
-// Função para mesclar itens de equipamento duplicados
-const mergeEquipmentItems = (items: any[]) => {
-  const merged: Record<string, any> = {};
-  
-  items.forEach(item => {
-    const key = item.index;
-    if (merged[key]) {
-      merged[key].quantity += item.quantity;
-    } else {
-      merged[key] = { ...item };
-    }
-  });
-  
-  const result = Object.values(merged);
-  console.log('[Itens Selecionados]', result);
-  return result;
+// Função para buscar item completo na API
+const fetchFullEquipmentItem = async (index: string): Promise<EquipmentItem> => {
+  const response = await fetch(`https://www.dnd5eapi.co/api/equipment/${index}`);
+  if (!response.ok) throw new Error('Failed to fetch equipment details');
+  return response.json();
 };
 
-// Função para processar uma opção e retornar os itens de equipamento
-const processOption = (option: any, userSelection?: any) => {
-  console.log('[ProcessOption]', { 
-    optionType: option.option_type, 
-    userSelection: userSelection ? userSelection.name : null 
-  });
-
-  // Tratamento especial para opções de escolha
-  if (option.option_type === 'choice' && userSelection) {
-    return [{
-      index: userSelection.index,
-      name: userSelection.name,
-      url: userSelection.url,
-      quantity: 1
-    }];
+// Funções de armazenamento
+const saveToStorage = (key: string, data: any) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error("Erro ao salvar no localStorage", error);
   }
-
-  // Tratamento especial para opções combinadas
-  if (option.option_type === 'choice' && option.counted_reference && userSelection) {
-    return [
-      {
-        index: userSelection.index,
-        name: userSelection.name,
-        url: userSelection.url,
-        quantity: 1
-      },
-      {
-        index: option.counted_reference.of.index,
-        name: option.counted_reference.of.name,
-        url: option.counted_reference.of.url,
-        quantity: option.counted_reference.count || 1
-      }
-    ];
-  }
-
-  const strategy = createStrategy(option);
-  let baseDetails = strategy.getEquipmentDetails();
-
-  // Tratamento especial para opções múltiplas com itens aninhados
-  if (option.option_type === 'multiple' && Array.isArray(option.items)) {
-    baseDetails = option.items.flatMap((item: any) => {
-      // Se o item for uma escolha e tivermos uma seleção, usamos-a
-      if (item.option_type === 'choice' && userSelection) {
-        return processOption(item, userSelection);
-      }
-      return processOption(item);
-    });
-  }
-
-  return baseDetails;
 };
 
-const EquipmentComponent = () => {
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : defaultValue;
+  } catch (error) {
+    console.error("Erro ao carregar do localStorage", error);
+    return defaultValue;
+  }
+};
+
+// Chaves de armazenamento para o componente de equipamentos
+const STORAGE_KEYS = {
+  SELECTED_EQUIPMENT: 'character_creation_selected_equipment',
+  SELECTED_CHOICES: 'character_creation_selected_choices',
+  USER_SELECTIONS: 'character_creation_user_selections',
+  EQUIPMENT_VALIDATION: 'character_creation_equipment_validation'
+};
+
+// Componente principal de equipamentos
+const EquipmentComponent = ({ onValidationChange }: { onValidationChange?: (isValid: boolean) => void }) => {
   const [equipmentOptions, setEquipmentOptions] = useState<any[]>([]);
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentItem[]>([]);
   const [selectedChoices, setSelectedChoices] = useState<Record<string, { optionIndex: number }>>({});
   const [userSelections, setUserSelections] = useState<Record<string, { optionIndex: number, selection?: any }>>({});
-  
+  const [showDebug, setShowDebug] = useState(false);
+  const [loadingItems, setLoadingItems] = useState<Record<string, boolean>>({});
+
+  const getConsolidatedCharacterData = () => {
+    try {
+      return {
+        selectedRace: JSON.parse(localStorage.getItem('character_creation_race') || 'null') as DndRace | null,
+        selectedClass: JSON.parse(localStorage.getItem('character_creation_class') || 'null') as DndClass | null,
+        selectedBackground: JSON.parse(localStorage.getItem('character_creation_background') || 'null') as DndBackground | null,
+        finalAbilityScores: JSON.parse(localStorage.getItem('character_creation_final_ability_scores') || '{}') as Record<string, number>
+      };
+    } catch (error) {
+      return {
+        selectedRace: null,
+        selectedClass: null,
+        selectedBackground: null,
+        finalAbilityScores: {}
+      };
+    }
+  };
+
   useEffect(() => {
     const data = getConsolidatedCharacterData();
     const startingEquipmentOptions = data.selectedClass?.starting_equipment_options || [];
-    
     setEquipmentOptions(startingEquipmentOptions);
     
-    // Carregar equipamentos fixos
-    const fixedEquipment = data.selectedClass?.starting_equipment || [];
-    const fixedItems = fixedEquipment.map(item => ({
-      index: item.equipment.index,
-      name: item.equipment.name,
-      url: item.equipment.url,
-      quantity: item.quantity || 1,
-      source: 'Equipamento fixo'
-    }));
+    // Carregar equipamentos fixos como EquipmentItems completos
+    const loadFixedEquipment = async () => {
+      const fixedEquipment = data.selectedClass?.starting_equipment || [];
+      const fixedItems: EquipmentItem[] = [];
+      
+      for (const item of fixedEquipment) {
+        try {
+          const fullItem = await fetchFullEquipmentItem(item.equipment.index);
+          // Adicionar múltiplas cópias se quantity > 1
+          for (let i = 0; i < (item.quantity || 1); i++) {
+            fixedItems.push(fullItem);
+          }
+        } catch (error) {
+          console.error(`Error loading fixed equipment ${item.equipment.index}:`, error);
+        }
+      }
+      
+      setSelectedEquipment(fixedItems);
+      saveToStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, fixedItems);
+    };
     
-    setSelectedItems(fixedItems);
+    loadFixedEquipment();
   }, []);
 
-  // Função para salvar os equipamentos no localStorage
-  const saveCharacterEquipment = (equipment: any[]) => {
-    const equipmentToSave = equipment.map(item => ({
-      index: item.index,
-      name: item.name,
-      url: item.url,
-      quantity: item.quantity
-    }));
+  // Carregar dados salvos do localStorage
+  useEffect(() => {
+    const savedEquipment = loadFromStorage<EquipmentItem[]>(STORAGE_KEYS.SELECTED_EQUIPMENT, []);
+    const savedChoices = loadFromStorage<Record<string, { optionIndex: number }>>(STORAGE_KEYS.SELECTED_CHOICES, {});
+    const savedSelections = loadFromStorage<Record<string, { optionIndex: number, selection?: any }>>(STORAGE_KEYS.USER_SELECTIONS, {});
+
+    if (savedEquipment.length > 0) {
+      setSelectedEquipment(savedEquipment);
+    }
     
-    saveToStorage('character_creation_equipment', equipmentToSave);
-    console.log('[Equipamentos Salvos]', equipmentToSave);
+    setSelectedChoices(savedChoices);
+    setUserSelections(savedSelections);
+  }, []);
+
+  // Agrupar itens por tipo e quantidade
+  const groupedEquipment = useMemo(() => {
+    const merged: Record<string, { item: EquipmentItem, quantity: number }> = {};
+    
+    selectedEquipment.forEach(item => {
+      const key = item.index;
+      if (merged[key]) {
+        merged[key].quantity += 1;
+      } else {
+        merged[key] = { item, quantity: 1 };
+      }
+    });
+    
+    return Object.values(merged);
+  }, [selectedEquipment]);
+
+  // Salvar equipamentos no localStorage
+  const saveCharacterEquipment = (equipment: EquipmentItem[]) => {
+    saveToStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, equipment);
   };
 
-  const handleSelectOption = (optionGroupIndex: number, optionIndex: number, selection?: any) => {
-    console.log(`[Seleção] Grupo: ${optionGroupIndex}, Opção: ${optionIndex}`, selection);
+  // Função de validação
+  const validateEquipment = useCallback(() => {
+    return equipmentOptions.every((_, index) => {
+      const groupKey = `group-${index}`;
+      return selectedChoices[groupKey] !== undefined;
+    });
+  }, [equipmentOptions, selectedChoices]);
+
+  // Efeito para salvar dados e validar
+  useEffect(() => {
+    saveToStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, selectedEquipment);
+    saveToStorage(STORAGE_KEYS.SELECTED_CHOICES, selectedChoices);
+    saveToStorage(STORAGE_KEYS.USER_SELECTIONS, userSelections);
     
+    const isValid = validateEquipment();
+    onValidationChange?.(isValid);
+    saveToStorage(STORAGE_KEYS.EQUIPMENT_VALIDATION, isValid);
+  }, [selectedEquipment, selectedChoices, userSelections, validateEquipment, onValidationChange]);
+
+  // Lidar com seleção de opção
+  const handleSelectOption = async (optionGroupIndex: number, optionIndex: number, selection?: EquipmentItem) => {
     const groupKey = `group-${optionGroupIndex}`;
     const optionGroup = equipmentOptions[optionGroupIndex];
-    const option = optionGroup?.from?.options?.[optionIndex];
     
-    if (!option) {
-      console.error('[Strategy] Opção não encontrada');
-      return;
-    }
+    if (!optionGroup || !optionGroup.from || !optionGroup.from.options) return;
 
-    // Armazenar seleção do usuário
+    const option = optionGroup.from.options[optionIndex];
+    
+    if (!option) return;
+
     setUserSelections(prev => ({
       ...prev,
       [groupKey]: { optionIndex, selection }
     }));
 
-    // Processar a opção para obter os itens
-    const newItems = processOption(option, selection).map(detail => ({
-      ...detail,
-      source: `Opção ${optionGroupIndex + 1}`
-    }));
+    // Processar a opção para obter os índices dos itens
+    const strategy = createStrategy(option);
+    const baseDetails = strategy.getEquipmentDetails();
+    
+    // Buscar todos os itens completos em paralelo
+    const newItemsPromises = baseDetails.map(async detail => {
+      setLoadingItems(prev => ({ ...prev, [detail.index]: true }));
+      try {
+        const fullItem = await fetchFullEquipmentItem(detail.index);
+        // Retornar múltiplas cópias se quantity > 1
+        return Array(detail.quantity).fill(fullItem);
+      } catch (error) {
+        console.error(`Error fetching equipment ${detail.index}:`, error);
+        return [];
+      } finally {
+        setLoadingItems(prev => ({ ...prev, [detail.index]: false }));
+      }
+    });
 
-    console.log('[Novos Itens]', newItems);
+    // Se houver seleção do usuário (para opções do tipo choice)
+    if (selection) {
+      setLoadingItems(prev => ({ ...prev, [selection.index]: true }));
+      try {
+        const fullItem = await fetchFullEquipmentItem(selection.index);
+        newItemsPromises.push(Promise.resolve([fullItem]));
+      } catch (error) {
+        console.error(`Error fetching selected equipment ${selection.index}:`, error);
+      } finally {
+        setLoadingItems(prev => ({ ...prev, [selection.index]: false }));
+      }
+    }
 
-    setSelectedItems(prev => {
-      // Remover itens antigos deste grupo
-      const filteredItems = prev.filter(item => item.source !== `Opção ${optionGroupIndex + 1}`);
+    const newItemsArrays = await Promise.all(newItemsPromises);
+    const newItems = newItemsArrays.flat();
+
+    setSelectedEquipment(prev => {
+      // Remover itens da mesma opção
+      const filteredItems = prev.filter(item => 
+        !newItems.some(newItem => newItem.index === item.index)
+      );
       
       // Adicionar novos itens
       const updatedItems = [...filteredItems, ...newItems];
       
-      console.log('[Itens Atualizados]', updatedItems);
-      
-      // Salvar os equipamentos atualizados
-      const mergedItems = mergeEquipmentItems(updatedItems);
-      saveCharacterEquipment(mergedItems);
-      
+      saveToStorage(STORAGE_KEYS.SELECTED_EQUIPMENT, updatedItems);
       return updatedItems;
     });
 
@@ -727,17 +707,29 @@ const EquipmentComponent = () => {
     }));
   };
 
+  // Verificar se uma opção está selecionada
   const getIsOptionSelected = (groupIndex: number, optionIndex: number) => {
     const groupKey = `group-${groupIndex}`;
     return selectedChoices[groupKey]?.optionIndex === optionIndex;
   };
 
+  // Obter escolha selecionada
   const getSelectedChoice = (groupIndex: number) => {
     const groupKey = `group-${groupIndex}`;
     return userSelections[groupKey]?.selection;
   };
 
-  const mergedSelectedItems = mergeEquipmentItems(selectedItems);
+  // Copiar dados de debug
+  const copyDebugData = () => {
+    const debugData = {
+      equipmentOptions,
+      selectedEquipment,
+      selectedChoices,
+      userSelections,
+      groupedEquipment
+    };
+    navigator.clipboard.writeText(JSON.stringify(debugData, null, 2));
+  };
 
   return (
     <div className="bg-slate-800 rounded-lg p-6 max-w-4xl mx-auto">
@@ -826,8 +818,8 @@ const EquipmentComponent = () => {
                   <div className="mt-4 p-3 bg-green-500/10 rounded-lg border border-green-500/30">
                     <p className="font-medium text-green-300">Opção selecionada:</p>
                     <div className="mt-2 grid grid-cols-1 gap-2">
-                      {selectedItems
-                        .filter(item => item.source === `Opção ${groupIndex + 1}`)
+                      {selectedEquipment
+                        .filter((_, index) => index >= selectedEquipment.length - equipmentOptions[groupIndex]?.from.options[selectedChoices[`group-${groupIndex}`].optionIndex].items?.length)
                         .map((item, index) => (
                           <div key={index} className="flex items-center">
                             <div className="bg-green-500/20 rounded-full p-1 mr-2">
@@ -836,7 +828,10 @@ const EquipmentComponent = () => {
                               </svg>
                             </div>
                             <span className="text-green-200">
-                              {item.quantity}x {item.name}
+                              {item.name}
+                              {loadingItems[item.index] && (
+                                <Loader2 className="h-4 w-4 animate-spin text-blue-400 inline-block ml-2" />
+                              )}
                             </span>
                           </div>
                         ))}
@@ -847,28 +842,231 @@ const EquipmentComponent = () => {
             );
           })}
           
-          {mergedSelectedItems.length > 0 && (
+          {groupedEquipment.length > 0 && (
             <div className="mt-8">
               <h2 className="text-xl font-semibold text-green-300 mb-4">Equipamentos Selecionados</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {mergedSelectedItems.map((item, index) => (
-                  <div key={index} className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-medium text-green-300">{item.name}</p>
-                        <p className="text-sm text-green-400">
-                          {item.quantity}x | {item.source}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-slate-400">{item.index}</p>
+                {groupedEquipment.map((group, index) => {
+                  const item = group.item;
+                  return (
+                    <div key={index} className="bg-green-500/10 border border-green-500/30 rounded-lg p-3">
+                      <div className="flex justify-between">
+                        <div className="w-4/5">
+                          <p className="font-medium text-green-300">{item.name}</p>
+                          <p className="text-sm text-green-400">
+                            {group.quantity}x
+                          </p>
+                          
+                          {/* Categoria de equipamento */}
+                          {item.equipment_category && (
+                            <p className="text-xs mt-1 text-slate-400">
+                              Categoria: {item.equipment_category.name}
+                            </p>
+                          )}
+                          
+                          {/* Categoria de engrenagem */}
+                          {item.gear_category && (
+                            <p className="text-xs text-slate-400">
+                              Tipo: {item.gear_category.name}
+                            </p>
+                          )}
+                          
+                          {/* Custo */}
+                          {item.cost && (
+                            <p className="text-xs text-slate-400">
+                              Custo: {item.cost.quantity} {item.cost.unit}
+                            </p>
+                          )}
+                          
+                          {/* Peso */}
+                          {item.weight !== undefined && (
+                            <p className="text-xs text-slate-400">
+                              Peso: {item.weight} lbs
+                            </p>
+                          )}
+                          
+                          {/* Detalhes específicos de armas */}
+                          {item.weapon_category && (
+                            <div className="mt-1">
+                              <p className="text-xs text-slate-400">
+                                Tipo: {item.weapon_category} ({item.weapon_range})
+                              </p>
+                              {item.damage && (
+                                <p className="text-xs text-slate-400">
+                                  Dano: {item.damage.damage_dice} {item.damage.damage_type?.name}
+                                </p>
+                              )}
+                              {item.range && (
+                                <p className="text-xs text-slate-400">
+                                  Alcance: {item.range.normal}/{item.range.long || '-'} ft
+                                </p>
+                              )}
+                              {item.properties && item.properties.length > 0 && (
+                                <p className="text-xs text-slate-400">
+                                  Propriedades: {item.properties.map(p => p.name).join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Detalhes específicos de armaduras */}
+                          {item.armor_category && (
+                            <div className="mt-1">
+                              <p className="text-xs text-slate-400">
+                                Categoria: {item.armor_category}
+                              </p>
+                              {item.armor_class && (
+                                <p className="text-xs text-slate-400">
+                                  CA: {item.armor_class.base} {item.armor_class.dex_bonus ? `+ Dex` : ''}
+                                  {item.armor_class.max_bonus ? ` (max +${item.armor_class.max_bonus})` : ''}
+                                </p>
+                              )}
+                              {item.str_minimum !== undefined && (
+                                <p className="text-xs text-slate-400">
+                                  Força mínima: {item.str_minimum}
+                                </p>
+                              )}
+                              {item.stealth_disadvantage && (
+                                <p className="text-xs text-red-400">
+                                  Desvantagem em Furtividade
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Detalhes para itens mágicos */}
+                          {item.rarity && (
+                            <p className="text-xs text-purple-400 mt-1">
+                              Raridade: {item.rarity.name}
+                            </p>
+                          )}
+                          {item.attunement && (
+                            <p className="text-xs text-purple-400">
+                              Requer sintonização
+                            </p>
+                          )}
+                          
+                          {/* Descrição */}
+                          {item.desc && (
+                            <div className="mt-1">
+                              {item.desc.map((desc, idx) => (
+                                <p key={idx} className="text-xs text-slate-400">
+                                  {desc}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Conteúdo (para pacotes/kits) */}
+                          {item.contents && item.contents.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-xs font-medium text-slate-300">Contém:</p>
+                              <ul className="list-disc pl-5 text-xs text-slate-400">
+                                {item.contents.map((content, idx) => (
+                                  <li key={idx}>
+                                    {content.quantity}x {content.item.name}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                          
+                          {/* Detalhes para veículos */}
+                          {item.vehicle_category && (
+                            <div className="mt-1">
+                              <p className="text-xs text-slate-400">
+                                Categoria de veículo: {item.vehicle_category}
+                              </p>
+                              {item.speed && (
+                                <p className="text-xs text-slate-400">
+                                  Velocidade: {item.speed.quantity} {item.speed.unit}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Capacidade */}
+                          {item.capacity && (
+                            <p className="text-xs text-slate-400">
+                              Capacidade: {item.capacity}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right w-1/5">
+                          <p className="text-xs text-slate-400">{item.index}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Botão para mostrar/ocultar debug */}
+      <div className="mt-6 flex justify-end">
+        <Button 
+          size="sm"
+          variant="outline"
+          onClick={() => setShowDebug(!showDebug)}
+          className="text-xs bg-slate-700 hover:bg-slate-600 border-slate-600"
+        >
+          {showDebug ? "Ocultar Debug" : "Mostrar Debug"}
+        </Button>
+      </div>
+
+      {/* Seção de Debug */}
+      {showDebug && (
+        <div className="mt-6 p-4 bg-slate-900/80 rounded-lg border border-slate-700">
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="text-sm font-bold text-yellow-400">Debug Information</h3>
+            <Button 
+              size="sm"
+              onClick={copyDebugData}
+              className="text-xs bg-yellow-700 hover:bg-yellow-600"
+            >
+              Copiar Dados
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <h4 className="text-slate-400 font-medium mb-1">Equipment Options</h4>
+              <pre className="bg-slate-800 p-2 rounded max-h-40 overflow-auto text-slate-300">
+                {JSON.stringify(equipmentOptions, null, 2)}
+              </pre>
+            </div>
+
+            <div>
+              <h4 className="text-slate-400 font-medium mb-1">Selected Equipment</h4>
+              <pre className="bg-slate-800 p-2 rounded max-h-40 overflow-auto text-slate-300">
+                {JSON.stringify(selectedEquipment, null, 2)}
+              </pre>
+            </div>
+
+            <div>
+              <h4 className="text-slate-400 font-medium mb-1">Selected Choices</h4>
+              <pre className="bg-slate-800 p-2 rounded max-h-40 overflow-auto text-slate-300">
+                {JSON.stringify(selectedChoices, null, 2)}
+              </pre>
+            </div>
+
+            <div>
+              <h4 className="text-slate-400 font-medium mb-1">User Selections</h4>
+              <pre className="bg-slate-800 p-2 rounded max-h-40 overflow-auto text-slate-300">
+                {JSON.stringify(userSelections, null, 2)}
+              </pre>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <h4 className="text-slate-400 font-medium mb-1">Grouped Equipment</h4>
+            <pre className="bg-slate-800 p-2 rounded max-h-40 overflow-auto text-green-300">
+              {JSON.stringify(groupedEquipment, null, 2)}
+            </pre>
+          </div>
         </div>
       )}
     </div>

@@ -17,6 +17,8 @@ import EncountersList from '@/components/campaign-manage/gm/EncountersList';
 import AttributesPanel from '@/components/character/panels/AttributesPanel';
 import SkillsPanel from '@/components/character/panels/SkillsPanel';
 import SpellsPanel from '@/components/character/panels/SpellsPanel'; // Importando o SpellsPanel
+import CharacterPanel from '@/components/character/panels/CharacterPanel';
+import AbilitesPanel from '@/components/character/panels/AbilitiesPanel';
 import { 
   Shield, 
   Sparkles, 
@@ -30,8 +32,9 @@ import {
   User,
   Activity,
 } from 'lucide-react';
-import { Character } from '@/api/characterAPI';
+import { Character } from '@/types/character';
 import { characterAPI } from '@/api/characterAPI';
+import InventoryPanel from '@/components/character/panels/InventoryPanel';
 
 export type CampaignSection = 
   | 'overview' 
@@ -108,6 +111,7 @@ const CampaignManagerPage = () => {
     };
 
     fetchPlayerCharacter();
+    
   }, [isGM, user?.id, campaign?.id]);
 
   const sections: SectionConfig[] = [
@@ -178,14 +182,7 @@ const CampaignManagerPage = () => {
       id: 'character',
       label: 'Meu Personagem',
       icon: User,
-      component: ({ character }) => (
-        <div className="text-white">
-          <h2 className="text-2xl font-bold mb-4">Detalhes do Personagem</h2>
-          <pre className="bg-gray-800 p-4 rounded-lg overflow-auto max-h-[400px]">
-            {JSON.stringify(character, null, 2)}
-          </pre>
-        </div>
-      ),
+       component: ({ character }) => <CharacterPanel character={character} campaignId={campaign?.id || ""}  />,
       playerOnly: true
     },
     {
@@ -213,14 +210,14 @@ const CampaignManagerPage = () => {
       id: 'inventory',
       label: 'Inventário',
       icon: Package,
-      component: ({ character }) => <div className="text-white">Inventário de {character?.name || "Personagem"}</div>,
+      component: ({ character }) => <InventoryPanel character={character}/>,
       playerOnly: true
     },
     {
       id: 'abilities',
       label: 'Habilidades',
       icon: Sparkles,
-      component: ({ character }) => <div className="text-white">Habilidades de {character?.name || "Personagem"}</div>,
+      component: ({ character }) => <AbilitesPanel character={character}/>,
       playerOnly: true
     },
     {

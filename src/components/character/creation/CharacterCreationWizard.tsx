@@ -25,7 +25,7 @@ interface Step {
 }
 
 // ===========================
-// STORAGE SIMPLES PARA NAVEGAÇÃO
+// STORAGE PARA NAVEGAÇÃO
 // ===========================
 
 const WIZARD_STORAGE_KEYS = {
@@ -55,7 +55,7 @@ const loadWizardState = <T,>(key: string, defaultValue: T): T => {
 };
 
 // ===========================
-// UTILITY - DADOS CONSOLIDADOS (SEGURO PARA SSR)
+// UTILITY - DADOS CONSOLIDADOS
 // ===========================
 
 const getConsolidatedCharacterData = () => {
@@ -151,7 +151,11 @@ const clearAllCharacterData = () => {
     'character_creation_notes',
     'character_wizard_current_step',
     'character_wizard_completed_steps',
-    'character_wizard_validations'
+    'character_wizard_validations',
+    // Chaves específicas do EquipmentComponent
+    'character_creation_selected_choices',
+    'character_creation_user_selections',
+    'character_creation_equipment_validation'
   ];
   
   keysToRemove.forEach(key => {
@@ -161,7 +165,7 @@ const clearAllCharacterData = () => {
 };
 
 // ===========================
-// WRAPPER COMPONENT PARA MAGIAS (SIMPLIFICADO)
+// WRAPPER COMPONENTS
 // ===========================
 
 const SpellsStepWrapper = ({ onValidationChange }: { onValidationChange: (isValid: boolean) => void }) => {
@@ -175,9 +179,9 @@ const SpellsStepWrapper = ({ onValidationChange }: { onValidationChange: (isVali
   );
 };
 
-// ===========================
-// WRAPPER COMPONENT PARA REVIEW
-// ===========================
+const EquipmentStepWrapper = ({ onValidationChange }: { onValidationChange: (isValid: boolean) => void }) => {
+  return <EquipmentComponent onValidationChange={onValidationChange} />;
+};
 
 const ReviewStepWrapper = ({ onValidationChange }: { onValidationChange: (isValid: boolean) => void }) => {
   const [isCreating, setIsCreating] = useState(false);
@@ -214,7 +218,7 @@ const ReviewStepWrapper = ({ onValidationChange }: { onValidationChange: (isVali
 };
 
 // ===========================
-// STEPS CONFIGURATION - ATUALIZADO COM REVIEW
+// STEPS CONFIGURATION
 // ===========================
 
 const steps: Step[] = [
@@ -252,7 +256,7 @@ const steps: Step[] = [
     id: "equipment",
     title: "Equipamentos",
     description: "Selecione o equipamento inicial",
-    component: EquipmentComponent
+    component: EquipmentStepWrapper
   },
   {
     id: "personality",
