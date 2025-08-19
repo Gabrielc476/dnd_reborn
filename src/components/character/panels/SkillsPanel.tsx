@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Character } from "@/api/characterAPI";
+import { Character } from "@/types/character";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -168,6 +168,13 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ character }) => {
     proficiencyBonus: 0
   });
 
+  // Extrai dados do personagem de forma segura
+  const characterName = character?.basic_info?.name || "Personagem sem nome";
+  const className = character?.basic_info?.character_class?.name || "Classe desconhecida";
+  const raceName = character?.basic_info?.race_info?.race_name || "Raça desconhecida";
+  const level = character?.basic_info?.level || 1;
+  const background = character?.basic_info?.background || null;
+
   // Puxa proficiências do personagem e do background
   useEffect(() => {
     if (character) {
@@ -183,14 +190,14 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ character }) => {
       }
       
       // Proficiências do background
-      if (character.basic_info?.background) {
-        const background = mockBackgrounds.find(bg => 
-          bg.index === character.basic_info?.background || 
-          bg.name === character.basic_info?.background
+      if (background) {
+        const backgroundObj = mockBackgrounds.find(bg => 
+          bg.index === background || 
+          bg.name === background
         );
         
-        if (background?.starting_proficiencies) {
-          background.starting_proficiencies.forEach(prof => {
+        if (backgroundObj?.starting_proficiencies) {
+          backgroundObj.starting_proficiencies.forEach(prof => {
             if (prof.index && backgroundSkillMap[prof.index]) {
               proficiencies.add(backgroundSkillMap[prof.index]);
             }
@@ -201,7 +208,7 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ character }) => {
       setSkillProficiencies(Array.from(proficiencies));
       setLoadingProficiencies(false);
     }
-  }, [character]);
+  }, [character, background]);
 
   const getModifier = (value: number): number => Math.floor((value - 10) / 2);
   const formatModifier = (modifier: number): string => modifier >= 0 ? `+${modifier}` : `${modifier}`;
@@ -223,7 +230,7 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ character }) => {
     const attributeValue = character.attributes[attributeKey] || 10;
     const attributeModifier = getModifier(attributeValue);
     const isProficient = skillProficiencies.includes(skill);
-    const proficiencyBonus = getProficiencyBonus(character.basic_info?.level || 1);
+    const proficiencyBonus = getProficiencyBonus(level);
     const diceRoll = Math.floor(Math.random() * 20) + 1;
     const total = diceRoll + attributeModifier + (isProficient ? proficiencyBonus : 0);
     const isCritical = diceRoll === 20;
@@ -260,7 +267,7 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ character }) => {
     </div>
   );
 
-  const proficiencyBonus = getProficiencyBonus(character.basic_info?.level || 1);
+  const proficiencyBonus = getProficiencyBonus(level);
 
   // Agrupar perícias por atributo
   const skillsByAttribute = Object.entries(skillAttributeMap).reduce((acc, [skill, attribute]) => {
@@ -277,13 +284,23 @@ const SkillsPanel: React.FC<SkillsPanelProps> = ({ character }) => {
       
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">Perícias de {character.basic_info?.name || "Personagem sem nome"}</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">
+            Perícias de {characterName}
+          </h2>
           <p className="text-gray-400 flex items-center gap-2">
-            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">{character.basic_info?.character_class || "Classe desconhecida"}</span>
-            <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">Nível {character.basic_info?.level || 1}</span>
-            <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">{character.basic_info?.race_info?.race_name || "Raça desconhecida"}</span>
-            {character.basic_info?.background && (
-              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded text-xs">{character.basic_info.background}</span>
+            <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
+              {className}
+            </span>
+            <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
+              Nível {level}
+            </span>
+            <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">
+              {raceName}
+            </span>
+            {background && (
+              <span className="px-2 py-1 bg-yellow-500/20 text-yellow-300 rounded text-xs">
+                {background}
+              </span>
             )}
           </p>
         </div>

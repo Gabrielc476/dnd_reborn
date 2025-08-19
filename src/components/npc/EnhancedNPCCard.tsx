@@ -1,5 +1,5 @@
 // ===========================
-// CARDS DE NPC MELHORADOS COM BOTÕES DIRETOS
+// CARDS DE NPC MELHORADOS COM FUNÇÕES INTERNAS
 // ===========================
 
 import React, { useState } from 'react';
@@ -53,16 +53,16 @@ interface NPCCardProps {
     }>;
   };
   isGM: boolean;
-  onEdit: () => void;
-  onView: () => void;
-  onDelete: () => void;
-  onKill: () => void;
-  onRevive: () => void;
-  onAttackRoll: (attackId: string, options?: any) => void;
-  onDamageRoll: (attackId: string, options?: any) => void;
-  onHPChange: (newHP: number, tempHP?: number) => void;
-  onHeal: (amount: number) => void;
-  onDamage: (amount: number) => void;
+  onEdit?: () => void;
+  onView?: () => void;
+  onDelete?: () => void;
+  onKill?: () => void;
+  onRevive?: () => void;
+  onAttackRoll?: (attackId: string, options?: any) => void;
+  onDamageRoll?: (attackId: string, options?: any) => void;
+  onHPChange?: (newHP: number, tempHP?: number) => void;
+  onHeal?: (amount: number) => void;
+  onDamage?: (amount: number) => void;
   isRolling?: boolean;
 }
 
@@ -83,6 +83,9 @@ const NPCCard: React.FC<NPCCardProps> = ({
 }) => {
   const [selectedAttack, setSelectedAttack] = useState<string | null>(null);
   const [tempHP, setTempHP] = useState(0);
+  const [currentHP, setCurrentHP] = useState(
+    npc.stats.current_hit_points ?? npc.stats.hit_points
+  );
 
   const getNPCTypeColor = (type: string) => {
     const colors = {
@@ -106,12 +109,55 @@ const NPCCard: React.FC<NPCCardProps> = ({
     return colors[type as keyof typeof colors] || 'text-gray-300';
   };
 
-  const currentHP = npc.stats.current_hit_points ?? npc.stats.hit_points;
   const maxHP = npc.stats.hit_points;
   const hpPercentage = (currentHP / maxHP) * 100;
 
+  // Funções de manipulação de HP
+  const handleHeal = (amount: number) => {
+    const newHP = Math.min(maxHP, currentHP + amount);
+    setCurrentHP(newHP);
+    onHeal?.(amount);
+    onHPChange?.(newHP, tempHP);
+  };
+
+  const handleDamage = (amount: number) => {
+    const newHP = Math.max(0, currentHP - amount);
+    setCurrentHP(newHP);
+    onDamage?.(amount);
+    onHPChange?.(newHP, tempHP);
+  };
+
+  const handleTempHPChange = (value: number) => {
+    const newTempHP = Math.max(0, value);
+    setTempHP(newTempHP);
+    onHPChange?.(currentHP, newTempHP);
+  };
+
+  // Funções padrão para ações
+  const handleEdit = () => onEdit?.() || console.log(`Editar NPC: ${npc.id}`);
+  const handleView = () => onView?.() || console.log(`Visualizar NPC: ${npc.id}`);
+  const handleDelete = () => onDelete?.() || console.log(`Deletar NPC: ${npc.id}`);
+  const handleKill = () => onKill?.() || console.log(`Matar NPC: ${npc.id}`);
+  const handleRevive = () => onRevive?.() || console.log(`Reviver NPC: ${npc.id}`);
+  
+  const handleAttackRoll = (attackId: string, options?: any) => 
+    onAttackRoll?.(attackId, options) || console.log(`Rolar ataque: ${attackId}`, options);
+  
+  const handleDamageRoll = (attackId: string, options?: any) => 
+    onDamageRoll?.(attackId, options) || console.log(`Rolar dano: ${attackId}`, options);
+
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-4">
+    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 space-y-4 relative">
+      {/* Indicador de Carregamento */}
+      {isRolling && (
+        <div className="absolute inset-0 bg-gray-800 bg-opacity-75 rounded-lg flex items-center justify-center z-10">
+          <div className="flex items-center space-x-2 text-white">
+            <Activity className="w-5 h-5 animate-spin" />
+            <span>Rolando dados...</span>
+          </div>
+        </div>
+      )}
+
       {/* Header com Nome e Status */}
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -137,7 +183,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
         {/* Botões de Ação Diretos */}
         <div className="flex items-center space-x-1">
           <button
-            onClick={onView}
+            onClick={handleView}
             className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 rounded transition-colors"
             title="Visualizar"
           >
@@ -147,7 +193,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
           {isGM && (
             <>
               <button
-                onClick={onEdit}
+                onClick={handleEdit}
                 className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
                 title="Editar"
               >
@@ -155,7 +201,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
               </button>
 
               <button
-                onClick={() => {/* Duplicar */}}
+                onClick={() => console.log(`Duplicar NPC: ${npc.id}`)}
                 className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-yellow-500/10 rounded transition-colors"
                 title="Duplicar"
               >
@@ -164,7 +210,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
 
               {npc.is_alive ? (
                 <button
-                  onClick={onKill}
+                  onClick={handleKill}
                   className="p-2 text-gray-400 hover:text-orange-400 hover:bg-orange-500/10 rounded transition-colors"
                   title="Matar"
                 >
@@ -172,7 +218,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
                 </button>
               ) : (
                 <button
-                  onClick={onRevive}
+                  onClick={handleRevive}
                   className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
                   title="Reviver"
                 >
@@ -181,7 +227,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
               )}
 
               <button
-                onClick={onDelete}
+                onClick={handleDelete}
                 className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                 title="Deletar"
               >
@@ -258,7 +304,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
                   {/* Rolagem de Ataque */}
                   <div className="space-y-1">
                     <button
-                      onClick={() => onAttackRoll(attack.id)}
+                      onClick={() => handleAttackRoll(attack.id)}
                       disabled={isRolling}
                       className="w-full px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white rounded text-xs transition-colors flex items-center justify-center space-x-1"
                     >
@@ -268,7 +314,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
                     
                     <div className="flex space-x-1">
                       <button
-                        onClick={() => onAttackRoll(attack.id, { advantage: true })}
+                        onClick={() => handleAttackRoll(attack.id, { advantage: true })}
                         disabled={isRolling}
                         className="flex-1 px-2 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded text-xs transition-colors"
                         title="Vantagem"
@@ -276,7 +322,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
                         <TrendingUp className="w-3 h-3 mx-auto" />
                       </button>
                       <button
-                        onClick={() => onAttackRoll(attack.id, { disadvantage: true })}
+                        onClick={() => handleAttackRoll(attack.id, { disadvantage: true })}
                         disabled={isRolling}
                         className="flex-1 px-2 py-1 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-600 text-white rounded text-xs transition-colors"
                         title="Desvantagem"
@@ -289,7 +335,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
                   {/* Rolagem de Dano */}
                   <div className="space-y-1">
                     <button
-                      onClick={() => onDamageRoll(attack.id)}
+                      onClick={() => handleDamageRoll(attack.id)}
                       disabled={isRolling}
                       className="w-full px-3 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 text-white rounded text-xs transition-colors flex items-center justify-center space-x-1"
                     >
@@ -298,7 +344,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
                     </button>
                     
                     <button
-                      onClick={() => onDamageRoll(attack.id, { critical: true })}
+                      onClick={() => handleDamageRoll(attack.id, { critical: true })}
                       disabled={isRolling}
                       className="w-full px-2 py-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded text-xs transition-colors flex items-center justify-center space-x-1"
                     >
@@ -320,12 +366,6 @@ const NPCCard: React.FC<NPCCardProps> = ({
             <Heart className="w-4 h-4 text-green-400" />
             <span className="text-sm font-medium text-white">Pontos de Vida</span>
           </div>
-          <button
-            className="text-xs text-gray-400 hover:text-white transition-colors"
-            title="Configurações de HP"
-          >
-            <Settings className="w-3 h-3" />
-          </button>
         </div>
 
         {/* Barra de HP */}
@@ -350,19 +390,19 @@ const NPCCard: React.FC<NPCCardProps> = ({
         <div className="grid grid-cols-6 gap-1">
           {/* Botões de Dano */}
           <button
-            onClick={() => onDamage(10)}
+            onClick={() => handleDamage(10)}
             className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
           >
             -10
           </button>
           <button
-            onClick={() => onDamage(5)}
+            onClick={() => handleDamage(5)}
             className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
           >
             -5
           </button>
           <button
-            onClick={() => onDamage(1)}
+            onClick={() => handleDamage(1)}
             className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
           >
             -1
@@ -370,19 +410,19 @@ const NPCCard: React.FC<NPCCardProps> = ({
 
           {/* Botões de Cura */}
           <button
-            onClick={() => onHeal(1)}
+            onClick={() => handleHeal(1)}
             className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
           >
             +1
           </button>
           <button
-            onClick={() => onHeal(5)}
+            onClick={() => handleHeal(5)}
             className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
           >
             +5
           </button>
           <button
-            onClick={() => onHeal(10)}
+            onClick={() => handleHeal(10)}
             className="px-2 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
           >
             +10
@@ -398,7 +438,7 @@ const NPCCard: React.FC<NPCCardProps> = ({
           
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setTempHP(Math.max(0, tempHP - 1))}
+              onClick={() => handleTempHPChange(tempHP - 1)}
               className="p-1 bg-gray-600 hover:bg-gray-500 rounded text-white"
             >
               <Minus className="w-3 h-3" />
@@ -407,13 +447,13 @@ const NPCCard: React.FC<NPCCardProps> = ({
             <input
               type="number"
               value={tempHP}
-              onChange={(e) => setTempHP(Math.max(0, parseInt(e.target.value) || 0))}
+              onChange={(e) => handleTempHPChange(parseInt(e.target.value) || 0)}
               className="flex-1 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-center text-sm"
               min="0"
             />
             
             <button
-              onClick={() => setTempHP(tempHP + 1)}
+              onClick={() => handleTempHPChange(tempHP + 1)}
               className="p-1 bg-gray-600 hover:bg-gray-500 rounded text-white"
             >
               <Plus className="w-3 h-3" />
@@ -422,13 +462,13 @@ const NPCCard: React.FC<NPCCardProps> = ({
 
           <div className="flex space-x-2">
             <button
-              onClick={() => setTempHP(tempHP + 1)}
+              onClick={() => handleTempHPChange(tempHP + 1)}
               className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors"
             >
               +1
             </button>
             <button
-              onClick={() => setTempHP(tempHP + 5)}
+              onClick={() => handleTempHPChange(tempHP + 5)}
               className="flex-1 px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors"
             >
               +5
@@ -436,16 +476,6 @@ const NPCCard: React.FC<NPCCardProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Indicador de Carregamento */}
-      {isRolling && (
-        <div className="absolute inset-0 bg-gray-800 bg-opacity-75 rounded-lg flex items-center justify-center">
-          <div className="flex items-center space-x-2 text-white">
-            <Activity className="w-5 h-5 animate-spin" />
-            <span>Rolando dados...</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

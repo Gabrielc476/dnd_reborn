@@ -42,6 +42,7 @@ export interface EncounterDetail {
   npcs: string[]; // IDs dos NPCs
   location?: string;
   rewards_xp: number;
+  is_active: boolean; // NOVO CAMPO: indica se o encontro está ativo
   is_completed: boolean;
   session_number?: number;
   notes?: string;
@@ -64,6 +65,7 @@ export interface EncounterSummary {
   name: string;
   description?: string;
   difficulty: DifficultyLevel;
+  is_active: boolean; // NOVO CAMPO: indica se o encontro está ativo
   is_completed: boolean;
   session_number?: number;
   created_date: string; // ISO string
@@ -81,6 +83,7 @@ export interface CreateEncounterRequest {
   npcs?: string[]; // IDs dos NPCs
   location?: string;
   rewards_xp?: number;
+  is_active?: boolean; // NOVO CAMPO (opcional)
   session_number?: number;
   notes?: string;
 }
@@ -94,6 +97,7 @@ export interface UpdateEncounterData {
   difficulty?: DifficultyLevel;
   location?: string;
   rewards_xp?: number;
+  is_active?: boolean; // NOVO CAMPO (opcional)
   is_completed?: boolean;
   session_number?: number;
   notes?: string;
@@ -117,6 +121,7 @@ export interface EncounterOperationResponse {
  */
 export interface EncounterFilters {
   difficulty?: DifficultyLevel;
+  is_active?: boolean; // NOVO FILTRO: por status ativo
   is_completed?: boolean;
   session_number?: number;
   has_rewards?: boolean;
@@ -212,6 +217,11 @@ export function validateCreateEncounterRequest(data: CreateEncounterRequest): st
     errors.push('Localização deve ter no máximo 200 caracteres');
   }
 
+  // Validação para is_active (se fornecido)
+  if (data.is_active !== undefined && typeof data.is_active !== 'boolean') {
+    errors.push('O campo is_active deve ser um booleano');
+  }
+
   return errors;
 }
 
@@ -254,6 +264,11 @@ export function validateUpdateEncounterData(data: UpdateEncounterData): string[]
   // Se location fornecida, não pode ser muito longa
   if (data.location !== undefined && data.location && data.location.length > 200) {
     errors.push('Localização deve ter no máximo 200 caracteres');
+  }
+
+  // Validação para is_active (se fornecido)
+  if (data.is_active !== undefined && typeof data.is_active !== 'boolean') {
+    errors.push('O campo is_active deve ser um booleano');
   }
 
   return errors;
@@ -306,6 +321,17 @@ export function filterEncountersByCompletion<T extends { is_completed: boolean }
 }
 
 /**
+ * Filtra encounters por status ativo
+ */
+export function filterEncountersByActive<T extends { is_active: boolean }>(
+  encounters: T[], 
+  active?: boolean
+): T[] {
+  if (active === undefined) return encounters;
+  return encounters.filter(encounter => encounter.is_active === active);
+}
+
+/**
  * Agrupa encounters por dificuldade
  */
 export function groupEncountersByDifficulty<T extends { difficulty: DifficultyLevel }>(
@@ -330,6 +356,7 @@ export function encounterDetailToSummary(detail: EncounterDetail): EncounterSumm
     name: detail.name,
     description: detail.description,
     difficulty: detail.difficulty,
+    is_active: detail.is_active, // Incluído o novo campo
     is_completed: detail.is_completed,
     session_number: detail.session_number,
     created_date: detail.created_date,

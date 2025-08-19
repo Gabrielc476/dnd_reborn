@@ -2,14 +2,62 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DndRace, DndSubrace, DndClass, DndSubclass, DndBackground, AbilityScores } from '@/types/characterCreation';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  DndRace, 
+  DndSubrace, 
+  DndClass, 
+  DndSubclass, 
+  DndBackground, 
+  AbilityScores 
+} from '@/types/characterCreation';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle, AlertTriangle, Info, Eye, EyeOff, User, Globe, Loader2, CheckCircle2, XCircle, ChevronDown, ChevronUp, Zap, Target, Wand2, Heart, Download, Save } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Character, Attributes, RaceInfo, BasicInfo, Skills, Stats, Combat, Magic, CharacterDetails } from '@/types/character';
+import { 
+  CheckCircle, 
+  AlertTriangle, 
+  Info, 
+  Eye, 
+  EyeOff, 
+  User, 
+  Globe, 
+  Loader2, 
+  CheckCircle2, 
+  XCircle, 
+  ChevronDown, 
+  ChevronUp, 
+  Zap, 
+  Target, 
+  Wand2, 
+  Heart, 
+  Download, 
+  Save 
+} from 'lucide-react';
+import { 
+  Collapsible, 
+  CollapsibleContent, 
+  CollapsibleTrigger 
+} from "@/components/ui/collapsible";
+import { 
+  Character,
+  Attributes,
+  RaceInfo,
+  BasicInfo,
+  Skills,
+  Stats,
+  Combat,
+  Magic,
+  CharacterDetails,
+  DnDClass,
+  Spell,
+  EquipmentItem
+} from '@/types/character';
 
 // INTERFACES
 interface ReviewProps {
@@ -212,12 +260,14 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null): 
     const bonuses: Record<string, number> = {};
     if (data.selectedRace?.ability_bonuses) {
       data.selectedRace.ability_bonuses.forEach(bonus => {
-        bonuses[bonus.ability_score.index] = (bonuses[bonus.ability_score.index] || 0) + bonus.bonus;
+        const ability = bonus.ability_score.index;
+        bonuses[ability] = (bonuses[ability] || 0) + bonus.bonus;
       });
     }
     if (data.selectedSubrace?.ability_bonuses) {
       data.selectedSubrace.ability_bonuses.forEach(bonus => {
-        bonuses[bonus.ability_score.index] = (bonuses[bonus.ability_score.index] || 0) + bonus.bonus;
+        const ability = bonus.ability_score.index;
+        bonuses[ability] = (bonuses[ability] || 0) + bonus.bonus;
       });
     }
     return bonuses;
@@ -260,10 +310,22 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null): 
   const basicInfo: BasicInfo = {
     name: data.name,
     race_info: raceInfo,
-    character_class: data.selectedClass?.index || '',
+    character_class: data.selectedClass || {
+      index: '',
+      name: '',
+      url: '',
+      hit_die: 0,
+      proficiency_choices: [],
+      proficiencies: [],
+      saving_throws: [],
+      starting_equipment: [],
+      starting_equipment_options: [],
+      class_levels: '',
+      subclasses: [],
+    },
     level: 1,
     background: data.selectedBackground?.index || '',
-    alignment: undefined, // Pode ser adicionado em um passo futuro
+    alignment: undefined,
   };
 
   const attributes: Attributes = data.finalAbilityScores || {
@@ -303,7 +365,7 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null): 
   };
 
   const combat: Combat = {
-    attacks: [], // Pode ser preenchido em etapas futuras
+    attacks: [],
   };
 
   const magic: Magic = {
@@ -311,16 +373,16 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null): 
     spellcasting_ability: getSpellcastingAbility(data.selectedClass),
     known_spells: data.selectedSpells.map(spellIndex => ({
       name: spellIndex,
-      level: 0, // Placeholder, ajustar conforme dados reais
+      level: 0,
       school: '',
-      description: undefined,
+      description: '',
       is_attack_spell: false,
       attack_bonus: undefined,
       damage: undefined,
       damage_type: undefined,
       save_dc: undefined,
       save_ability: undefined,
-      range: 'Toque',
+      range: '',
     })),
     spell_slots_1: data.selectedSpells.length > 0 ? getLevel1SpellSlots(data.selectedClass) : 0,
     spell_slots_2: 0,
@@ -341,28 +403,37 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null): 
     bonds: data.bonds.join(', '),
     flaws: data.flaws.join(', '),
     backstory: data.backstory,
-    appearance: undefined, // Pode ser adicionado em um passo futuro
+    appearance: undefined,
   };
 
+  const equipment: EquipmentItem[] = data.selectedEquipment.map(item => ({
+    index: item,
+    name: item,
+    url: '',
+    equipment_category: {
+      index: '',
+      name: '',
+      url: '',
+    },
+    cost: {
+      quantity: 0,
+      unit: 'gp',
+    },
+  }));
+
   return {
-    id: '', // Será gerado pelo backend
+    id: '',
     campaign_id: getCampaignId() || undefined,
     user_id: userId || '',
     basic_info: basicInfo,
-    attributes,
-    skills,
-    stats,
-    combat,
-    magic,
-    details,
-    equipment: data.selectedEquipment.map(item => ({
-      index: item,
-      name: item,
-      url: '',
-      equipment_category: { index: '', name: '', url: '' },
-      cost: { quantity: 0, unit: 'gp' },
-    })),
-    features: [], // Pode ser preenchido com base em classe/subclasse
+    attributes: attributes,
+    skills: skills,
+    stats: stats,
+    combat: combat,
+    magic: magic,
+    details: details,
+    equipment: equipment,
+    features: [],
     languages: raceInfo.languages,
     proficiencies: raceInfo.proficiencies,
     player_name: undefined,
@@ -370,7 +441,20 @@ const generateBackendPayload = (data: ConsolidatedData, userId: string | null): 
     created_at: undefined,
     updated_at: undefined,
     avatar_url: undefined,
-    calculated_stats: undefined, // Calculado pelo backend
+    calculated_stats: undefined,
+    chosen_subclass: data.selectedSubclass ? {
+      index: data.selectedSubclass.index,
+      name: data.selectedSubclass.name,
+      class: {
+        index: data.selectedClass?.index || '',
+        name: data.selectedClass?.name || '',
+        url: data.selectedClass?.url || '',
+      },
+      desc: data.selectedSubclass.desc,
+      subclass_flavor: data.selectedSubclass.subclass_flavor,
+      subclass_levels: data.selectedSubclass.subclass_levels,
+      url: data.selectedSubclass.url,
+    } : undefined,
   };
 };
 

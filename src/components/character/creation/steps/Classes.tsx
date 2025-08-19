@@ -10,7 +10,8 @@ import {
 } from "@/types/character";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { mockSubclasses } from "@/data/mockSubClasses";
+// Importação atualizada:
+import { getAllMockSubclasses } from "@/data/mockSubClasses";
 import { mockBackgrounds } from "@/data/mockBackgrounds";
 
 interface ApiClassesResponse {
@@ -229,9 +230,11 @@ const ClassesCreation = ({ onValidationChange }: ClassesCreationProps) => {
         setIsLoading(prev => ({ ...prev, subclasses: true }));
         
         try {
-            // Usar dados mock em vez da API
-            const subclassesForClass = mockSubclasses.filter(subclass => 
-                subclass.class.index === classIndex
+            // Obter todas as subclasses mockadas
+            const allSubclasses = getAllMockSubclasses();
+            // Filtrar as subclasses pela classe selecionada
+            const subclassesForClass = allSubclasses.filter(subclass => 
+                subclass.class?.index === classIndex
             );
             setAvailableSubclasses(subclassesForClass);
             

@@ -1,5 +1,5 @@
 // ===========================
-// CAMPAIGN API CLIENT - VERSÃO ATUALIZADA COM ENHANCED NPCs
+// CAMPAIGN API CLIENT - VERSÃO COMPLETA
 // src/api/campaignAPI.ts
 // ===========================
 
@@ -36,9 +36,6 @@ import {
   CampaignContentFilters
 } from "@/types/manageCampaign";
 
-// ===========================
-// IMPORTAÇÕES ENHANCED NPCs
-// ===========================
 import {
   EnhancedNPC,
   CreateEnhancedNPCRequest,
@@ -49,6 +46,14 @@ import {
   CastSpellRequest,
   UpdateHitPointsRequest
 } from '@/types/enhancedNPC';
+
+import {
+  EncounterDetail,
+  EncounterSummary,
+  CreateEncounterRequest,
+  UpdateEncounterData,
+  CompleteEncounterRequest as CompleteEncounterReq
+} from '@/types/encounter';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5000";
 
@@ -70,8 +75,6 @@ class CampaignAPI {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-
-    // Obter token do localStorage
     const token = localStorage.getItem("auth_token");
 
     const config: RequestInit = {
@@ -84,11 +87,8 @@ class CampaignAPI {
     };
 
     try {
-      console.log(`🌐 API Request: ${options.method || 'GET'} ${url}`);
       const response = await fetch(url, config);
       const data = await response.json();
-
-      console.log(`📥 API Response:`, data);
 
       if (!response.ok) {
         throw new Error(data.error || `Erro ${response.status}: ${response.statusText}`);
@@ -96,7 +96,7 @@ class CampaignAPI {
 
       return data;
     } catch (error) {
-      console.error(`❌ API Error: ${url}`, error);
+      console.error(`API Error: ${url}`, error);
       throw error;
     }
   }
@@ -105,9 +105,6 @@ class CampaignAPI {
   // CAMPAIGN OPERATIONS
   // ===========================
 
-  /**
-   * Criar nova campanha
-   */
   async createCampaign(data: CreateCampaignRequest): Promise<CreateCampaignResponse> {
     return this.request<CreateCampaignResponse>("/campaign", {
       method: "POST",
@@ -115,30 +112,18 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Buscar campanha por ID
-   */
   async getCampaignById(id: string): Promise<CampaignResponse> {
     return this.request<CampaignResponse>(`/campaign/${id}`);
   }
 
-  /**
-   * Buscar campanhas do GM - CORRIGIDO
-   */
   async getGMCampaigns(): Promise<CampaignListResponse> {
     return this.request<CampaignListResponse>("/campaign/my");
   }
 
-  /**
-   * Buscar campanhas do jogador - CORRIGIDO
-   */
   async getPlayerCampaigns(): Promise<CampaignListResponse> {
     return this.request<CampaignListResponse>("/campaign/joined");
   }
 
-  /**
-   * Buscar campanhas públicas
-   */
   async getPublicCampaigns(filters?: CampaignFilters): Promise<CampaignListResponse> {
     let url = "/campaign/public";
     if (filters) {
@@ -154,9 +139,6 @@ class CampaignAPI {
     return this.request<CampaignListResponse>(url);
   }
 
-  /**
-   * Pesquisar campanhas
-   */
   async searchCampaigns(request: CampaignSearchRequest): Promise<CampaignListResponse> {
     return this.request<CampaignListResponse>("/campaign/search", {
       method: "POST",
@@ -164,9 +146,6 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Atualizar campanha
-   */
   async updateCampaign(id: string, data: UpdateCampaignRequest): Promise<CampaignResponse> {
     return this.request<CampaignResponse>(`/campaign/${id}`, {
       method: "PUT",
@@ -174,18 +153,12 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Deletar campanha
-   */
   async deleteCampaign(id: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}`, {
       method: "DELETE",
     });
   }
 
-  /**
-   * Ingressar na campanha
-   */
   async joinCampaign(id: string, data: JoinCampaignRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}/join`, {
       method: "POST",
@@ -193,18 +166,12 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Sair da campanha
-   */
   async leaveCampaign(id: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}/leave`, {
       method: "POST",
     });
   }
 
-  /**
-   * Obter estatísticas da campanha
-   */
   async getCampaignStats(id: string): Promise<CampaignStatsResponse> {
     return this.request<CampaignStatsResponse>(`/campaign/${id}/stats`);
   }
@@ -213,9 +180,6 @@ class CampaignAPI {
   // PLAYER MANAGEMENT
   // ===========================
 
-  /**
-   * Adicionar jogador à campanha (GM only)
-   */
   async addPlayer(id: string, userId: string, data: { character_id?: string; notes?: string }): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}/players`, {
       method: "POST",
@@ -223,27 +187,20 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Remover jogador da campanha (GM only)
-   */
   async removePlayer(id: string, playerId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}/players/${playerId}`, {
       method: "DELETE",
     });
   }
 
-  //visualizar personagens da campanha
   async getCampaignCharacters(campaignId: string): Promise<{ success: boolean; characters?: any[]; error?: string }> {
-  return this.request(`/characters/campaign/${campaignId}/characters`);
-}
+    return this.request(`/characters/campaign/${campaignId}/characters`);
+  }
 
   // ===========================
-  // NPC MANAGEMENT - LEGACY METHODS
+  // NPC MANAGEMENT
   // ===========================
 
-  /**
-   * Criar NPC (método legado)
-   */
   async createNPC(campaignId: string, data: CreateNPCRequest): Promise<{ success: boolean; npc_id?: string; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs`, {
       method: "POST",
@@ -251,9 +208,6 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Buscar NPCs da campanha (método legado)
-   */
   async getCampaignNPCs(campaignId: string, filters?: CampaignContentFilters): Promise<{ success: boolean; npcs?: NPC[]; error?: string }> {
     const queryParams = new URLSearchParams();
     
@@ -271,16 +225,10 @@ class CampaignAPI {
     return this.request(endpoint);
   }
 
-  /**
-   * Buscar NPC por ID (método legado)
-   */
   async getNPCById(campaignId: string, npcId: string): Promise<{ success: boolean; npc?: NPC; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/${npcId}`);
   }
 
-  /**
-   * Atualizar NPC (método legado)
-   */
   async updateNPC(campaignId: string, npcId: string, data: UpdateNPCRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/${npcId}`, {
       method: "PUT",
@@ -288,27 +236,18 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Deletar NPC (método legado)
-   */
   async deleteNPC(campaignId: string, npcId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/${npcId}`, {
       method: "DELETE",
     });
   }
 
-  /**
-   * Matar NPC
-   */
   async killNPC(campaignId: string, npcId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/${npcId}/kill`, {
       method: "POST",
     });
   }
 
-  /**
-   * Reviver NPC
-   */
   async reviveNPC(campaignId: string, npcId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/${npcId}/revive`, {
       method: "POST",
@@ -316,45 +255,9 @@ class CampaignAPI {
   }
 
   // ===========================
-  // ADAPTER METHODS (para transição suave)
-  // ===========================
-
-  /**
-   * Método unificado para criar NPCs (detecta formato automaticamente)
-   */
-  async createNPCUnified(campaignId: string, data: any): Promise<any> {
-    // Se tem campos Enhanced, usar Enhanced API
-    if (data.spellcasting || data.attacks || data.abilities) {
-      return this.createEnhancedNPC(campaignId, data);
-    } else {
-      // Usar API legada
-      return this.createNPC(campaignId, data);
-    }
-  }
-
-  /**
-   * Método unificado para buscar NPCs
-   */
-  async getNPCsUnified(campaignId: string, useEnhanced: boolean = true): Promise<any> {
-    if (useEnhanced) {
-      try {
-        return await this.getEnhancedNPCs(campaignId);
-      } catch (error) {
-        console.warn('Enhanced API falhou, usando legada:', error);
-        return await this.getCampaignNPCs(campaignId);
-      }
-    } else {
-      return await this.getCampaignNPCs(campaignId);
-    }
-  }
-
-  // ===========================
   // ENHANCED NPC METHODS
   // ===========================
 
-  /**
-   * Criar Enhanced NPC
-   */
   async createEnhancedNPC(campaignId: string, data: CreateEnhancedNPCRequest): Promise<{ success: boolean; npc_id?: string; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced`, {
       method: "POST",
@@ -362,9 +265,6 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Buscar Enhanced NPCs da campanha
-   */
   async getEnhancedNPCs(
     campaignId: string, 
     filters?: NPCSearchFilters, 
@@ -393,16 +293,10 @@ class CampaignAPI {
     return this.request(endpoint);
   }
 
-  /**
-   * Buscar Enhanced NPC por ID
-   */
   async getEnhancedNPCById(campaignId: string, npcId: string): Promise<{ success: boolean; npc?: EnhancedNPC; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`);
   }
 
-  /**
-   * Atualizar Enhanced NPC
-   */
   async updateEnhancedNPC(campaignId: string, npcId: string, data: UpdateEnhancedNPCRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`, {
       method: "PUT",
@@ -410,18 +304,12 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Deletar Enhanced NPC
-   */
   async deleteEnhancedNPC(campaignId: string, npcId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}`, {
       method: "DELETE",
     });
   }
 
-  /**
-   * Executar rolagem de dados para NPC
-   */
   async rollDiceForNPC(campaignId: string, npcId: string, rollRequest: DiceRollRequest): Promise<{ success: boolean; result?: RollResult; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/roll`, {
       method: "POST",
@@ -429,9 +317,6 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Conjurar magia para NPC
-   */
   async castSpellForNPC(campaignId: string, npcId: string, spellRequest: CastSpellRequest): Promise<{ success: boolean; result?: RollResult; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/cast-spell`, {
       method: "POST",
@@ -439,9 +324,6 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Atualizar pontos de vida do NPC
-   */
   async updateNPCHitPoints(campaignId: string, npcId: string, hpRequest: UpdateHitPointsRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${campaignId}/npcs/enhanced/${npcId}/hit-points`, {
       method: "PUT",
@@ -450,42 +332,85 @@ class CampaignAPI {
   }
 
   // ===========================
-  // ENCOUNTER MANAGEMENT
+  // ENCOUNTER MANAGEMENT (FULLY IMPLEMENTED)
   // ===========================
 
   /**
    * Adicionar encontro à campanha
    */
-  async addEncounter(id: string, data: AddEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    return this.request(`/campaign/${id}/encounters`, {
+  async addEncounter(campaignId: string, data: CreateEncounterRequest): Promise<{ success: boolean; encounter_id?: string; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/encounters`, {
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
   /**
+   * Buscar encontros da campanha
+   */
+  async getEncounters(campaignId: string): Promise<{ success: boolean; encounters?: EncounterSummary[]; error?: string }> {
+    return this.request(`/campaign/${campaignId}/encounters`);
+  }
+
+  /**
+   * Buscar detalhes de um encontro
+   */
+  async getEncounterById(campaignId: string, encounterId: string): Promise<{ success: boolean; encounter?: EncounterDetail; error?: string }> {
+    return this.request(`/campaign/${campaignId}/encounters/${encounterId}`);
+  }
+
+  /**
    * Atualizar encontro
    */
-  async updateEncounter(campaignId: string, encounterId: string, data: UpdateEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Encounter endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Encounter endpoints não implementados" });
+  async updateEncounter(
+    campaignId: string, 
+    encounterId: string, 
+    data: UpdateEncounterData
+  ): Promise<{ 
+    success: boolean; 
+    message?: string; 
+    error?: string 
+  }> {
+    return this.request(`/campaign/${campaignId}/encounters/${encounterId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   /**
    * Completar encontro
    */
-  async completeEncounter(campaignId: string, encounterId: string, data: CompleteEncounterRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Encounter endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Encounter endpoints não implementados" });
+  async completeEncounter(
+    campaignId: string, 
+    encounterId: string, 
+    data: CompleteEncounterReq
+  ): Promise<{ 
+    success: boolean; 
+    message?: string; 
+    error?: string 
+  }> {
+    return this.updateEncounter(campaignId, encounterId, {
+      ...data,
+      is_completed: true
+    });
+  }
+
+  /**
+   * Deletar encontro da campanha
+   */
+  async deleteEncounter(
+    campaignId: string, 
+    encounterId: string
+  ): Promise<{ success: boolean; message?: string; error?: string }> {
+    return this.request(`/campaign/${campaignId}/encounters/${encounterId}`, {
+      method: "DELETE",
+    });
   }
 
   // ===========================
   // LOOT MANAGEMENT
   // ===========================
 
-  /**
-   * Adicionar loot à campanha
-   */
   async addLoot(id: string, data: AddLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}/loot`, {
       method: "POST",
@@ -493,9 +418,6 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Atribuir loot a jogador
-   */
   async assignLoot(id: string, lootName: string, playerId: string): Promise<{ success: boolean; message?: string; error?: string }> {
     return this.request(`/campaign/${id}/loot/${lootName}/assign`, {
       method: "POST",
@@ -503,93 +425,81 @@ class CampaignAPI {
     });
   }
 
-  /**
-   * Atualizar item de loot
-   */
   async updateLoot(campaignId: string, lootId: string, data: UpdateLootRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Loot update endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Loot update endpoints não implementados" });
+    return this.request(`/campaign/${campaignId}/loot/${lootId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   // ===========================
-  // SESSION MANAGEMENT - PLACEHOLDERS
+  // SESSION MANAGEMENT (PLACEHOLDERS)
   // ===========================
 
-  /**
-   * PLACEHOLDER - Session endpoints não implementados no backend
-   */
   async createSession(campaignId: string, data: CreateSessionRequest): Promise<{ success: boolean; session_id?: string; message?: string; error?: string }> {
-    console.warn("⚠️ Session endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+    return this.request(`/campaign/${campaignId}/sessions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   async updateSession(campaignId: string, sessionId: string, data: UpdateSessionRequest): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Session endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+    return this.request(`/campaign/${campaignId}/sessions/${sessionId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   async getSessions(campaignId: string): Promise<{ success: boolean; sessions?: GameSession[]; error?: string }> {
-    console.warn("⚠️ Session endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+    return this.request(`/campaign/${campaignId}/sessions`);
   }
 
   async deleteSession(campaignId: string, sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Session endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+    return this.request(`/campaign/${campaignId}/sessions/${sessionId}`, {
+      method: "DELETE",
+    });
   }
 
   async completeSession(campaignId: string, sessionId: string): Promise<{ success: boolean; message?: string; error?: string }> {
-    console.warn("⚠️ Session endpoints não implementados");
-    return Promise.resolve({ success: false, error: "Session endpoints não implementados" });
+    return this.request(`/campaign/${campaignId}/sessions/${sessionId}/complete`, {
+      method: "POST",
+    });
   }
 
   // ===========================
-  // DASHBOARD E ANALYTICS - PLACEHOLDERS
+  // DASHBOARD & ANALYTICS
   // ===========================
 
-  /**
-   * PLACEHOLDER - Dashboard não implementado no backend
-   */
   async getCampaignDashboard(id: string): Promise<{ success: boolean; dashboard?: CampaignDashboard; error?: string }> {
-    console.warn("⚠️ Dashboard endpoint não implementado");
-    return Promise.resolve({ 
-      success: false, 
-      error: "Dashboard endpoint não implementado" 
-    });
+    return this.request(`/campaign/${id}/dashboard`);
   }
 
-  /**
-   * PLACEHOLDER - Activity feed não implementado no backend
-   */
   async getActivityFeed(id: string, page: number = 1, perPage: number = 20): Promise<{ success: boolean; activities?: ActivityFeed[]; total?: number; error?: string }> {
-    console.warn("⚠️ Activity feed endpoint não implementado");
-    return Promise.resolve({ 
-      success: false, 
-      activities: [], 
-      error: "Activity feed endpoint não implementado" 
-    });
+    return this.request(`/campaign/${id}/activity?page=${page}&per_page=${perPage}`);
   }
 
-  /**
-   * PLACEHOLDER - Export não implementado no backend
-   */
   async exportCampaignData(id: string, format: "json" | "csv" = "json"): Promise<Blob> {
-    console.warn("⚠️ Export endpoint não implementado");
-    const data = JSON.stringify({ error: "Export não implementado" });
-    return new Blob([data], { type: 'application/json' });
+    const response = await fetch(`${this.baseURL}/campaign/${id}/export?format=${format}`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("auth_token")}`
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error('Falha ao exportar dados');
+    }
+    
+    return response.blob();
   }
 
   // ===========================
-  // BULK OPERATIONS - PLACEHOLDERS
+  // BULK OPERATIONS
   // ===========================
 
   async bulkOperation(campaignId: string, operation: BulkOperation): Promise<BulkOperationResult> {
-    console.warn("⚠️ Bulk operations não implementadas");
-    return Promise.resolve({
-      success: false,
-      processed: 0,
-      failed: 0,
-      errors: ["Bulk operations não implementadas"]
+    return this.request(`/campaign/${campaignId}/bulk`, {
+      method: "POST",
+      body: JSON.stringify(operation),
     });
   }
 }
@@ -598,17 +508,6 @@ class CampaignAPI {
 // SINGLETON INSTANCE
 // ===========================
 
-/**
- * Instância única da API para uso em toda a aplicação
- */
 export const campaignAPI = new CampaignAPI();
-
-/**
- * Export da classe para casos especiais
- */
 export { CampaignAPI };
-
-/**
- * Export default da instância
- */
 export default campaignAPI;

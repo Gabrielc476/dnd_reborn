@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Character } from "@/api/characterAPI";
+import { Character } from "@/types/character";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { 
   Sparkles, 
@@ -110,6 +110,11 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
     spellSaveDC: 0
   });
 
+  // Extrair dados do personagem de forma segura
+  const characterName = character?.basic_info?.name || "Personagem sem nome";
+  const className = character?.basic_info?.character_class?.name || "Classe desconhecida";
+  const level = character?.basic_info?.level || 1;
+
   useEffect(() => {
     if (character) {
       console.log("Personagem recebido no SpellsPanel:", character);
@@ -120,18 +125,20 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
 
   useEffect(() => {
     const fetchSpells = async () => {
-      if (!character?.basic_info?.character_class) return;
+      // Verificar se temos uma classe válida
+      if (!className) return;
       
-      const className = character.basic_info.character_class.toLowerCase().replace(/\s+/g, '-');
+      // Obter o nome da classe em formato de API
+      const apiClassName = className.toLowerCase().replace(/\s+/g, '-');
       
-      if (!spellcastingClasses.includes(className)) {
-        console.log("Classe não conjuradora:", className);
+      if (!spellcastingClasses.includes(apiClassName)) {
+        console.log("Classe não conjuradora:", apiClassName);
         return;
       }
       
       setLoadingSpells(true);
       try {
-        const response = await fetch(`https://www.dnd5eapi.co/api/classes/${className}/spells`);
+        const response = await fetch(`https://www.dnd5eapi.co/api/classes/${apiClassName}/spells`);
         const data = await response.json();
         
         if (data.results && data.results.length > 0) {
@@ -143,8 +150,8 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
           const spellsData = await Promise.all(spellPromises);
           setSpells(spellsData);
           
-          // Initialize spell slots based on class and level
-          initializeSpellSlots(className, character.basic_info?.level || 1);
+          // Inicializar espaços de magia
+          initializeSpellSlots(apiClassName, level);
         }
       } catch (error) {
         console.error("Erro ao buscar magias:", error);
@@ -157,12 +164,12 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
     };
 
     fetchSpells();
-  }, [character?.basic_info?.character_class, character?.basic_info?.level]);
+  }, [className, level]);
 
   const initializeSpellSlots = (className: string, level: number) => {
     const slots: SpellSlots = {};
     
-    // Simplified spell slot progression - you can expand this with proper D&D rules
+    // Progressão simplificada de espaços de magia
     if (level >= 1) {
       slots[1] = { total: level >= 1 ? 2 : 0, used: 0 };
     }
@@ -185,10 +192,11 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
   const getSpellcastingModifier = (): number => {
     if (!character?.attributes) return 0;
     
-    const className = character.basic_info?.character_class?.toLowerCase();
+    // Obter o nome da classe em minúsculas
+    const classNameLower = className.toLowerCase();
     let primaryAttribute = 'intelligence';
     
-    switch (className) {
+    switch (classNameLower) {
       case 'bard':
       case 'paladin':
       case 'sorcerer':
@@ -218,7 +226,7 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
 
   const getSpellAttackBonus = (): number => {
     const modifier = getSpellcastingModifier();
-    const proficiency = getProficiencyBonus(character?.basic_info?.level || 1);
+    const proficiency = getProficiencyBonus(level);
     return modifier + proficiency;
   };
 
@@ -249,7 +257,6 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
 
     // Simular rolagem de d20 para ataque de magia
     const diceRoll = Math.floor(Math.random() * 20) + 1;
-    const spellcastingModifier = getSpellcastingModifier();
     const spellAttackBonus = getSpellAttackBonus();
     const spellSaveDC = getSpellSaveDC();
     const total = diceRoll + spellAttackBonus;
@@ -267,7 +274,7 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
       isCriticalFailure,
       attributeName: spell.name,
       isProficient: true,
-      proficiencyBonus: getProficiencyBonus(character?.basic_info?.level || 1),
+      proficiencyBonus: getProficiencyBonus(level),
       isSpell: true,
       spellName: spell.name,
       spellLevel: spell.level,
@@ -276,7 +283,7 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
       spellSaveDC
     });
 
-    // Use spell slot if not a cantrip
+    // Usar espaço de magia se não for um truque
     if (spell.level > 0) {
       setSpellSlots(prev => ({
         ...prev,
@@ -335,14 +342,14 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
     );
   }
 
-  const className = character.basic_info?.character_class?.toLowerCase().replace(/\s+/g, '-');
-  if (!spellcastingClasses.includes(className || '')) {
+  const apiClassName = className.toLowerCase().replace(/\s+/g, '-');
+  if (!spellcastingClasses.includes(apiClassName)) {
     return (
       <div className="text-center py-12 bg-gray-800/30 rounded-xl border border-gray-700/50">
         <Wand2 className="w-16 h-16 text-gray-500 mx-auto mb-4" />
         <h3 className="text-xl font-semibold text-white mb-2">Classe Não Conjuradora</h3>
         <p className="text-gray-400">
-          A classe {character.basic_info?.character_class} não possui habilidades de conjuração
+          A classe {className} não possui habilidades de conjuração
         </p>
       </div>
     );
@@ -358,14 +365,14 @@ const SpellsPanel: React.FC<SpellsPanelProps> = ({ character }) => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">
-            Magias de {character.basic_info?.name || "Personagem sem nome"}
+            Magias de {characterName}
           </h2>
           <p className="text-gray-400 flex items-center gap-2">
             <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
-              {character.basic_info?.character_class || "Classe desconhecida"}
+              {className}
             </span>
             <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
-              Nível {character.basic_info?.level || 1}
+              Nível {level}
             </span>
             <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">
               Conjurador

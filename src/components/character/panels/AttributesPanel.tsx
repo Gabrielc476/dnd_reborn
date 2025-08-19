@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Character } from "@/api/characterAPI";
+import { Character } from "@/types/character";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { 
   Heart, 
@@ -55,19 +55,19 @@ const AttributesPanel: React.FC<AttributesPanelProps> = ({ character }) => {
 
   useEffect(() => {
     const fetchSavingThrowProficiencies = async () => {
-      if (!character?.basic_info?.character_class) return;
+      // Verifica se temos a classe do personagem
+      if (!character?.basic_info?.character_class?.index) return;
       
       setLoadingProficiencies(true);
       try {
-        const className = character.basic_info.character_class.toLowerCase().replace(/\s+/g, '-');
-        const response = await fetch(`https://www.dnd5eapi.co/api/classes/${className}`);
+        const classIndex = character.basic_info.character_class.index;
+        const response = await fetch(`https://www.dnd5eapi.co/api/classes/${classIndex}`);
         const data = await response.json();
         
-        const savingThrows = data.proficiencies.filter((p: any) => 
-          p.name.includes("Saving Throw")
-        ).map((p: any) => 
-          p.name.replace("Saving Throw: ", "").toLowerCase()
-        );
+        // Extrai os testes de resistência que a classe é proficiente
+        const savingThrows = data.proficiencies
+          .filter((p: any) => p.type === 'Saving Throws')
+          .map((p: any) => p.name.split(': ')[1].toLowerCase());
         
         setSavingThrowProficiencies(savingThrows);
       } catch (error) {
@@ -81,7 +81,7 @@ const AttributesPanel: React.FC<AttributesPanelProps> = ({ character }) => {
     };
 
     fetchSavingThrowProficiencies();
-  }, [character?.basic_info?.character_class]);
+  }, [character?.basic_info?.character_class?.index]);
 
   const attributeNames: Record<keyof Character['attributes'], string> = {
     strength: "Força",
@@ -145,28 +145,40 @@ const AttributesPanel: React.FC<AttributesPanelProps> = ({ character }) => {
     });
   };
 
+  // Extrai os dados do personagem de forma segura
+  const characterName = character?.basic_info?.name || "Personagem sem nome";
+  const className = character?.basic_info?.character_class?.name || "Classe desconhecida";
+  const raceName = character?.basic_info?.race_info?.race_name || "Raça desconhecida";
+  const level = character?.basic_info?.level || 1;
+  const background = character?.basic_info?.background || "N/A";
+  const alignment = character?.basic_info?.alignment || "N/A";
+  const experiencePoints = character?.stats?.experience_points || 0;
+  const playerName = character?.player_name || "N/A";
+  const hitPoints = character?.stats?.hit_points || 0;
+  const armorClass = character?.stats?.armor_class || 0;
+
   const quickStats = [
     {
       label: "Pontos de Vida",
-      value: character?.stats?.hit_points || 0,
+      value: hitPoints,
       icon: Heart,
       color: "text-red-400"
     },
     {
       label: "Classe de Armadura",
-      value: character?.stats?.armor_class || 0,
+      value: armorClass,
       icon: Shield,
       color: "text-blue-400"
     },
     {
       label: "Nível",
-      value: character?.basic_info?.level || 1,
+      value: level,
       icon: Sparkles,
       color: "text-purple-400"
     },
     {
       label: "Bônus de Proficiência",
-      value: `+${getProficiencyBonus(character?.basic_info?.level || 1)}`,
+      value: `+${getProficiencyBonus(level)}`,
       icon: ShieldCheck,
       color: "text-green-400"
     }
@@ -215,17 +227,17 @@ const AttributesPanel: React.FC<AttributesPanelProps> = ({ character }) => {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white mb-2">
-            Atributos de {character.basic_info?.name || "Personagem sem nome"}
+            Atributos de {characterName}
           </h2>
           <p className="text-gray-400 flex items-center gap-2">
             <span className="px-2 py-1 bg-purple-500/20 text-purple-300 rounded text-xs">
-              {character.basic_info?.character_class || "Classe desconhecida"}
+              {className}
             </span>
             <span className="px-2 py-1 bg-blue-500/20 text-blue-300 rounded text-xs">
-              Nível {character.basic_info?.level || 1}
+              Nível {level}
             </span>
             <span className="px-2 py-1 bg-green-500/20 text-green-300 rounded text-xs">
-              {character.basic_info?.race_info?.race_name || "Raça desconhecida"}
+              {raceName}
             </span>
           </p>
         </div>
@@ -329,22 +341,22 @@ const AttributesPanel: React.FC<AttributesPanelProps> = ({ character }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-gray-800/30 rounded-lg p-4">
             <h4 className="text-sm font-medium text-gray-400 mb-2">Jogador</h4>
-            <p className="text-white">{character.player_name || "N/A"}</p>
+            <p className="text-white">{playerName}</p>
           </div>
           
           <div className="bg-gray-800/30 rounded-lg p-4">
             <h4 className="text-sm font-medium text-gray-400 mb-2">Antecedente</h4>
-            <p className="text-white">{character.basic_info?.background || "N/A"}</p>
+            <p className="text-white">{background}</p>
           </div>
           
           <div className="bg-gray-800/30 rounded-lg p-4">
             <h4 className="text-sm font-medium text-gray-400 mb-2">Alinhamento</h4>
-            <p className="text-white">{character.basic_info?.alignment || "N/A"}</p>
+            <p className="text-white">{alignment}</p>
           </div>
           
           <div className="bg-gray-800/30 rounded-lg p-4">
             <h4 className="text-sm font-medium text-gray-400 mb-2">Experiência</h4>
-            <p className="text-white">{character.stats?.experience_points || 0} XP</p>
+            <p className="text-white">{experiencePoints} XP</p>
           </div>
         </div>
       </div>
@@ -366,7 +378,7 @@ const AttributesPanel: React.FC<AttributesPanelProps> = ({ character }) => {
                   key={index} 
                   className="px-3 py-1 bg-green-500/20 text-green-300 rounded-full text-sm flex items-center"
                 >
-                  {attributeNames[attributeKey] || proficiency}
+                  {attributeKey ? attributeNames[attributeKey] : proficiency}
                 </div>
               );
             })}

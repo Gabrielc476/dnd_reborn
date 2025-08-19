@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useManageCampaignContext } from '@/hooks/useManageCampaign';
 import { useAuthContext } from '@/hooks/useAuth';
@@ -16,7 +16,7 @@ import CharactersList from '@/components/campaign-manage/gm/CharactersList';
 import EncountersList from '@/components/campaign-manage/gm/EncountersList';
 import AttributesPanel from '@/components/character/panels/AttributesPanel';
 import SkillsPanel from '@/components/character/panels/SkillsPanel';
-import SpellsPanel from '@/components/character/panels/SpellsPanel'; // Importando o SpellsPanel
+import SpellsPanel from '@/components/character/panels/SpellsPanel';
 import CharacterPanel from '@/components/character/panels/CharacterPanel';
 import AbilitesPanel from '@/components/character/panels/AbilitiesPanel';
 import { 
@@ -35,6 +35,10 @@ import {
 import { Character } from '@/types/character';
 import { characterAPI } from '@/api/characterAPI';
 import InventoryPanel from '@/components/character/panels/InventoryPanel';
+import AttacksPanel from '@/components/character/panels/AttacksPanel';
+import ActiveEncounterPanel from '@/components/encounter/panel/EncounterPanel';
+import { EncounterDetail, EncounterSummary } from '@/types/encounter';
+import { campaignAPI } from '@/api/campaignAPI';
 
 export type CampaignSection = 
   | 'overview' 
@@ -81,31 +85,114 @@ const CampaignManagerPage = () => {
   const { user } = useAuthContext();
   const [currentSection, setCurrentSection] = useState<CampaignSection | PlayerSection>('overview');
   const [playerCharacter, setPlayerCharacter] = useState<Character | null>(null);
+  const [campaignEncounters, setCampaignEncounters] = useState<EncounterDetail[]>([]);
+  const [loadingEncounters, setLoadingEncounters] = useState(true);
+  const [encountersError, setEncountersError] = useState<string | null>(null);
+  
+  // Carregar encontros completos da campanha
+  const loadEncounters = async (campaignId: string) => {
+    console.log(`[loadEncounters] Iniciando carregamento de encontros para campanha: ${campaignId}`);
+    setLoadingEncounters(true);
+    try {
+      const response = await campaignAPI.getEncounters(campaignId);
+      console.log("[loadEncounters] Resposta da API:", response);
+      
+      if (response.success && response.encounters) {
+        console.log(`[loadEncounters] ${response.encounters.length} encontros carregados`);
+        setCampaignEncounters(response.encounters);
+      } else {
+        const errorMsg = response.error || 'Erro ao carregar encontros';
+        console.error(`[loadEncounters] ${errorMsg}`);
+        setEncountersError(errorMsg);
+      }
+    } catch (error) {
+      const errorMsg = 'Erro na requisição de encontros';
+      console.error(`[loadEncounters] ${errorMsg}:`, error);
+      setEncountersError(errorMsg);
+    } finally {
+      setLoadingEncounters(false);
+    }
+  };
+
+  // Log completo da campanha
+  useEffect(() => {
+    console.log("==================== CAMPAIGN DATA ====================");
+    console.log("Campaign object:", campaign);
+    
+    if (campaign) {
+      console.log("Campaign ID:", campaign.id);
+      console.log("Campaign name:", campaign.name);
+      console.log("Game Master ID:", campaign.game_master_id);
+      console.log("Is GM:", isGM);
+      console.log("Players count:", campaign.players?.length || 0);
+      
+      // Carregar encontros completos
+      if (campaign.id) {
+        loadEncounters(campaign.id);
+      }
+    }
+  }, [campaign, isGM]);
+
+  // Verificar se há um encontro ativo
+  const activeEncounter = useMemo(() => {
+    console.log("[activeEncounter] Verificando encontros ativos...");
+    console.log("Total de encontros:", campaignEncounters.length);
+    
+    const active = campaignEncounters.find(e => e.is_active);
+    
+    if (active) {
+      console.log("Encontro ativo encontrado:", {
+        id: active.id,
+        name: active.name,
+        is_active: active.is_active,
+        is_completed: active.is_completed
+      });
+    } else {
+      console.log("Nenhum encontro ativo encontrado");
+    }
+    
+    return active || null;
+  }, [campaignEncounters]);
 
   // Carregar o personagem do jogador
   useEffect(() => {
+    console.log("==================== PLAYER CHARACTER LOADING ====================");
+    console.log("isGM:", isGM);
+    console.log("User ID:", user?.id);
+    console.log("Campaign ID:", campaign?.id);
+    
     const fetchPlayerCharacter = async () => {
       if (!isGM && user?.id && campaign?.id) {
+        console.log("Fetching player character...");
+        
         try {
           const response = await characterAPI.getCampaignCharacters(campaign.id);
+          console.log("Character API response:", response);
           
           if (response.success && response.characters) {
+            console.log("Characters found:", response.characters.length);
+            
             const userCharacter = response.characters.find(
               char => char.user_id === user.id
             );
             
             if (userCharacter) {
+              console.log("Player character found:", userCharacter.name);
               setPlayerCharacter(userCharacter);
             } else {
+              console.log("No character found for current user");
               setPlayerCharacter(null);
             }
           } else {
+            console.log("Failed to fetch characters:", response.error);
             setPlayerCharacter(null);
           }
         } catch (error) {
+          console.error("Error fetching player character:", error);
           setPlayerCharacter(null);
         }
       } else {
+        console.log("Skipping player character fetch (GM or missing data)");
         setPlayerCharacter(null);
       }
     };
@@ -139,9 +226,80 @@ const CampaignManagerPage = () => {
       id: 'encounters',
       label: 'Encontros',
       icon: Sword,
-      component: () => campaign ? 
-        <EncountersList campaignId={campaign.id} /> : 
-        <div className="text-white">Carregando...</div>,
+      // Renderiza ActiveEncounterPanel se houver encontro ativo
+      component: () => {
+        console.log("Rendering encounters section...");
+        console.log("Campaign exists:", !!campaign);
+        console.log("Loading encounters:", loadingEncounters);
+        console.log("Encounters error:", encountersError);
+        console.log("Active encounter:", activeEncounter);
+        
+        if (!campaign) {
+          return <div className="text-white">Carregando campanha...</div>;
+        }
+        
+        if (loadingEncounters) {
+          return (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-gray-800 rounded-lg border border-gray-700 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="h-6 w-48 bg-gray-700 rounded animate-pulse" />
+                    <div className="h-6 w-24 bg-gray-700 rounded animate-pulse" />
+                  </div>
+                  <div className="h-4 w-full mb-2 bg-gray-700 rounded animate-pulse" />
+                  <div className="h-4 w-4/5 bg-gray-700 rounded animate-pulse" />
+                  <div className="flex justify-between mt-4">
+                    <div className="h-4 w-20 bg-gray-700 rounded animate-pulse" />
+                    <div className="h-4 w-20 bg-gray-700 rounded animate-pulse" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        }
+        
+        if (encountersError) {
+          return (
+            <div className="bg-red-900/30 text-red-400 p-4 rounded-lg border border-red-800">
+              <p>{encountersError}</p>
+              <Button 
+                variant="outline" 
+                onClick={() => loadEncounters(campaign.id)} 
+                className="mt-2 border-red-700 text-red-400 hover:bg-red-800/20"
+              >
+                Tentar novamente
+              </Button>
+            </div>
+          );
+        }
+        
+        if (activeEncounter) {
+          console.log("Rendering ActiveEncounterPanel");
+          return (
+            <ActiveEncounterPanel 
+              encounter={activeEncounter} 
+              campaignId={campaign.id} 
+              onEncounterUpdated={() => {
+                console.log("Encounter updated - reloading data");
+                loadEncounters(campaign.id);
+              }}
+            />
+          );
+        } else {
+          console.log("Rendering EncountersList");
+          return (
+            <EncountersList 
+              campaignId={campaign.id} 
+              encounters={campaignEncounters}
+              onEncounterUpdated={() => {
+                console.log("Encounter updated - reloading data");
+                loadEncounters(campaign.id);
+              }}
+            />
+          );
+        }
+      },
       gmOnly: true
     },
     {
@@ -182,7 +340,7 @@ const CampaignManagerPage = () => {
       id: 'character',
       label: 'Meu Personagem',
       icon: User,
-       component: ({ character }) => <CharacterPanel character={character} campaignId={campaign?.id || ""}  />,
+      component: ({ character }) => <CharacterPanel character={character} campaignId={campaign?.id || ""}  />,
       playerOnly: true
     },
     {
@@ -196,7 +354,7 @@ const CampaignManagerPage = () => {
       id: 'spells',
       label: 'Magias',
       icon: Sparkles,
-      component: ({ character }) => <SpellsPanel character={character} />, // Usando o SpellsPanel
+      component: ({ character }) => <SpellsPanel character={character} />,
       playerOnly: true
     },
     {
@@ -224,7 +382,7 @@ const CampaignManagerPage = () => {
       id: 'attacks',
       label: 'Ataques',
       icon: Sword,
-      component: ({ character }) => <div className="text-white">Ataques de {character?.name || "Personagem"}</div>,
+      component: ({ character }) => <AttacksPanel character={character}/>,
       playerOnly: true
     }
   ];
@@ -240,6 +398,7 @@ const CampaignManagerPage = () => {
   const currentSectionConfig = availableSections.find(s => s.id === currentSection);
 
   if (isLoading) {
+    console.log("Campaign loading...");
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
         <div className="text-center">
@@ -252,6 +411,7 @@ const CampaignManagerPage = () => {
   }
 
   if (!campaign) {
+    console.log("Campaign not found");
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-8">
@@ -272,6 +432,9 @@ const CampaignManagerPage = () => {
       </div>
     );
   }
+
+  console.log("Rendering campaign page with section:", currentSection);
+  console.log("Available sections:", availableSections.map(s => s.id));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
@@ -306,7 +469,10 @@ const CampaignManagerPage = () => {
                 {availableSections.map((section) => (
                   <button
                     key={section.id}
-                    onClick={() => setCurrentSection(section.id)}
+                    onClick={() => {
+                      console.log("Navigating to section:", section.id);
+                      setCurrentSection(section.id);
+                    }}
                     className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
                       currentSection === section.id
                         ? 'bg-blue-600 text-white'
@@ -323,7 +489,14 @@ const CampaignManagerPage = () => {
 
           <div className="flex-1 overflow-y-auto p-6">
             {currentSectionConfig && (
-              <currentSectionConfig.component character={isGM ? null : playerCharacter} />
+              <>
+                <div className="hidden">
+                  {/* Debug info */}
+                  Current section: {currentSectionConfig.id} | 
+                  Component: {currentSectionConfig.component.name}
+                </div>
+                <currentSectionConfig.component character={isGM ? null : playerCharacter} />
+              </>
             )}
           </div>
         </div>
