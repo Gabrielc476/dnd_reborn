@@ -279,7 +279,8 @@ const CampaignManagerPage = () => {
           return (
             <ActiveEncounterPanel 
               encounter={activeEncounter} 
-              campaignId={campaign.id} 
+              campaignId={campaign.id}
+              isGM={isGM} 
               onEncounterUpdated={() => {
                 console.log("Encounter updated - reloading data");
                 loadEncounters(campaign.id);
